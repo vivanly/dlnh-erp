@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PpcbController; // <-- Thêm dòng này để import PpcbController
 use App\Models\Department; 
 use App\Models\User;         
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,9 @@ Route::middleware('auth')->group(function () {
 
     // Quản lý Nhân viên
     Route::resource('users', UserController::class);
+
+    // Quản lý PPCB (Thêm mới)
+    Route::resource('ppcb', PpcbController::class);
 
     // 👇 ĐẶT ROUTE IMPORT LÊN TRƯỚC RESOURCE PRODUCTS
     Route::get('/products/import', [ProductController::class, 'importForm'])->name('products.import.form');

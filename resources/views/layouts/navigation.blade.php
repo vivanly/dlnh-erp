@@ -41,13 +41,19 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                         {{ __('Sản phẩm') }}
                     </x-nav-link>
+
+                    <!-- Phương pháp chế biến (PPCB) -->
+                    <x-nav-link :href="route('ppcb.index')" :active="request()->routeIs('ppcb*')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out {{ request()->routeIs('ppcb*') ? 'bg-blue-50/80 text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
+                        {{ __('Phương pháp chế biến') }}
+                    </x-nav-link>
                 </div>
             </div>
 
             <!-- Settings Dropdown & Quick Actions -->
             <div class="hidden sm:flex sm:items-center sm:ms-6 space-x-3">
                 
-                <!-- Nút thông báo nhanh (Ví dụ tính năng phụ trợ) -->
+                <!-- Nút thông báo nhanh -->
                 <button class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition relative">
                     <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
@@ -59,7 +65,6 @@
                 <details class="relative">
                     <summary class="list-none cursor-pointer inline-flex items-center px-3 py-1.5 border border-slate-200/80 text-sm leading-5 font-medium rounded-xl text-slate-700 bg-slate-50/50 hover:bg-slate-100 hover:text-slate-900 focus:outline-none transition shadow-2xs">
                         <div class="flex items-center space-x-2.5">
-                            <!-- Avatar chữ cái đầu tiên của tên -->
                             <div class="w-7 h-7 rounded-lg bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
                                 {{ mb_substr(Auth::user()->name, 0, 1) }}
                             </div>
