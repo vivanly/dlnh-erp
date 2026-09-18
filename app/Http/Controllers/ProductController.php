@@ -5,17 +5,31 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use App\Imports\ProductsImport; // Thêm dòng này
-use Maatwebsite\Excel\Facades\Excel; // Thêm dòng này
+use App\Imports\ProductsImport; 
+use Maatwebsite\Excel\Facades\Excel; 
 
 class ProductController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::latest()->paginate(10);
+        $query = Product::query();
+
+        // Xử lý tìm kiếm theo tên, SKU hoặc GTIN
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('gtin', 'like', "%{$search}%");
+            });
+        }
+
+        // Lấy danh sách kèm phân trang và giữ lại từ khóa tìm kiếm khi chuyển trang
+        $products = $query->latest()->paginate(10)->withQueryString();
+
         return view('products.index', compact('products'));
     }
 
