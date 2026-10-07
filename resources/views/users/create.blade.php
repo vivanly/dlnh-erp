@@ -12,37 +12,38 @@
                 <form action="{{ route('users.store') }}" method="POST">
                     @csrf
 
-                    <!-- Hàng 1: Họ tên & Email -->
+                    <!-- Hàng 1: Mã nhân viên & Họ và tên -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Họ và tên:</label>
-                            <input type="text" name="name" value="{{ old('name') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                            @error('name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Email đăng nhập:</label>
-                            <input type="email" name="email" value="{{ old('email') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                            @error('email') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    <!-- Hàng 2: Mật khẩu & Mã nhân viên -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Mật khẩu:</label>
-                            <input type="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
-                            @error('password') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
                         <div class="mb-4">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Mã nhân viên (VD: NV001):</label>
                             <input type="text" name="employee_code" value="{{ old('employee_code') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                             @error('employee_code') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
+
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Họ và tên:</label>
+                            <input type="text" name="name" value="{{ old('name') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            @error('name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
                     </div>
 
-                    <!-- Hàng 3: Phòng ban & Chức vụ -->
+                    <!-- Hàng 2: Số điện thoại & (Trống hoặc tùy chỉnh) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Số điện thoại:</label>
+                            <input type="text" name="phone" value="{{ old('phone') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            @error('phone') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <!-- Địa chỉ liên hệ -->
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Địa chỉ liên hệ:</label>
+                        <textarea name="address" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" rows="2">{{ old('address') }}</textarea>
+                        @error('address') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                    </div>
+
+                    <!-- Hàng 3: Phòng ban công tác & Chức vụ -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="mb-4">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Phòng ban công tác:</label>
@@ -59,26 +60,37 @@
                             <label class="block text-gray-700 text-sm font-bold mb-2">Chức vụ:</label>
                             <select name="position" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                                 <option value="">-- Chọn chức vụ --</option>
-                                <option value="Nhân viên sản xuất" {{ old('position') == 'Nhân viên sản xuất' ? 'selected' : '' }}>Nhân viên sản xuất</option>
-                                <option value="Nhân viên văn phòng" {{ old('position') == 'Nhân viên văn phòng' ? 'selected' : '' }}>Nhân viên văn phòng</option>
-                                <option value="Phó phòng" {{ old('position') == 'Phó phòng' ? 'selected' : '' }}>Phó phòng</option>
-                                <option value="Trưởng phòng" {{ old('position') == 'Trưởng phòng' ? 'selected' : '' }}>Trưởng phòng</option>
-                                <option value="Phó giám đốc" {{ old('position') == 'Phó giám đốc' ? 'selected' : '' }}>Phó giám đốc</option>
-                                <option value="Giám đốc" {{ old('position') == 'Giám đốc' ? 'selected' : '' }}>Giám đốc</option>
-                                <option value="Tổng giám đốc" {{ old('position') == 'Tổng giám đốc' ? 'selected' : '' }}>Tổng giám đốc</option>
+                                <option value="Tổng Giám Đốc" {{ old('position') == 'Tổng Giám Đốc' ? 'selected' : '' }}>Tổng Giám Đốc</option>
+                                <option value="Giám Đốc" {{ old('position') == 'Giám Đốc' ? 'selected' : '' }}>Giám Đốc</option>
+                                <option value="Trưởng Phòng" {{ old('position') == 'Trưởng Phòng' ? 'selected' : '' }}>Trưởng Phòng</option>
+                                <option value="Quản Lý Sản Xuất" {{ old('position') == 'Quản Lý Sản Xuất' ? 'selected' : '' }}>Quản Lý Sản Xuất</option>
+                                <option value="Nhân Viên Văn Phòng" {{ old('position') == 'Nhân Viên Văn Phòng' ? 'selected' : '' }}>Nhân Viên Văn Phòng</option>
+                                <option value="Nhân Viên Kho" {{ old('position') == 'Nhân Viên Kho' ? 'selected' : '' }}>Nhân Viên Kho</option>
+                                <option value="Lái Xe" {{ old('position') == 'Lái Xe' ? 'selected' : '' }}>Lái Xe</option>
+                                <option value="Nhân Viên Sản Xuất" {{ old('position') == 'Nhân Viên Sản Xuất' ? 'selected' : '' }}>Nhân Viên Sản Xuất</option>
+                                <option value="Tạp Vụ" {{ old('position') == 'Tạp Vụ' ? 'selected' : '' }}>Tạp Vụ</option>
                             </select>
                             @error('position') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
                     </div>
 
-                    <!-- Hàng 4: Số điện thoại & Trạng thái làm việc -->
+                    <!-- Hàng 4: Email đăng nhập & Mật khẩu -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Số điện thoại:</label>
-                            <input type="text" name="phone" value="{{ old('phone') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                            @error('phone') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Email đăng nhập:</label>
+                            <input type="email" name="email" value="{{ old('email') }}" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            @error('email') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Mật khẩu:</label>
+                            <input type="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            @error('password') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <!-- Hàng 5: Trạng thái làm việc -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="mb-4">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Trạng thái làm việc:</label>
                             <select name="status" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
@@ -87,13 +99,6 @@
                             </select>
                             @error('status') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
-                    </div>
-
-                    <!-- Địa chỉ liên hệ -->
-                    <div class="mb-4">
-                        <label class="block text-gray-700 text-sm font-bold mb-2">Địa chỉ liên hệ:</label>
-                        <textarea name="address" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" rows="2">{{ old('address') }}</textarea>
-                        @error('address') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                     </div>
 
                     <!-- Nút thao tác -->

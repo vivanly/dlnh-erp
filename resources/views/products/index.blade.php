@@ -1,141 +1,152 @@
 <x-app-layout>
     <x-slot name="header">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+        <div class="flex items-center justify-between">
+            <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">
                 {{ __('Quản lý Danh mục Dược liệu / Hàng hóa') }}
             </h2>
             <div class="flex items-center gap-2">
-                <a href="{{ route('products.import.form') }}" class="inline-flex items-center gap-1.5 bg-emerald-600 text-white px-3.5 py-2 rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    Import Excel
-                </a>
-                <a href="{{ route('products.create') }}" class="inline-flex items-center gap-1.5 bg-blue-600 text-white px-3.5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium shadow-sm transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                    Thêm sản phẩm mới
-                </a>
+                <!-- CHỈ QA HOẶC IT/ADMIN MỚI THẤY NÚT IMPORT, EXPORT VÀ THÊM -->
+                @if(auth()->user()->isQADepartment() || auth()->user()->isITDepartment())
+                    <a href="{{ route('products.import.form') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 border border-emerald-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-emerald-700 transition shadow-none">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Import Excel
+                    </a>
+                    <a href="{{ route('products.export', request()->query()) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 border border-slate-800 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-slate-800 transition shadow-none">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Export Excel
+                    </a>
+                    <a href="{{ route('products.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                        Thêm sản phẩm mới
+                    </a>
+                @endif
             </div>
         </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="max-w-full mx-auto sm:px-6 lg:px-8">
-            <!-- Thông báo thành công -->
-            @if (session('success'))
-                <div class="mb-6 flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3.5 rounded-xl shadow-sm" role="alert">
-                    <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span class="text-sm font-medium">{{ session('success') }}</span>
+    <div class="py-2">
+        <div class="max-w-none px-2 space-y-2">
+            
+            @if(session('success'))
+                <div class="p-3 bg-emerald-50 border-l-4 border-emerald-600 text-emerald-900 text-xs rounded-none flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                    {{ session('success') }}
                 </div>
             @endif
 
-            <!-- Khung chứa Bảng & Thanh tìm kiếm chuẩn ERP -->
-            <div class="bg-white shadow-sm border border-gray-200 rounded-xl overflow-hidden">
+            @if(session('error'))
+                <div class="p-3 bg-rose-50 border-l-4 border-rose-600 text-rose-900 text-xs rounded-none flex items-center gap-2">
+                    <svg class="w-4 h-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    {{ session('error') }}
+                </div>
+            @endif
+
+            @if(session('warning'))
+                <div class="p-3 bg-amber-50 border-l-4 border-amber-600 text-amber-900 text-xs rounded-none">
+                    {{ session('warning') }}
+                </div>
+            @endif
+
+            <!-- KHUNG CHỨA BẢNG -->
+            <div class="bg-white border border-slate-300 rounded-none shadow-none">
                 
-                <!-- Thanh công cụ tìm kiếm và thông tin phân trang -->
-                <div class="p-4 border-b border-gray-200 bg-gray-50/75 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <!-- Form tìm kiếm (Gắn vào route hiện tại của bạn, ví dụ: route('products.index')) -->
-                    <form action="{{ route('products.index') }}" method="GET" class="flex items-center gap-2 w-full sm:w-80">
-                        <div class="relative w-full">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                            </span>
-                            <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm kiếm tên, SKU, GTIN..." class="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        </div>
-                        <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-700 transition-colors shrink-0">
+                <!-- FORM TÌM KIẾM & LỌC ĐÃ TỐI ƯU -->
+                <form method="GET" action="{{ route('products.index') }}" class="p-3 border-b border-slate-300 bg-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+                    <div class="w-full sm:w-96">
+                        <input type="search" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên sản phẩm..." aria-label="Tìm theo tên sản phẩm" class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none py-1.5">
+                    </div>
+                    <select name="classification" aria-label="Lọc theo phân loại" class="w-full sm:w-56 text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0" onchange="this.form.submit()">
+                        <option value="">Tất cả phân loại</option>
+                        @foreach($classifications as $classification)
+                            <option value="{{ $classification }}" @selected(request('classification') === $classification)>{{ $classification }}</option>
+                        @endforeach
+                    </select>
+                    
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+                        <button type="submit" class="px-3 py-1.5 bg-slate-800 text-white text-xs uppercase font-bold rounded-none hover:bg-slate-700 transition">
                             Tìm kiếm
                         </button>
-                        @if(request('search'))
-                            <a href="{{ route('products.index') }}" class="text-gray-500 hover:text-gray-700 text-sm whitespace-nowrap underline">Xóa lọc</a>
+
+                        @if(request()->hasAny(['search', 'classification']))
+                            <a href="{{ route('products.index') }}" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs uppercase font-bold rounded-none hover:bg-slate-300 transition" title="Xóa từ khóa tìm kiếm">
+                                Xóa lọc
+                            </a>
                         @endif
-                    </form>
-
-                    <div class="text-xs text-gray-500">
-                        Hiển thị từ <span class="font-semibold text-gray-700">{{ $products->firstItem() ?? 0 }}</span> đến <span class="font-semibold text-gray-700">{{ $products->lastItem() ?? 0 }}</span> trong tổng số <span class="font-semibold text-gray-700">{{ $products->total() }}</span> bản ghi
                     </div>
-                </div>
+                </form>
 
-                <!-- Bảng dữ liệu 12 cột đầy đủ -->
+                <!-- BẢNG DỮ LIỆU SẢN PHẨM -->
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 text-sm text-left border-collapse">
-                        <thead class="bg-gray-100 text-gray-700 uppercase tracking-wider text-xs font-bold">
-                            <tr>
-                                <th class="px-3.5 py-3 w-12 text-center border-b border-gray-200">STT</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Tên hàng hóa</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Mã hàng (SKU)</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Mã GTIN</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Bộ phận dùng</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Nguồn gốc</th>
-                                <th class="px-3.5 py-3 text-center border-b border-gray-200">Đơn vị tính</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Phân loại</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Tên khoa học</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Tài liệu tham khảo</th>
-                                <th class="px-3.5 py-3 border-b border-gray-200">Ghi chú</th>
-                                <th class="px-3.5 py-3 text-center w-28 border-b border-gray-200">Hành động</th>
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-200/80 border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                                <th class="py-2.5 px-3 border-r border-slate-300 w-12 text-center">STT</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300">Phân loại</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300 w-28">Mã hàng</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300">Tên hàng</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300 text-center w-20">ĐVT</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300 w-24">Nguồn gốc</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300">Bộ phận dùng</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300">PPCB</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300">Tên khoa học</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300">Ghi chú</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300 w-28">Mã GTIN</th>
+                                
+                                <!-- CHỈ QA HOẶC IT/ADMIN MỚI THẤY CỘT HÀNH ĐỘNG -->
+                                @if(auth()->user()->isQADepartment() || auth()->user()->isITDepartment())
+                                    <th class="py-2.5 px-3 text-center w-24">Hành động</th>
+                                @endif
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-200 bg-white text-xs">
+                        <tbody class="divide-y divide-slate-200 text-xs text-slate-800 font-normal">
                             @forelse ($products as $index => $product)
-                                <tr class="hover:bg-blue-50/40 transition-colors">
-                                    <td class="px-3.5 py-3 text-center text-gray-500 font-medium">
+                                <tr id="product-{{ $product->id }}" class="hover:bg-blue-50/40 transition">
+                                    <td class="py-2 px-3 border-r border-slate-200 text-center font-mono text-slate-600">
                                         {{ $products->firstItem() + $index }}
                                     </td>
-                                    <td class="px-3.5 py-3 font-semibold text-gray-900 text-sm whitespace-nowrap">
-                                        {{ $product->name }}
+                                    <td class="py-2 px-3 border-r border-slate-200 text-slate-700">{{ $product->classification ?? '---' }}</td>
+                                    <td class="py-2 px-3 border-r border-slate-200 font-mono text-slate-700">{{ $product->sku ?? '---' }}</td>
+                                    <td class="py-2 px-3 border-r border-slate-200 font-bold text-slate-900">{{ $product->name }}</td>
+                                    <td class="py-2 px-3 border-r border-slate-200 text-center font-semibold text-blue-700">{{ $product->unit ?? '---' }}</td>
+                                    <td class="py-2 px-3 border-r border-slate-200 text-slate-700">
+                                        {{ $product->origin ?? '---' }}
                                     </td>
-                                    <td class="px-3.5 py-3 font-mono text-gray-700 whitespace-nowrap">
-                                        {{ $product->sku ?? '---' }}
-                                    </td>
-                                    <td class="px-3.5 py-3 font-mono text-gray-600 whitespace-nowrap">
-                                        {{ $product->gtin ?? '---' }}
-                                    </td>
-                                    <td class="px-3.5 py-3 text-gray-700 whitespace-nowrap">
-                                        {{ $product->part_used ?? '---' }}
-                                    </td>
-                                    <td class="px-3.5 py-3 text-gray-700 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-800">
-                                            {{ $product->origin ?? 'N/A' }}
-                                        </span>
-                                    </td>
-                                    <td class="px-3.5 py-3 text-center whitespace-nowrap">
-                                        <span class="inline-block px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">
-                                            {{ $product->unit }}
-                                        </span>
-                                    </td>
-                                    <td class="px-3.5 py-3 whitespace-nowrap">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-100">
-                                            {{ $product->classification ?? 'Khác' }}
-                                        </span>
-                                    </td>
-                                    <td class="px-3.5 py-3 italic text-gray-800 whitespace-nowrap">
+                                    <td class="py-2 px-3 border-r border-slate-200 text-slate-700">{{ $product->part_used ?? '---' }}</td>
+                                    <td class="py-2 px-3 border-r border-slate-200 text-slate-700">{{ $product->ppcb ? $product->ppcb->ten_ppcb . ' (' . $product->ppcb->ma . ')' : '---' }}</td>
+                                    <td class="py-2 px-3 border-r border-slate-200 italic text-slate-800">
                                         {{ $product->scientific_name ?? '---' }}
                                     </td>
-                                    <td class="px-3.5 py-3 text-gray-600 max-w-[150px] truncate" title="{{ $product->scientific_name_reference }}">
-                                        {{ $product->scientific_name_reference ?? '---' }}
-                                    </td>
-                                    <td class="px-3.5 py-3 text-gray-600 max-w-[150px] truncate" title="{{ $product->note }}">
+                                    <td class="py-2 px-3 border-r border-slate-200 text-slate-600 truncate max-w-[150px]" title="{{ $product->note }}">
                                         {{ $product->note ?? '---' }}
                                     </td>
-                                    <td class="px-3.5 py-3 text-center whitespace-nowrap">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <a href="{{ route('products.edit', $product->id) }}" class="p-1.5 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-lg transition-colors font-medium inline-flex items-center gap-1" title="Sửa">
-                                                <span>Sửa</span>
-                                            </a>
+                                    <td class="py-2 px-3 border-r border-slate-200 font-mono text-slate-600">
+                                        {{ $product->gtin ?? '---' }}
+                                    </td>
+
+                                    <!-- CHỈ QA HOẶC IT/ADMIN MỚI THẤY NÚT SỬA/XÓA -->
+                                    @if(auth()->user()->isQADepartment() || auth()->user()->isITDepartment())
+                                        <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
+                                            <a href="{{ route('product-regulatory-documents.index', ['product_id' => $product->id]) }}" class="text-emerald-600 hover:text-emerald-900 font-bold">Hồ sơ</a>
+                                            <a href="{{ route('products.edit', ['product' => $product->id] + request()->only(['search', 'classification', 'per_page', 'page'])) }}" class="text-blue-600 hover:text-blue-900 font-bold">Sửa</a>
                                             <form action="{{ route('products.destroy', $product->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="p-1.5 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-colors font-medium">
-                                                    <span>Xóa</span>
-                                                </button>
+                                                <button type="submit" class="text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
                                             </form>
-                                        </div>
-                                    </td>
+                                        </td>
+                                    @endif
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="12" class="px-4 py-12 text-center text-gray-500">
-                                        <div class="flex flex-col items-center justify-center space-y-2">
-                                            <svg class="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
-                                            <p class="text-sm font-medium text-gray-500">Không tìm thấy dữ liệu phù hợp.</p>
-                                        </div>
+                                    @php
+                                        $colSpan = (auth()->user()->isQADepartment() || auth()->user()->isITDepartment()) ? 11 : 10;
+                                    @endphp
+                                    <td colspan="{{ $colSpan }}" class="py-6 text-center text-slate-500 text-xs italic bg-slate-50">
+                                        @if(request('search'))
+                                            Không tìm thấy kết quả nào phù hợp với từ khóa "<span class="font-bold text-slate-700">{{ request('search') }}</span>".
+                                        @else
+                                            Chưa có dữ liệu sản phẩm trong hệ thống.
+                                        @endif
                                     </td>
                                 </tr>
                             @endforelse
@@ -143,11 +154,16 @@
                     </table>
                 </div>
 
-                <!-- Phân trang (Giữ lại query search khi chuyển trang) -->
-                <div class="p-4 border-t border-gray-200 bg-gray-50">
-                    {{ $products->withQueryString()->links() }}
+                <!-- Footer phân trang -->
+                <div class="p-3 border-t border-slate-300 bg-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <x-per-page-select :default="100" />
+                    @if($products->hasPages())
+                        {{ $products->links() }}
+                    @endif
                 </div>
+
             </div>
+
         </div>
     </div>
 </x-app-layout>

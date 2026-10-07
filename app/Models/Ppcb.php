@@ -17,4 +17,9 @@ class Ppcb extends Model
         'chi_tiet_ppcb',
         'ghi_chu',
     ];
+
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
 }

@@ -3,24 +3,86 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Imports\DepartmentsImport;
+use App\Exports\DepartmentsExport;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
+use Maatwebsite\Excel\Facades\Excel;
 
-class DepartmentController extends Controller
+class DepartmentController extends Controller implements HasMiddleware
 {
-    // Hiển thị danh sách phòng ban
+    // Khai báo middleware cho controller này
+    public static function middleware(): array
+    {
+        return [
+            // Chặn tất cả các action ngoại trừ 'index' đối với user không phải IT
+            new Middleware(function ($request, $next) {
+                if (!auth()->check() || !auth()->user()->isITDepartment()) {
+                    abort(403, 'Bạn không có quyền thực hiện hành động này. Chỉ bộ phận IT mới được phép.');
+                }
+                return $next($request);
+            }, except: ['index']),
+        ];
+    }
+
     public function index()
     {
         $departments = Department::all();
         return view('departments.index', compact('departments'));
     }
 
-    // Form tạo phòng ban mới
+    public function export()
+    {
+        return Excel::download(new DepartmentsExport(), 'phong-ban.xlsx');
+    }
+
+    public function importForm()
+    {
+        return view('departments.import');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:2048',
+        ], [
+            'file.required' => 'Vui lòng chọn file Excel.',
+            'file.mimes' => 'File phải có định dạng: xlsx, xls, csv.',
+            'file.max' => 'Dung lượng file không được vượt quá 2MB.',
+        ]);
+
+        $import = new DepartmentsImport();
+        Excel::import($import, $request->file('file'));
+
+        $failures = $import->failures();
+        if ($failures->isNotEmpty()) {
+            $errorsByRow = $failures->groupBy(fn ($failure) => $failure->row());
+            $errors = $errorsByRow->take(10)->map(fn ($rowFailures, $row) => [
+                'row' => $row,
+                'messages' => $rowFailures->flatMap(fn ($failure) => $failure->errors())->unique()->values()->all(),
+            ])->values()->all();
+
+            return redirect()->route('departments.import.form')
+                ->with('warning', sprintf(
+                    'Đã import %d phòng ban; bỏ qua %d dòng không hợp lệ.',
+                    $import->importedCount(),
+                    $errorsByRow->count()
+                ))
+                ->with('import_errors', $errors);
+        }
+
+        return redirect()->route('departments.index')->with(
+            'success',
+            sprintf('Import thành công %d phòng ban!', $import->importedCount())
+        );
+    }
+
     public function create()
     {
         return view('departments.create');
     }
 
-    // Lưu phòng ban mới vào database
     public function store(Request $request)
     {
         $request->validate([
@@ -33,13 +95,11 @@ class DepartmentController extends Controller
         return redirect()->route('departments.index')->with('success', 'Thêm phòng ban thành công!');
     }
 
-    // Form chỉnh sửa phòng ban
     public function edit(Department $department)
     {
         return view('departments.edit', compact('department'));
     }
 
-    // Cập nhật thông tin phòng ban
     public function update(Request $request, Department $department)
     {
         $request->validate([
@@ -52,7 +112,6 @@ class DepartmentController extends Controller
         return redirect()->route('departments.index')->with('success', 'Cập nhật phòng ban thành công!');
     }
 
-    // Xóa phòng ban
     public function destroy(Department $department)
     {
         $department->delete();

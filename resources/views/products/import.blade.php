@@ -9,9 +9,31 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
                 
+                @if ($errors->any())
+                    <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        <ul class="list-disc pl-5">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
                 @if (session('error'))
                     <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
                         {{ session('error') }}
+                    </div>
+                @endif
+                @if (session('warning'))
+                    <div class="mb-4 bg-amber-100 border border-amber-400 text-amber-800 px-4 py-3 rounded">
+                        <p>{{ session('warning') }}</p>
+                        @if(session('import_errors'))
+                            <ul class="list-disc pl-5 mt-2">
+                                @foreach(session('import_errors') as $failure)
+                                    <li>Dòng {{ $failure['row'] }}: {{ implode('; ', $failure['messages']) }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
                     </div>
                 @endif
 
@@ -33,16 +55,17 @@
                 <div class="mt-8 border-t pt-4 text-sm text-gray-600">
                     <p class="font-semibold text-gray-700">Lưu ý cấu trúc tên cột ở dòng đầu tiên trong file Excel:</p>
                     <ul class="list-disc pl-5 mt-2 space-y-1">
-                        <li><code>ten_hang_hoa</code> (Bắt buộc)</li>
-                        <li><code>ma_hang_sku</code></li>
-                        <li><code>gtin</code></li>
-                        <li><code>bo_phan_dung</code></li>
-                        <li><code>nguon_goc</code></li>
-                        <li><code>dvt</code></li>
                         <li><code>phan_loai</code></li>
+                        <li><code>ma_hang_sku</code> (Bắt buộc)</li>
+                        <li><code>ten_hang_hoa</code> (Bắt buộc)</li>
+                        <li><code>dvt</code></li>
+                        <li><code>nguon_goc</code></li>
+                        <li><code>bo_phan_dung</code></li>
+                        <li><code>ma_ppcb</code> (Mã PPCB trong danh mục phương pháp chế biến)</li>
                         <li><code>ten_khoa_hoc</code></li>
-                        <li><code>tai_lieu_tham_khao</code></li>
                         <li><code>ghi_chu</code></li>
+                        <li><code>gtin</code></li>
+                        <li><code>tai_lieu_tham_khao</code> (Không bắt buộc, đặt sau mã GTIN)</li>
                     </ul>
                 </div>
             </div>

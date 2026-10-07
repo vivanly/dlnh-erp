@@ -15,7 +15,7 @@ class SetLocale
         // 1. Nếu người dùng bấm chọn đổi ngôn ngữ trên giao diện (?lang=vi hoặc ?lang=en)
         if ($request->has('lang')) {
             $lang = $request->get('lang');
-            if (in_array($lang, ['en', 'vi'])) {
+            if (in_array($lang, ['en', 'vi'], true)) {
                 Session::put('locale', $lang);
 
                 // Nếu đã đăng nhập, cập nhật luôn vào Database của user đó
@@ -30,14 +30,12 @@ class SetLocale
         // 2. Xác định ngôn ngữ ưu tiên theo thứ tự: Request/Session -> Database User -> Mặc định ('vi')
         $locale = Session::get('locale');
 
-        if (!$locale && Auth::check()) {
-            $locale = Auth::user()->locale;
+        if (Auth::check() && ! $request->has('lang')) {
+            $locale = Auth::user()->locale ?: $locale;
             Session::put('locale', $locale);
         }
 
-        if (!$locale) {
-            $locale = config('app.locale', 'vi');
-        }
+        $locale = in_array($locale, ['en', 'vi'], true) ? $locale : config('app.locale', 'vi');
 
         App::setLocale($locale);
 

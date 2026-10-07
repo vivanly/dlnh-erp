@@ -60,13 +60,15 @@
                             <label class="block text-gray-700 text-sm font-bold mb-2">Chức vụ:</label>
                             <select name="position" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                                 <option value="">-- Chọn chức vụ --</option>
-                                <option value="Nhân viên sản xuất" {{ old('position', $user->position) == 'Nhân viên sản xuất' ? 'selected' : '' }}>Nhân viên sản xuất</option>
-                                <option value="Nhân viên văn phòng" {{ old('position', $user->position) == 'Nhân viên văn phòng' ? 'selected' : '' }}>Nhân viên văn phòng</option>
-                                <option value="Phó phòng" {{ old('position', $user->position) == 'Phó phòng' ? 'selected' : '' }}>Phó phòng</option>
-                                <option value="Trưởng phòng" {{ old('position', $user->position) == 'Trưởng phòng' ? 'selected' : '' }}>Trưởng phòng</option>
-                                <option value="Phó giám đốc" {{ old('position', $user->position) == 'Phó giám đốc' ? 'selected' : '' }}>Phó giám đốc</option>
-                                <option value="Giám đốc" {{ old('position', $user->position) == 'Giám đốc' ? 'selected' : '' }}>Giám đốc</option>
-                                <option value="Tổng giám đốc" {{ old('position', $user->position) == 'Tổng giám đốc' ? 'selected' : '' }}>Tổng giám đốc</option>
+                                <option value="Tổng Giám Đốc" {{ old('position', $user->position) == 'Tổng Giám Đốc' ? 'selected' : '' }}>Tổng Giám Đốc</option>
+                                <option value="Giám Đốc" {{ old('position', $user->position) == 'Giám Đốc' ? 'selected' : '' }}>Giám Đốc</option>
+                                <option value="Trưởng Phòng" {{ old('position', $user->position) == 'Trưởng Phòng' ? 'selected' : '' }}>Trưởng Phòng</option>
+                                <option value="Quản Lý Sản Xuất" {{ old('position', $user->position) == 'Quản Lý Sản Xuất' ? 'selected' : '' }}>Quản Lý Sản Xuất</option>
+                                <option value="Nhân Viên Văn Phòng" {{ old('position', $user->position) == 'Nhân Viên Văn Phòng' ? 'selected' : '' }}>Nhân Viên Văn Phòng</option>
+                                <option value="Nhân Viên Kho" {{ old('position', $user->position) == 'Nhân Viên Kho' ? 'selected' : '' }}>Nhân Viên Kho</option>
+                                <option value="Lái Xe" {{ old('position', $user->position) == 'Lái Xe' ? 'selected' : '' }}>Lái Xe</option>
+                                <option value="Nhân Viên Sản Xuất" {{ old('position', $user->position) == 'Nhân Viên Sản Xuất' ? 'selected' : '' }}>Nhân Viên Sản Xuất</option>
+                                <option value="Tạp Vụ" {{ old('position', $user->position) == 'Tạp Vụ' ? 'selected' : '' }}>Tạp Vụ</option>
                             </select>
                             @error('position') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>

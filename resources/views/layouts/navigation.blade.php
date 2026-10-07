@@ -16,43 +16,13 @@
                     </a>
                 </div>
 
-                <!-- Navigation Links có kèm Icon -->
-                <div class="hidden space-x-2 sm:flex h-full items-center">
-                    <!-- Tổng quan -->
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out {{ request()->routeIs('dashboard') ? 'bg-blue-50/80 text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                        {{ __('Tổng quan') }}
-                    </x-nav-link>
+                <!-- TỰ ĐỘNG GỌI FILE CHỨA MENU VÀO ĐÂY -->
+                @include('layouts.partials.sidebar-links')
 
-                    <!-- Phòng ban -->
-                    <x-nav-link :href="route('departments.index')" :active="request()->routeIs('departments*')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out {{ request()->routeIs('departments*') ? 'bg-blue-50/80 text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                        {{ __('Phòng ban') }}
-                    </x-nav-link>
-
-                    <!-- Nhân sự -->
-                    <x-nav-link :href="route('users.index')" :active="request()->routeIs('users*')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out {{ request()->routeIs('users*') ? 'bg-blue-50/80 text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                        {{ __('Nhân sự') }}
-                    </x-nav-link>
-
-                    <!-- Sản phẩm -->
-                    <x-nav-link :href="route('products.index')" :active="request()->routeIs('products*')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out {{ request()->routeIs('products*') ? 'bg-blue-50/80 text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                        {{ __('Sản phẩm') }}
-                    </x-nav-link>
-
-                    <!-- Phương pháp chế biến (PPCB) -->
-                    <x-nav-link :href="route('ppcb.index')" :active="request()->routeIs('ppcb*')" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition duration-150 ease-in-out {{ request()->routeIs('ppcb*') ? 'bg-blue-50/80 text-blue-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                        {{ __('Phương pháp chế biến') }}
-                    </x-nav-link>
-                </div>
             </div>
 
             <!-- Settings Dropdown & Quick Actions -->
             <div class="hidden sm:flex sm:items-center sm:ms-6 space-x-3">
-                
                 <!-- Nút thông báo nhanh -->
                 <button class="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition relative">
                     <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
@@ -77,7 +47,7 @@
                         </div>
                     </summary>
 
-                    <!-- Menu nội dung thả xuống -->
+                    <!-- Menu nội dung tài khoản thả xuống -->
                     <div class="absolute right-0 z-50 mt-2 w-56 rounded-2xl shadow-xl py-1.5 bg-white text-slate-700 border border-slate-100 ring-1 ring-black ring-opacity-5">
                         <div class="px-4 py-2.5 border-b border-slate-100">
                             <p class="text-xs text-slate-400 font-semibold uppercase">Đang đăng nhập với</p>

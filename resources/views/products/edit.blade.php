@@ -22,12 +22,16 @@
                 <form action="{{ route('products.update', $product->id) }}" method="POST">
                     @csrf
                     @method('PUT')
+                    <input type="hidden" name="return_search" value="{{ request('search') }}">
+                    <input type="hidden" name="return_classification" value="{{ request('classification') }}">
+                    <input type="hidden" name="return_per_page" value="{{ request('per_page') }}">
+                    <input type="hidden" name="return_page" value="{{ request('page') }}">
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Tên hàng hóa -->
-                        <div class="col-span-2">
-                            <label class="block font-medium text-sm text-gray-700">Tên hàng hóa <span class="text-red-500">*</span></label>
-                            <input type="text" name="name" value="{{ old('name', $product->name) }}" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <!-- Phân loại -->
+                        <div>
+                            <label class="block font-medium text-sm text-gray-700">Phân loại</label>
+                            <input type="text" name="classification" value="{{ old('classification', $product->classification) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
 
                         <!-- Mã hàng SKU -->
@@ -36,22 +40,10 @@
                             <input type="text" name="sku" value="{{ old('sku', $product->sku) }}" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
 
-                        <!-- Mã GTIN -->
-                        <div>
-                            <label class="block font-medium text-sm text-gray-700">Mã GTIN (Mã vạch)</label>
-                            <input type="text" name="gtin" value="{{ old('gtin', $product->gtin) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-
-                        <!-- Bộ phận dùng -->
-                        <div>
-                            <label class="block font-medium text-sm text-gray-700">Bộ phận dùng</label>
-                            <input type="text" name="part_used" value="{{ old('part_used', $product->part_used) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-
-                        <!-- Nguồn gốc -->
-                        <div>
-                            <label class="block font-medium text-sm text-gray-700">Nguồn gốc</label>
-                            <input type="text" name="origin" value="{{ old('origin', $product->origin) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        <!-- Tên hàng hóa -->
+                        <div class="col-span-2">
+                            <label class="block font-medium text-sm text-gray-700">Tên hàng hóa <span class="text-red-500">*</span></label>
+                            <input type="text" name="name" value="{{ old('name', $product->name) }}" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
 
                         <!-- Đơn vị tính -->
@@ -60,10 +52,26 @@
                             <input type="text" name="unit" value="{{ old('unit', $product->unit) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
 
-                        <!-- Phân loại -->
+                        <!-- Nguồn gốc -->
                         <div>
-                            <label class="block font-medium text-sm text-gray-700">Phân loại</label>
-                            <input type="text" name="classification" value="{{ old('classification', $product->classification) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <label class="block font-medium text-sm text-gray-700">Nguồn gốc</label>
+                            <input type="text" name="origin" value="{{ old('origin', $product->origin) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+
+                        <!-- Bộ phận dùng -->
+                        <div>
+                            <label class="block font-medium text-sm text-gray-700">Bộ phận dùng</label>
+                            <input type="text" name="part_used" value="{{ old('part_used', $product->part_used) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="block font-medium text-sm text-gray-700">PPCB</label>
+                            <select name="ppcb_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">-- Chọn PPCB --</option>
+                                @foreach($ppcbs as $ppcb)
+                                    <option value="{{ $ppcb->id }}" @selected(old('ppcb_id', $product->ppcb_id) == $ppcb->id)>{{ $ppcb->ten_ppcb }} ({{ $ppcb->ma }})</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <!-- Tên khoa học -->
@@ -72,16 +80,22 @@
                             <input type="text" name="scientific_name" value="{{ old('scientific_name', $product->scientific_name) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
 
-                        <!-- Tài liệu tham khảo tên khoa học -->
-                        <div>
-                            <label class="block font-medium text-sm text-gray-700">Tài liệu tham khảo tên khoa học</label>
-                            <input type="text" name="scientific_name_reference" value="{{ old('scientific_name_reference', $product->scientific_name_reference) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-
                         <!-- Ghi chú -->
                         <div class="col-span-2">
                             <label class="block font-medium text-sm text-gray-700">Ghi chú</label>
                             <textarea name="note" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">{{ old('note', $product->note) }}</textarea>
+                        </div>
+
+                        <!-- Mã GTIN -->
+                        <div>
+                            <label class="block font-medium text-sm text-gray-700">Mã GTIN (Mã vạch)</label>
+                            <input type="text" name="gtin" value="{{ old('gtin', $product->gtin) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        </div>
+
+                        <!-- Tài liệu tham khảo tên khoa học -->
+                        <div>
+                            <label class="block font-medium text-sm text-gray-700">Tài liệu tham khảo tên khoa học</label>
+                            <input type="text" name="scientific_name_reference" value="{{ old('scientific_name_reference', $product->scientific_name_reference) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
                     </div>
 
