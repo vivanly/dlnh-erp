@@ -67,12 +67,7 @@ class OrderController extends Controller
 
     private function canApproveSalesOrder($user): bool
     {
-        return $user && (
-            (method_exists($user, 'isSalesDirector') && $user->isSalesDirector()) ||
-            (method_exists($user, 'isBiddingDirector') && $user->isBiddingDirector()) ||
-            (method_exists($user, 'isGeneralDirector') && $user->isGeneralDirector()) ||
-            $this->isItOrAdmin($user)
-        );
+        return $user && $user->canApproveSalesOrder();
     }
 
     public function salesApprovalQueue(Request $request)
@@ -246,11 +241,7 @@ class OrderController extends Controller
 
     private function canApproveProductionPlan($user): bool
     {
-        return $user && (
-            (method_exists($user, 'isGeneralDirector') && $user->isGeneralDirector()) ||
-            ($user->position ?? null) === 'Giám Đốc' ||
-            in_array($user->role ?? '', ['director', 'sales_director', 'general_director'], true)
-        );
+        return $user && $user->canApproveProductionPlan();
     }
 
     public function productionApprovalQueue(Request $request)

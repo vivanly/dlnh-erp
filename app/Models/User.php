@@ -218,6 +218,34 @@ class User extends Authenticatable
         return $this->isSalesDirector() || $this->isGeneralDirector() || $this->isITDepartment();
     }
 
+    public function canApproveSalesOrder(): bool
+    {
+        return $this->isSalesDirector()
+            || $this->isBiddingDirector()
+            || $this->isGeneralDirector()
+            || $this->isITDepartment();
+    }
+
+    public function canApproveProductionPlan(): bool
+    {
+        return $this->isGeneralDirector()
+            || $this->position === 'Giám Đốc'
+            || in_array($this->role ?? '', ['director', 'sales_director', 'general_director'], true);
+    }
+
+    public function canApproveMonthlyPlan(): bool
+    {
+        return $this->canApproveProductionPlan();
+    }
+
+    public function canApproveBom(): bool
+    {
+        return $this->isITDepartment()
+            || $this->isGeneralDirector()
+            || ($this->position ?? '') === 'Giám Đốc'
+            || in_array($this->role ?? '', ['director', 'general_director'], true);
+    }
+
     // Kiểm tra quyền xác nhận nhà cung cấp đã giao hàng
     public function canConfirmSupplierDelivery()
     {

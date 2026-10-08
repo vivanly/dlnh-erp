@@ -26,15 +26,23 @@
             @else
                 @php
                     $lotCode = $traceBatch->batch_number;
+                    $isMaterial = $traceabilityType === 'material';
                     $lotTypeLabel = match($traceabilityType) {
                         'supplier' => 'Lô nhà cung cấp',
+                        'material' => $traceBatch->material_type === 'accessory' ? 'Lô phụ liệu (NCC)' : 'Lô nguyên liệu thô (NCC)',
                         default => str_contains(strtoupper((string) $traceBatch->product->classification), 'VT')
                             ? 'Lô nội bộ · vị thuốc'
                             : 'Lô nội bộ · dược liệu sơ chế',
                     };
-                    $lotUnit = $traceabilityType === 'finished'
+                    $lotUnit = $isMaterial
+                        ? ($traceBatch->catalog_item->unit ?? '')
+                        : ($traceabilityType === 'finished'
                         ? $traceBatch->unit
-                        : ($traceBatch->product->unit ?? '');
+                        : ($traceBatch->product->unit ?? ''));
+                    $lotName = $isMaterial ? ($traceBatch->catalog_item->name ?? '---') : ($traceBatch->product->name ?? '---');
+                    $lotStock = $isMaterial ? (float) $materialLotBalance : (float) $traceBatch->current_quantity;
+                    $lotStatus = $isMaterial ? $traceBatch->status_label : $traceBatch->status;
+                    $lotPo = $isMaterial ? $traceBatch->purchaseOrderItem?->purchaseOrder : null;
                 @endphp
                 <div class="space-y-3">
                     <section class="bg-white border border-slate-300 p-4">
@@ -42,11 +50,17 @@
                             <div>
                                 <span class="inline-block px-2 py-1 bg-blue-50 border border-blue-200 text-[10px] font-bold uppercase text-blue-700">{{ $lotTypeLabel }}</span>
                                 <h3 class="mt-2 text-base font-bold font-mono text-slate-900">{{ $lotCode }}</h3>
-                                <p class="mt-1 text-xs text-slate-600">{{ $traceBatch->product->name ?? '---' }} · {{ $lotUnit }}</p>
+                                <p class="mt-1 text-xs text-slate-600">{{ $lotName }} · {{ $lotUnit }}</p>
                             </div>
                             <dl class="grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
-                                <div><dt class="text-slate-500">Tồn hiện tại</dt><dd class="font-mono font-bold">{{ number_format((float) $traceBatch->current_quantity, 4) }} {{ $lotUnit }}</dd></div>
-                                <div><dt class="text-slate-500">Trạng thái</dt><dd class="font-semibold">{{ $traceBatch->status }}</dd></div>
+                                <div><dt class="text-slate-500">Tồn hiện tại</dt><dd class="font-mono font-bold">{{ number_format($lotStock, 4) }} {{ $lotUnit }}</dd></div>
+                                <div><dt class="text-slate-500">Trạng thái</dt><dd class="font-semibold">{{ $lotStatus }}</dd></div>
+                                @if($isMaterial)
+                                    <div><dt class="text-slate-500">Nhà cung cấp</dt><dd class="font-semibold">{{ $lotPo?->supplier?->name ?? '---' }}</dd></div>
+                                    <div><dt class="text-slate-500">Đơn mua (PO)</dt><dd class="font-mono font-semibold">{{ $lotPo?->po_number ?? '---' }}</dd></div>
+                                    <div><dt class="text-slate-500">Số lượng nhập</dt><dd class="font-mono">{{ number_format((float) $traceBatch->quantity, 4) }} {{ $lotUnit }}</dd></div>
+                                    <div><dt class="text-slate-500">COA</dt><dd>{{ $traceBatch->coa_file ? 'Đã có' : 'Chưa có' }}</dd></div>
+                                @endif
                                 <div><dt class="text-slate-500">Ngày sản xuất</dt><dd>{{ $traceBatch->mfg_date ? date('d/m/Y', strtotime($traceBatch->mfg_date)) : '---' }}</dd></div>
                                 <div><dt class="text-slate-500">Hạn sử dụng</dt><dd>{{ $traceBatch->exp_date ? date('d/m/Y', strtotime($traceBatch->exp_date)) : '---' }}</dd></div>
                             </dl>
@@ -99,6 +113,9 @@
                                         $receiptItem = $supplierBatch?->goodsReceiptItem;
                                         $receipt = $receiptItem?->goodsReceipt;
                                         $purchaseOrder = $receipt?->purchaseOrder ?? $receiptItem?->purchaseOrderItem?->purchaseOrder;
+                                        $inputMaterial = $input->materialLot?->material;
+                                        $newLot = $inputMaterial ? $materialLotMap->get($inputMaterial->material_type . '|' . $inputMaterial->material_id . '|' . $input->materialLot?->batch_number) : null;
+                                        $purchaseOrder = $purchaseOrder ?? $newLot?->purchaseOrderItem?->purchaseOrder;
                                     @endphp
                                     <tr>
                                         <td class="p-2.5 font-mono font-semibold">{{ $supplierBatch->batch_number ?? $input->materialLot?->batch_number ?? '---' }}</td>

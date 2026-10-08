@@ -34,11 +34,7 @@ class ProductionMonthlyPlanController extends Controller
     {
         $user = auth()->user();
 
-        return $user && (
-            (method_exists($user, 'isGeneralDirector') && $user->isGeneralDirector()) ||
-            ($user->position ?? null) === 'Giám Đốc' ||
-            in_array($user->role ?? '', ['director', 'sales_director', 'general_director'], true)
-        );
+        return $user && $user->canApproveMonthlyPlan();
     }
 
     public function index()

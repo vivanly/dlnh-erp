@@ -35,12 +35,7 @@ class BomController extends Controller
 
     private function canApproveBom($user): bool
     {
-        return $user && (
-            (method_exists($user, 'isITDepartment') && $user->isITDepartment()) ||
-            (method_exists($user, 'isGeneralDirector') && $user->isGeneralDirector()) ||
-            (($user->position ?? '') === 'Giám Đốc') ||
-            in_array($user->role ?? '', ['director', 'general_director'], true)
-        );
+        return $user && $user->canApproveBom();
     }
 
     public function index(Request $request)

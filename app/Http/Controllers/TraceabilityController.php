@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MaterialLot;
+use App\Models\MaterialStockMovement;
 use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionOrder;
 use App\Models\SupplierBatch;
@@ -18,6 +20,8 @@ class TraceabilityController extends Controller
         $finishedBatches = collect();
         $materialInputs = collect();
         $salesAllocations = collect();
+        $materialLotMap = collect();
+        $materialLotBalance = null;
 
         if ($search !== '') {
             $traceBatch = SupplierBatch::with([
@@ -49,6 +53,23 @@ class TraceabilityController extends Controller
                     ->merge($finishedBatches->flatMap(fn ($batch) => $batch->salesOrderAllocations))
                     ->unique('id')
                     ->values();
+            } elseif ($traceBatch = MaterialLot::with('purchaseOrderItem.purchaseOrder.supplier')
+                ->whereNotNull('batch_number')
+                ->where('batch_number', 'like', "%{$search}%")
+                ->first()) {
+                $traceabilityType = 'material';
+                $materialLotBalance = MaterialStockMovement::lotBalance($traceBatch->material_type, $traceBatch->material_id, $traceBatch->batch_number);
+                $productionOrders = ProductionOrder::with([
+                    'product',
+                    'order.customer',
+                    'finishedBatches.inputs.materialLot.material',
+                    'finishedBatches.salesOrderAllocations.orderItem.order.customer',
+                ])->whereHas('materials', fn ($material) => $material
+                    ->where('material_type', $traceBatch->material_type)
+                    ->where('material_id', $traceBatch->material_id)
+                    ->whereHas('lots', fn ($lot) => $lot->where('batch_number', $traceBatch->batch_number)))->get();
+                $finishedBatches = $productionOrders->flatMap(fn ($order) => $order->finishedBatches)->unique('id')->values();
+                $salesAllocations = $finishedBatches->flatMap(fn ($batch) => $batch->salesOrderAllocations)->unique('id')->values();
             } else {
                 $traceBatch = ProductionFinishedBatch::with([
                     'product',
@@ -82,6 +103,21 @@ class TraceabilityController extends Controller
             }
         }
 
+        foreach ($materialInputs as $input) {
+            $lot = $input->materialLot;
+            $material = $lot?->material;
+            if ($lot && $lot->batch_number && $material && $material->material_id) {
+                $key = $material->material_type . '|' . $material->material_id . '|' . $lot->batch_number;
+                if (! $materialLotMap->has($key)) {
+                    $materialLotMap[$key] = MaterialLot::with('purchaseOrderItem.purchaseOrder.supplier')
+                        ->where('material_type', $material->material_type)
+                        ->where('material_id', $material->material_id)
+                        ->where('batch_number', $lot->batch_number)
+                        ->first();
+                }
+            }
+        }
+
         return view('traceability.index', compact(
             'search',
             'traceBatch',
@@ -89,7 +125,9 @@ class TraceabilityController extends Controller
             'productionOrders',
             'finishedBatches',
             'materialInputs',
-            'salesAllocations'
+            'salesAllocations',
+            'materialLotMap',
+            'materialLotBalance'
         ));
     }
 }
