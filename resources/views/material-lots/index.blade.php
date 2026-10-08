@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Lô nguyên liệu thô nhà cung cấp (QA cập nhật lô/COA → QC xác nhận)</h2>
+        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Hàng nhập chờ kiểm (NL thô: QA cập nhật lô/COA → QC xác nhận; phụ liệu: QC xác nhận)</h2>
     </x-slot>
 
     <div class="py-2">
@@ -34,25 +34,29 @@
                     </thead>
                     <tbody class="divide-y divide-slate-200">
                         @forelse($lots as $lot)
-                            @php $pending = $lot->status === 'pending_qa'; @endphp
+                            @php $pending = $lot->status === 'pending_qa'; $isRaw = $lot->material_type === 'raw_material'; @endphp
                             <tr class="align-top">
-                                <td class="p-2.5 border-r font-medium">{{ $lot->catalog_item->name ?? '---' }} <span class="font-mono text-slate-500">({{ $lot->catalog_item->sku ?? '' }})</span></td>
+                                <td class="p-2.5 border-r font-medium"><span class="block text-[10px] font-bold uppercase {{ $isRaw ? 'text-emerald-700' : 'text-violet-700' }}">{{ $isRaw ? 'Nguyên liệu thô' : 'Phụ liệu' }}</span>{{ $lot->catalog_item->name ?? '---' }} <span class="font-mono text-slate-500">({{ $lot->catalog_item->sku ?? '' }})</span></td>
                                 <td class="p-2.5 border-r">
                                     <div class="font-mono font-semibold">{{ $lot->purchaseOrderItem->purchaseOrder->po_number ?? '---' }}</div>
                                     <div class="text-[10px] text-slate-500">{{ $lot->purchaseOrderItem->purchaseOrder->supplier->name ?? '' }}</div>
                                 </td>
                                 <td class="p-2.5 border-r text-center font-mono font-bold">{{ rtrim(rtrim(number_format($lot->quantity, 4), '0'), '.') }} {{ $lot->unit }}</td>
                                 <td class="p-2.5 border-r">
+                                    @if($isRaw)
                                     <div class="font-mono font-bold text-blue-600">{{ $lot->batch_number ?: 'Chưa có số lô' }}</div>
                                     <div class="text-[10px] text-slate-500">NSX {{ $lot->mfg_date?->format('d/m/Y') ?? '---' }} | HSD {{ $lot->exp_date?->format('d/m/Y') ?? '---' }}</div>
                                     @if($lot->coa_file)<a href="{{ route('material-lots.coa', $lot) }}" target="_blank" class="text-[10px] text-blue-600 underline">Xem COA</a>@else<span class="text-[10px] text-amber-700">Chưa có COA</span>@endif
+                                    @else
+                                    <span class="text-[10px] text-slate-500">Quản lý theo tổng, không có lô/COA</span>
+                                    @endif
                                 </td>
                                 <td class="p-2.5 border-r text-center">
                                     <span class="inline-block border px-2 py-0.5 text-[10px] font-bold {{ $lot->status === 'active' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : ($lot->status === 'rejected' ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-amber-100 text-amber-800 border-amber-300') }}">{{ $lot->status_label }}</span>
                                     @if($lot->qc_note)<div class="text-[10px] text-slate-500 mt-1">{{ $lot->qc_note }}</div>@endif
                                 </td>
                                 <td class="p-2.5">
-                                    @if($pending && $canQa)
+                                    @if($pending && $canQa && $isRaw)
                                         <form method="POST" action="{{ route('material-lots.update-coa', $lot) }}" enctype="multipart/form-data" class="grid grid-cols-2 gap-1 mb-2">
                                             @csrf @method('PATCH')
                                             <input type="text" name="batch_number" value="{{ old('batch_number', $lot->batch_number) }}" placeholder="Số lô NCC" required class="col-span-2 text-xs border-slate-300 py-1 font-mono">
@@ -63,7 +67,7 @@
                                         </form>
                                     @endif
                                     @if($pending && $canQc)
-                                        @if($lot->batch_number && $lot->coa_file)
+                                        @if(!$lot->needsQa())
                                             <form method="POST" action="{{ route('material-lots.approve', $lot) }}" class="mb-1" onsubmit="return confirm('QC xác nhận lô này đạt chất lượng và đưa vào tồn kho?');">
                                                 @csrf
                                                 <button class="w-full px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] uppercase">QC xác nhận đạt</button>
@@ -78,7 +82,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="p-6 text-center text-slate-500">Chưa có lô nguyên liệu thô nào.</td></tr>
+                            <tr><td colspan="6" class="p-6 text-center text-slate-500">Chưa có hàng nhập nào.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

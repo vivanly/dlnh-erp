@@ -147,8 +147,11 @@ class RawMaterialFlowTest extends TestCase
         ]])->assertSessionHas('success');
 
         $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
+        $this->assertSame(0.0, MaterialStockMovement::balance('accessory', $acc->id));
+        $accLot = MaterialLot::where('material_type', 'accessory')->firstOrFail();
+        $this->actingAs($user)->post(route('material-lots.approve', $accLot))->assertSessionHas('success');
         $this->assertSame(5.0, MaterialStockMovement::balance('accessory', $acc->id));
-        $lot = MaterialLot::firstOrFail();
+        $lot = MaterialLot::where('material_type', 'raw_material')->firstOrFail();
         $this->assertSame('pending_qa', $lot->status);
         $this->actingAs($user)->get(route('material-lots.index'))->assertOk()->assertSee('NL400');
 
@@ -262,7 +265,8 @@ class RawMaterialFlowTest extends TestCase
         $acc = \App\Models\Accessory::create(['sku' => 'PL700', 'name' => 'PL7', 'slug' => 'pl-700', 'unit' => 'Cái']);
         $po = PurchaseOrder::create(['po_number' => 'PO-ACC-7', 'supplier_id' => $supplier->id, 'order_date' => today(), 'status' => 'delivered', 'user_id' => $user->id]);
         $item = $po->items()->create(['material_type' => 'accessory', 'material_id' => $acc->id, 'quantity' => 10, 'unit_price' => 1, 'total_price' => 10, 'unit' => 'Cái']);
-        $this->actingAs($user)->post(route('material-receipts.store', $po), ['items' => [$item->id => ['received_quantity' => 10, 'returned_quantity' => 0, 'batch_number' => 'IGNORED']]])->assertSessionHas('success');
+        $this->actingAs($user)->post(route('material-receipts.store', $po), ['items' => [$item->id => ['received_quantity' => 10, 'returned_quantity' => 0]]])->assertSessionHas('success');
+        $this->actingAs($user)->post(route('material-lots.approve', MaterialLot::where('material_type', 'accessory')->firstOrFail()))->assertSessionHas('success');
         $this->assertDatabaseHas('material_stock_movements', ['material_type' => 'accessory', 'material_id' => $acc->id, 'batch_number' => null]);
         $payload = ['qc_test_report' => 'PKN', 'qc_date' => today()->toDateString(), 'reason' => 'x'];
         $this->actingAs($user)->post(route('supplier-returns.store', $item), $payload + ['quantity' => 3])->assertSessionHas('success');

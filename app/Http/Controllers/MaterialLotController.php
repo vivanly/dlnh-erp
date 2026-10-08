@@ -36,7 +36,8 @@ class MaterialLotController extends Controller
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('batch_number', 'like', "%{$search}%")
-                        ->orWhereIn('material_id', \App\Models\RawMaterial::where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")->pluck('id'));
+                        ->orWhereIn('material_id', \App\Models\RawMaterial::where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")->pluck('id'))
+                        ->orWhereIn('material_id', \App\Models\Accessory::where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")->pluck('id'));
                 });
             })
             ->orderByRaw("FIELD(status, 'pending_qa', 'active', 'rejected')")
@@ -56,6 +57,9 @@ class MaterialLotController extends Controller
         abort_unless($this->canQa(), 403, 'Chỉ QA mới được cập nhật số lô NCC và COA.');
         if ($materialLot->status !== 'pending_qa') {
             return back()->with('error', 'Lô đã được QC kết luận, không thể sửa.');
+        }
+        if ($materialLot->material_type !== 'raw_material') {
+            return back()->with('error', 'Phụ liệu không có số lô NCC/COA; chỉ cần QC xác nhận.');
         }
 
         $data = $request->validate([
@@ -97,18 +101,18 @@ class MaterialLotController extends Controller
                 if ($lot->status !== 'pending_qa') {
                     throw new DomainException('Lô không còn chờ QC.');
                 }
-                if (! $lot->batch_number || ! $lot->coa_file) {
+                if ($lot->needsQa()) {
                     throw new DomainException('QA chưa cập nhật đủ số lô NCC và COA.');
                 }
 
                 MaterialStockMovement::create([
-                    'material_type' => 'raw_material',
+                    'material_type' => $lot->material_type,
                     'material_id' => $lot->material_id,
                     'movement_type' => 'RECEIVE_PURCHASE',
                     'direction' => 'in',
                     'quantity' => $lot->quantity,
                     'unit' => $lot->unit,
-                    'batch_number' => $lot->batch_number,
+                    'batch_number' => $lot->batch_number ?: null,
                     'mfg_date' => $lot->mfg_date,
                     'exp_date' => $lot->exp_date,
                     'purchase_order_item_id' => $lot->purchase_order_item_id,
@@ -136,7 +140,7 @@ class MaterialLotController extends Controller
                 }
 
                 MaterialStockMovement::create([
-                    'material_type' => 'raw_material',
+                    'material_type' => $lot->material_type,
                     'material_id' => $lot->material_id,
                     'movement_type' => 'REJECT_PURCHASE',
                     'direction' => 'none',

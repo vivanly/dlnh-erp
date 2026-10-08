@@ -15,7 +15,7 @@
                 @csrf
                 <div class="bg-white border border-slate-300 overflow-x-auto">
                     <div class="p-3 bg-slate-100 border-b border-slate-300">
-                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Phụ liệu cộng thẳng vào tồn. Nguyên liệu thô tạo lô chờ QA cập nhật số lô NCC/COA, QC xác nhận đạt mới vào tồn</h3>
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Hàng chờ QC xác nhận đạt mới được cộng vào tồn (nguyên liệu thô cần QA cập nhật số lô NCC/COA trước)</h3>
                     </div>
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>

@@ -85,21 +85,15 @@ class MaterialReceiptController extends Controller
                         'user_id' => auth()->id(),
                         'note' => $data['note'] ?? null,
                     ];
-                    if ($received > 0 && $item->material_type === 'raw_material') {
+                    if ($received > 0) {
                         MaterialLot::create([
                             'purchase_order_item_id' => $item->id,
-                            'material_type' => 'raw_material',
+                            'material_type' => $item->material_type,
                             'material_id' => $item->material_id,
                             'quantity' => $received,
                             'unit' => $item->unit,
                             'status' => 'pending_qa',
                             'received_by' => auth()->id(),
-                        ]);
-                    } elseif ($received > 0) {
-                        MaterialStockMovement::create($base + [
-                            'movement_type' => 'RECEIVE_PURCHASE',
-                            'direction' => 'in',
-                            'quantity' => $received,
                         ]);
                     }
                     if ($returned > 0) {
@@ -119,6 +113,6 @@ class MaterialReceiptController extends Controller
             return back()->withInput()->with('error', $exception->getMessage());
         }
 
-        return redirect()->route('warehouse.purchase-orders')->with('success', 'Đã nhập kho. Nguyên liệu thô chuyển sang QA cập nhật số lô NCC/COA rồi QC xác nhận mới vào tồn; phụ liệu đã cộng vào tồn.');
+        return redirect()->route('warehouse.purchase-orders')->with('success', 'Đã nhập kho. Hàng chờ QC xác nhận mới vào tồn (nguyên liệu thô cần QA cập nhật số lô NCC/COA trước).');
     }
 }

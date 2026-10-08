@@ -18,9 +18,14 @@ class MaterialLot extends Model
         return $this->belongsTo(PurchaseOrderItem::class);
     }
 
+    public function needsQa(): bool
+    {
+        return $this->material_type === 'raw_material' && (! $this->batch_number || ! $this->coa_file);
+    }
+
     public function getCatalogItemAttribute()
     {
-        return RawMaterial::find($this->material_id);
+        return $this->material_type === 'accessory' ? Accessory::find($this->material_id) : RawMaterial::find($this->material_id);
     }
 
     public function getStatusLabelAttribute(): string
@@ -28,7 +33,7 @@ class MaterialLot extends Model
         return match ($this->status) {
             'active' => 'QC đạt - đã vào tồn',
             'rejected' => 'QC không đạt',
-            default => $this->coa_file && $this->batch_number ? 'Chờ QC xác nhận' : 'Chờ QA cập nhật lô/COA',
+            default => $this->needsQa() ? 'Chờ QA cập nhật lô/COA' : 'Chờ QC xác nhận',
         };
     }
 }
