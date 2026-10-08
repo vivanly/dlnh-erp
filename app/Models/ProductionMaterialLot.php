@@ -9,6 +9,7 @@ class ProductionMaterialLot extends Model
     protected $fillable = [
         'production_order_material_id',
         'supplier_batch_id',
+        'batch_number',
         'allocated_quantity',
         'issued_quantity',
         'returned_quantity',

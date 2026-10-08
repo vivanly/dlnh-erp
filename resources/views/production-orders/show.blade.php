@@ -42,7 +42,7 @@
                     <div class="divide-y divide-slate-200">
                         @foreach($productionOrder->materials as $material)
                             <div class="flex items-center justify-between gap-3 p-3 text-xs">
-                                <strong>{{ $material->product->name }}</strong>
+                                <strong>{{ $material->display_name }}</strong>
                                 <span>Đã xuất: <strong class="font-mono">{{ number_format($material->issued_quantity, 4) }} {{ $material->unit }}</strong></span>
                             </div>
                         @endforeach
@@ -55,9 +55,36 @@
                     @csrf
                     <div class="p-3 bg-amber-50 border-b border-amber-200">
                         <h3 class="text-xs font-bold uppercase text-amber-900">Kho xác nhận phiếu xuất nguyên liệu sản xuất</h3>
-                        <p class="mt-1 text-xs text-amber-800">Chọn trực tiếp lô nguyên liệu NCC và nhập số lượng thực xuất cho từng lô (không phụ thuộc BOM). Số lượng khả dụng đã trừ các phần đang được giữ cho đơn khác.</p>
+                        <p class="mt-1 text-xs text-amber-800">Chọn lô NCC của nguyên liệu thô hoặc đợt mua của phụ liệu (tồn lấy từ kho nguyên liệu) và nhập số lượng thực xuất cho từng lô (không phụ thuộc BOM). Số lượng khả dụng đã trừ các phần đang được giữ cho đơn khác.</p>
                     </div>
                     <div class="divide-y divide-slate-200">
+                        <div class="p-3">
+                            <h4 class="mb-2 text-xs font-bold uppercase text-slate-700">Nguyên liệu thô (lô NCC) &amp; phụ liệu (đợt mua)</h4>
+                            @forelse($materialLots->groupBy(fn ($l) => $l->type . '|' . $l->id) as $group)
+                                @php $first = $group->first(); @endphp
+                                <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="text-slate-500">· {{ $first->type === 'accessory' ? 'Phụ liệu' : 'Nguyên liệu thô' }}</span>
+                                    <table class="mt-1 w-full border border-slate-200 text-[11px]">
+                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'accessory' ? 'Đợt mua' : 'Lô NCC' }}</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 w-40 text-right">Số lượng xuất</th></tr></thead>
+                                        <tbody class="divide-y divide-slate-200">
+                                            @foreach($group as $lot)
+                                                @php $i = $loop->parent->index . '_' . $loop->index; @endphp
+                                                <tr>
+                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $lot->batch ?: '(không số lô)' }}</td>
+                                                    <td class="px-2 py-1.5">{{ $lot->exp_date ? \Illuminate\Support\Carbon::parse($lot->exp_date)->format('d/m/Y') : 'Không hạn' }}</td>
+                                                    <td class="px-2 py-1.5 text-right font-mono">{{ number_format($lot->balance, 4) }} {{ $lot->item->unit }}</td>
+                                                    <td class="px-2 py-1.5">
+                                                        <input type="hidden" name="material_lots[{{ $i }}][type]" value="{{ $lot->type }}"><input type="hidden" name="material_lots[{{ $i }}][id]" value="{{ $lot->id }}"><input type="hidden" name="material_lots[{{ $i }}][batch]" value="{{ $lot->batch }}">
+                                                        <input type="number" name="material_lots[{{ $i }}][quantity]" value="0" min="0" max="{{ $lot->balance }}" step="0.0001" class="w-full text-right font-mono text-xs border-slate-300 rounded-none">
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @empty
+                                <div class="text-xs text-slate-500">Chưa có nguyên liệu thô/phụ liệu còn tồn.</div>
+                            @endforelse
+                        </div>
                         <div class="border-b border-slate-200 p-3">
                             <label for="supplier-batch-search" class="mb-1 block text-xs font-semibold text-slate-700">Tìm sản phẩm hoặc lô nhà cung cấp</label>
                             <input id="supplier-batch-search" type="search" class="w-full max-w-md text-xs border-slate-300 rounded-none py-1.5" placeholder="Nhập tên sản phẩm hoặc mã lô NCC...">
@@ -117,9 +144,9 @@
                             @foreach($productionOrder->materials as $material)
                                 @foreach($material->lots as $allocation)
                                     @if((float) $allocation->issued_quantity > 0)
-                                        @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? 'Lô NCC'; @endphp
+                                        @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô NCC'; @endphp
                                         <label class="flex items-center justify-between gap-3 border border-slate-200 p-2 text-xs">
-                                            <span>{{ $material->product->name }} · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
+                                            <span>{{ $material->display_name }} · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
                                             <input type="number" name="returned_materials[{{ $allocation->id }}]" value="{{ old('returned_materials.'.$allocation->id, 0) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 text-right font-mono text-xs border-slate-300 rounded-none" aria-label="Lượng trả về lô {{ $sourceLotCode }}">
                                         </label>
                                     @endif

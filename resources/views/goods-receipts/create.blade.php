@@ -62,7 +62,7 @@
                             @foreach($purchaseOrder->items as $item)
                             <tr>
                                 <td class="p-2.5 border-r font-medium">
-                                    {{ $item->product->name ?? 'Dược liệu' }}
+                                    {{ $item->catalog_item->name ?? 'Dược liệu' }}
                                     <input type="hidden" name="items[{{ $item->id }}][product_id]" value="{{ $item->product_id }}">
                                 </td>
                                 <!-- Thêm class js-po-qty và thuộc tính data-po-qty -->

@@ -101,10 +101,10 @@
                                         $purchaseOrder = $receipt?->purchaseOrder ?? $receiptItem?->purchaseOrderItem?->purchaseOrder;
                                     @endphp
                                     <tr>
-                                        <td class="p-2.5 font-mono font-semibold">{{ $supplierBatch->batch_number ?? '---' }}</td>
+                                        <td class="p-2.5 font-mono font-semibold">{{ $supplierBatch->batch_number ?? $input->materialLot?->batch_number ?? '---' }}</td>
                                         <td class="p-2.5 font-mono">{{ $receipt?->receipt_code ?? '---' }}<span class="block text-[10px] font-sans text-slate-500">{{ $purchaseOrder?->po_number ?? 'Chưa có PO' }}</span></td>
                                         <td class="p-2.5">{{ $purchaseOrder?->supplier?->name ?? '---' }}</td>
-                                        <td class="p-2.5">{{ $input->materialLot?->material?->product?->name ?? $supplierBatch?->product?->name ?? '---' }}</td>
+                                        <td class="p-2.5">{{ $input->materialLot?->material?->display_name ?? $supplierBatch?->product?->name ?? '---' }}</td>
                                         <td class="p-2.5 text-right font-mono">{{ number_format((float) $input->consumed_quantity, 4) }} {{ $input->unit }}</td>
                                     </tr>
                                 @endforeach</tbody>

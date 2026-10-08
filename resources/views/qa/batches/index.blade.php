@@ -111,13 +111,7 @@
                                         @csrf
                                         <button class="w-full px-2 py-1 bg-emerald-700 text-white text-[10px] font-bold uppercase">QC xác nhận đạt</button>
                                     </form>
-                                    <form method="POST" action="{{ route('supplier-batches.reject', $batch) }}" class="space-y-1 text-left">
-                                        @csrf
-                                        <input name="qc_test_report" required maxlength="255" placeholder="Số phiếu kiểm nghiệm" class="w-full text-[10px] border-slate-300 py-1">
-                                        <input type="date" name="qc_date" required value="{{ today()->toDateString() }}" class="w-full text-[10px] border-slate-300 py-1">
-                                        <input name="reason" required maxlength="1000" placeholder="Lý do không đạt" class="w-full text-[10px] border-slate-300 py-1">
-                                        <button class="px-2 py-1 bg-rose-700 text-white text-[10px] font-bold uppercase">Lập đơn trả NCC</button>
-                                    </form>
+                
                                 @endif
 
                                 @if($batch->status !== 'pending_qa')<span class="text-slate-400 italic text-[10px]">{{ $batch->status === 'active' ? 'Đã đạt QC' : $batch->status }}</span>@endif
@@ -141,30 +135,6 @@
                 </div>
             </div>
 
-            <section class="bg-white border border-slate-300">
-                <div class="border-b border-slate-300 bg-slate-100 px-3 py-2">
-                    <h3 class="text-xs font-bold uppercase text-slate-700">Đơn trả nhà cung cấp</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead><tr class="border-b border-slate-200 text-[10px] uppercase text-slate-500"><th class="p-2.5">Mã đơn</th><th class="p-2.5">Nhà cung cấp / lô</th><th class="p-2.5 text-right">Số lượng</th><th class="p-2.5">Lý do / PKN</th><th class="p-2.5">Trạng thái</th></tr></thead>
-                        <tbody class="divide-y divide-slate-200">
-                            @forelse($returnOrders as $returnOrder)
-                                <tr>
-                                    <td class="p-2.5 font-mono font-semibold">{{ $returnOrder->return_code }}</td>
-                                    <td class="p-2.5">{{ $returnOrder->supplier->name }}<span class="block font-mono text-[10px] text-slate-500">{{ $returnOrder->supplierBatch->batch_number }}</span></td>
-                                    <td class="p-2.5 text-right font-mono">{{ number_format($returnOrder->quantity, 4) }} {{ $returnOrder->unit }}</td>
-                                    <td class="p-2.5">{{ $returnOrder->reason }}<span class="block text-[10px] text-slate-500">{{ $returnOrder->qc_test_report }} · {{ optional($returnOrder->qc_date)->format('d/m/Y') }}</span></td>
-                                    <td class="p-2.5">{{ $returnOrder->status === 'pending_dispatch' ? 'Chờ giao trả NCC' : $returnOrder->status }}</td>
-                                </tr>
-                            @empty
-                                <tr><td colspan="5" class="p-5 text-center text-slate-500">Chưa có đơn trả NCC.</td></tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                <div class="p-3">{{ $returnOrders->links() }}</div>
-            </section>
 
         </div>
     </div>

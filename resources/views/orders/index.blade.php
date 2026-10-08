@@ -136,6 +136,7 @@
                                             'pending_sales_approval' => 'Chờ GĐ Kinh doanh duyệt',
                                             'sales_rejected' => 'Kinh doanh từ chối',
                                             'pending_warehouse_check' => 'Chờ Kho kiểm tồn',
+                                            'pending_material_issue' => 'Chờ Kho xuất nguyên liệu',
                                             'pending_qa' => 'Chờ QA chốt lô',
                                             'pending_planning' => 'Chờ Kế hoạch',
                                             'waiting_finished_goods_receipt' => 'Chờ Kho nhập lô thành phẩm',

@@ -10,6 +10,8 @@ class ProductionOrderMaterial extends Model
         'production_order_id',
         'product_bom_item_id',
         'product_id',
+        'material_type',
+        'material_id',
         'required_quantity',
         'issued_quantity',
         'consumed_quantity',
@@ -35,6 +37,20 @@ class ProductionOrderMaterial extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function getCatalogItemAttribute()
+    {
+        return match ($this->material_type) {
+            'raw_material' => RawMaterial::find($this->material_id),
+            'accessory' => Accessory::find($this->material_id),
+            default => null,
+        };
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->product->name ?? $this->catalog_item->name ?? '---';
     }
 
     public function lots()

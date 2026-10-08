@@ -62,6 +62,10 @@ class GoodsReceiptController extends Controller
         }
 
         $purchaseOrder->load('supplier', 'items.product', 'items.goodsReceiptItems');
+        $purchaseOrder->setRelation('items', $purchaseOrder->items->whereNotNull('product_id')->values());
+        if ($purchaseOrder->items->isEmpty()) {
+            return redirect()->route('material-receipts.create', $purchaseOrder);
+        }
         foreach ($purchaseOrder->items as $item) {
             $processedQuantity = $item->goodsReceiptItems->sum(fn ($receiptItem) => (float) $receiptItem->received_quantity + (float) $receiptItem->returned_quantity);
             $item->setAttribute('processed_quantity', $processedQuantity);
@@ -83,6 +87,7 @@ class GoodsReceiptController extends Controller
         }
 
         $purchaseOrder->load('items');
+        $purchaseOrder->setRelation('items', $purchaseOrder->items->whereNotNull('product_id')->values());
         $rules = [
             'receipt_code' => 'nullable|string|unique:goods_receipts,receipt_code|max:255',
             'receipt_date' => 'required|date',
@@ -115,6 +120,7 @@ class GoodsReceiptController extends Controller
             }
 
             $lockedItems = PurchaseOrderItem::where('purchase_order_id', $lockedPurchaseOrder->id)
+                ->whereNotNull('product_id')
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
@@ -199,11 +205,8 @@ class GoodsReceiptController extends Controller
             }
 
             $allItemsResolved = true;
-            foreach ($lockedItems as $poItem) {
-                $processedQuantity = (float) GoodsReceiptItem::query()
-                    ->where('purchase_order_item_id', $poItem->id)
-                    ->selectRaw('COALESCE(SUM(received_quantity + returned_quantity), 0) as processed_quantity')
-                    ->value('processed_quantity');
+            foreach (PurchaseOrderItem::where('purchase_order_id', $lockedPurchaseOrder->id)->get() as $poItem) {
+                $processedQuantity = $poItem->processedQuantity();
                 if ($processedQuantity + 0.0001 < (float) $poItem->quantity) {
                     $allItemsResolved = false;
                     break;

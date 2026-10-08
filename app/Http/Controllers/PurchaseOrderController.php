@@ -39,6 +39,17 @@ class PurchaseOrderController extends Controller
     }
 
     // 1. Hiển thị danh sách đơn mua hàng kèm tìm kiếm và bộ lọc tối ưu
+    public function searchItems(Request $request)
+    {
+        $controller = match ($request->get('type')) {
+            'raw_material' => app(RawMaterialController::class),
+            'accessory' => app(AccessoryController::class),
+            default => app(ProductController::class),
+        };
+
+        return $controller->searchAjax($request);
+    }
+
     public function index(Request $request)
     {
         $query = PurchaseOrder::with(['supplier', 'user'])->orderBy('id', 'desc');
@@ -79,6 +90,20 @@ class PurchaseOrderController extends Controller
         return view('purchase-orders.create');
     }
 
+    private function normalizeItems(Request $request): void
+    {
+        $items = collect($request->input('items', []))->map(function ($item) {
+            if (is_array($item) && empty($item['item_type']) && !empty($item['product_id'])) {
+                $item['item_type'] = 'product';
+                $item['item_id'] = $item['product_id'];
+            }
+
+            return $item;
+        })->all();
+
+        $request->merge(['items' => $items]);
+    }
+
     // 5. Lưu đơn mua hàng mới xuống Database (Mặc định ở trạng thái draft - Nháp)
     public function store(Request $request)
     {
@@ -88,6 +113,8 @@ class PurchaseOrderController extends Controller
                 ->with('error', 'Chỉ bộ phận Kinh doanh hoặc IT mới có quyền tạo đơn mua hàng.');
         }
 
+        $this->normalizeItems($request);
+
         $request->validate([
             'po_number' => 'required|string|max:50|unique:purchase_orders,po_number',
             'supplier_id' => 'required|exists:suppliers,id',
@@ -95,7 +122,13 @@ class PurchaseOrderController extends Controller
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.item_type' => 'required|in:product,raw_material,accessory',
+            'items.*.item_id' => ['required', 'integer', function ($attribute, $value, $fail) use ($request) {
+                $index = explode('.', $attribute)[1];
+                if (!PurchaseOrderItem::catalogExists((string) $request->input("items.{$index}.item_type"), (int) $value)) {
+                    $fail('Hàng hóa chọn trong đơn mua không tồn tại.');
+                }
+            }],
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
         ], [
@@ -131,7 +164,7 @@ class PurchaseOrderController extends Controller
             foreach ($request->items as $item) {
                 PurchaseOrderItem::create([
                     'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $item['product_id'],
+                    ...PurchaseOrderItem::catalogColumns($item['item_type'], (int) $item['item_id']),
                     'quantity' => $item['quantity'],
                     'unit' => $item['unit'] ?? 'Kg',
                     'unit_price' => $item['unit_price'],
@@ -157,7 +190,7 @@ class PurchaseOrderController extends Controller
             return redirect()->route('purchase-orders.index')->with('error', 'Chỉ bộ phận Kinh doanh hoặc IT mới có quyền chỉnh sửa đơn mua hàng.');
         }
 
-        $purchaseOrder = PurchaseOrder::with(['supplier', 'items.product'])->findOrFail($id);
+        $purchaseOrder = PurchaseOrder::with(['supplier', 'items.product', 'items.rawMaterial', 'items.accessory'])->findOrFail($id);
         
         if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true) && !$this->isItOrAdminPermission()) {
             return redirect()->route('purchase-orders.index')->with('error', 'Chỉ được chỉnh sửa đơn hàng đang ở trạng thái Nháp hoặc Bị từ chối.');
@@ -174,6 +207,8 @@ class PurchaseOrderController extends Controller
             return redirect()->route('purchase-orders.index')->with('error', 'Chỉ bộ phận Kinh doanh hoặc IT mới có quyền chỉnh sửa đơn mua hàng.');
         }
         
+        $this->normalizeItems($request);
+
         $request->validate([
             'po_number' => 'required|string|max:50|unique:purchase_orders,po_number,' . $id,
             'supplier_id' => 'required|exists:suppliers,id',
@@ -181,7 +216,13 @@ class PurchaseOrderController extends Controller
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.item_type' => 'required|in:product,raw_material,accessory',
+            'items.*.item_id' => ['required', 'integer', function ($attribute, $value, $fail) use ($request) {
+                $index = explode('.', $attribute)[1];
+                if (!PurchaseOrderItem::catalogExists((string) $request->input("items.{$index}.item_type"), (int) $value)) {
+                    $fail('Hàng hóa chọn trong đơn mua không tồn tại.');
+                }
+            }],
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
         ]);
@@ -218,7 +259,7 @@ class PurchaseOrderController extends Controller
             foreach ($request->items as $item) {
                 PurchaseOrderItem::create([
                     'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $item['product_id'],
+                    ...PurchaseOrderItem::catalogColumns($item['item_type'], (int) $item['item_id']),
                     'quantity' => $item['quantity'],
                     'unit' => $item['unit'] ?? 'Kg',
                     'unit_price' => $item['unit_price'],
@@ -342,7 +383,9 @@ class PurchaseOrderController extends Controller
         $purchaseOrder = PurchaseOrder::with([
             'supplier', 
             'user', 
-            'items.product', 
+            'items.product',
+            'items.rawMaterial',
+            'items.accessory', 
             'goodsReceipts.items'
         ])->findOrFail($id);
         

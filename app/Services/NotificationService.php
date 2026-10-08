@@ -53,6 +53,7 @@ class NotificationService
         }
 
         if ($user->isWarehouseDepartment()) {
+            $add('Đơn nguyên liệu thô cần xuất kho', Order::where('status', 'pending_material_issue')->count(), 'warehouse.material-issues');
             $add('Đơn hàng cần xác nhận tồn kho', Order::where('status', 'pending_warehouse_check')->whereNotNull('sales_approved_at')->count(), 'warehouse.sales-order-stock-checks');
             $add('Đơn mua chờ nhận hàng', PurchaseOrder::where('status', 'approved')->count(), 'warehouse.purchase-orders');
         }

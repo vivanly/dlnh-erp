@@ -58,7 +58,7 @@
 
     @if($currentUser)
     <!-- Menu QA -->
-        <details class="group/menu rounded-md border {{ request()->routeIs(['products*', 'product-regulatory-documents*', 'product-storage-methods*', 'qa.order-batches*', 'qa.coas*', 'qa.internal-lots*', 'qa.production-output-lots*', 'ppcb*']) ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs(['products*', 'product-regulatory-documents*', 'product-storage-methods*', 'qa.order-batches*', 'qa.coas*', 'qa.internal-lots*', 'qa.production-output-lots*', 'ppcb*']) ? 'open' : '' }}>
+        <details class="group/menu rounded-md border {{ request()->routeIs(['products*', 'product-regulatory-documents*', 'product-storage-methods*', 'qa.order-batches*', 'qa.coas*', 'qa.internal-lots*', 'qa.production-output-lots*', 'ppcb*', 'raw-materials*', 'accessories*']) ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs(['products*', 'product-regulatory-documents*', 'product-storage-methods*', 'qa.order-batches*', 'qa.coas*', 'qa.internal-lots*', 'qa.production-output-lots*', 'ppcb*', 'raw-materials*', 'accessories*']) ? 'open' : '' }}>
         <summary class="list-none cursor-pointer flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
             <div class="flex items-center gap-2.5">
                 <svg class="w-4 h-4 text-slate-500 {{ request()->routeIs(['products*', 'qa.order-batches*', 'qa.coas*', 'qa.internal-lots*', 'traceability*', 'ppcb*']) ? 'text-blue-600' : '' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 01-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a6 6 0 01.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
@@ -69,6 +69,12 @@
         <div class="px-2 pb-2 pt-1 space-y-1 border-t border-slate-200 bg-white rounded-b-md">
             <a href="{{ route('products.index') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('products*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 Danh mục sản phẩm
+            </a>
+            <a href="{{ route('raw-materials.index') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('raw-materials*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                Danh mục nguyên liệu thô
+            </a>
+            <a href="{{ route('accessories.index') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('accessories*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                Danh mục phụ liệu
             </a>
             <a href="{{ route('ppcb.index') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('ppcb*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                 Phương pháp chế biến (PPCB)
@@ -153,6 +159,15 @@
                 </a>
                 <a href="{{ route('warehouse.stock') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.stock*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                     Kiểm tra tồn kho tổng
+                </a>
+                <a href="{{ route('warehouse.material-stock') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.material-stock*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    Tồn nguyên liệu thô / phụ liệu
+                </a>
+                <a href="{{ route('warehouse.material-issues') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.material-issues*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    Xuất đơn nguyên liệu thô
+                </a>
+                <a href="{{ route('supplier-returns.index') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('supplier-returns*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    Trả hàng nhà cung cấp
                 </a>
             </div>
         </details>

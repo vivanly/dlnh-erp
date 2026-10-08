@@ -58,6 +58,17 @@
                             <input type="text" name="origin" value="{{ old('origin', $product->origin) }}" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
 
+                        <!-- Nguyên liệu thô nguồn -->
+                        <div>
+                            <label class="block font-medium text-sm text-gray-700">Nguyên liệu thô nguồn (nếu có)</label>
+                            <select name="raw_material_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">-- Không gắn --</option>
+                                @foreach(\App\Models\RawMaterial::orderBy('name')->get(['id', 'sku', 'name']) as $rawMaterial)
+                                    <option value="{{ $rawMaterial->id }}" @selected((string) old('raw_material_id', $product->raw_material_id) === (string) $rawMaterial->id)>{{ $rawMaterial->name }} ({{ $rawMaterial->sku }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <!-- Bộ phận dùng -->
                         <div>
                             <label class="block font-medium text-sm text-gray-700">Bộ phận dùng</label>

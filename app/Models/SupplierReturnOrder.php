@@ -11,6 +11,9 @@ class SupplierReturnOrder extends Model
         'supplier_id',
         'purchase_order_id',
         'supplier_batch_id',
+        'material_type',
+        'material_id',
+        'purchase_order_item_id',
         'quantity',
         'unit',
         'reason',
@@ -33,6 +36,15 @@ class SupplierReturnOrder extends Model
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function getCatalogItemAttribute()
+    {
+        return match ($this->material_type) {
+            'raw_material' => RawMaterial::find($this->material_id),
+            'accessory' => Accessory::find($this->material_id),
+            default => null,
+        };
     }
 
     public function supplierBatch()

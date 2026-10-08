@@ -56,6 +56,7 @@
                                 <option value="">-- Chọn loại đơn hàng --</option>
                                 <option value="DL" {{ old('order_type', 'DL') == 'DL' ? 'selected' : '' }}>Dược Liệu</option>
                                 <option value="VT" {{ old('order_type') == 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
+                                <option value="NL" {{ old('order_type') == 'NL' ? 'selected' : '' }}>Nguyên Liệu Thô</option>
                             </select>
                                 @error('order_type') <span class="text-rose-500 text-[11px] mt-0.5 block">{{ $message }}</span> @enderror
                         </div>
@@ -119,7 +120,7 @@
                                 <tr>
                                     <td class="py-2 px-1.5 text-center font-bold text-slate-700 stt">1</td>
                                     <td class="py-2 px-1.5">
-                                        <select name="items[0][product_id]" required class="w-full text-xs product-select">
+                                        <select name="items[0][item_id]" required class="w-full text-xs product-select">
                                             <option value="">-- Chọn vị thuốc --</option>
                                         </select>
                                     </td>
@@ -230,7 +231,7 @@
                     placeholder: '-- Chọn vị thuốc --',
                     allowClear: true,
                     ajax: {
-                        url: '{{ route("api.products.search") }}',
+                        url: () => ($('select[name=order_type]').val() === 'NL' ? '{{ route("api.raw-materials.search") }}' : '{{ route("api.products.search") }}'),
                         dataType: 'json',
                         delay: 250,
                         data: params => ({ q: params.term }),
@@ -288,6 +289,10 @@
 
             initRowAutocomplete($('#itemsTable tbody tr')[0]);
 
+            $('select[name=order_type]').on('change', function () {
+                $('#itemsTable tbody .ajax-autocomplete-clear').trigger('click');
+            });
+
             function updateSTT() {
                 $('#itemsTable tbody tr').each(function(index, tr) {
                     $(tr).find('.stt').text(index + 1);$(tr).find('input, select, textarea').each(function() {
@@ -306,7 +311,7 @@
                     <tr>
                         <td class="py-2 px-1.5 text-center font-bold text-slate-700 stt"></td>
                         <td class="py-2 px-1.5">
-                            <select name="items[${rowIndex}][product_id]" required class="w-full text-xs product-select">
+                            <select name="items[${rowIndex}][item_id]" required class="w-full text-xs product-select">
                                 <option value="">-- Chọn vị thuốc --</option>
                             </select>
                         </td>

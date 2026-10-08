@@ -484,9 +484,23 @@ class ProductionController extends Controller
             ->orderBy('id')
             ->get();
         $availability->addTo($supplierBatches);
+        $materialLots = collect();
+        if ($productionOrder->status === 'released') {
+            $pairs = \App\Models\MaterialStockMovement::select('material_type', 'material_id')->distinct()->get();
+            foreach ($pairs as $pair) {
+                $catalogItem = $pair->material_type === 'accessory' ? \App\Models\Accessory::find($pair->material_id) : \App\Models\RawMaterial::find($pair->material_id);
+                if (!$catalogItem) {
+                    continue;
+                }
+                foreach (\App\Models\MaterialStockMovement::lotBalances($pair->material_type, (int) $pair->material_id) as $lot) {
+                    $materialLots->push((object) ['type' => $pair->material_type, 'id' => $pair->material_id, 'item' => $catalogItem, 'batch' => $lot->batch, 'exp_date' => $lot->exp_date, 'balance' => $lot->balance]);
+                }
+            }
+        }
         return view('production-orders.show', [
             'productionOrder' => $productionOrder,
             'supplierBatches' => $supplierBatches,
+            'materialLots' => $materialLots,
             'canIssueMaterials' => $this->userCanWorkInWarehouse(),
             'canReceiveFinishedBatch' => $this->userCanWorkInWarehouse(),
             'canManageLots' => $this->userCanManageBom(),
@@ -575,18 +589,29 @@ class ProductionController extends Controller
             return back()->with('error', 'Giám đốc cần duyệt kế hoạch trước khi Kho xuất nguyên liệu.');
         }
         $validated = $request->validate([
-            'lots' => ['required', 'array'],
+            'lots' => ['nullable', 'array'],
             'lots.*' => ['nullable', 'numeric', 'min:0'],
+            'material_lots' => ['nullable', 'array'],
+            'material_lots.*.type' => ['required', 'in:raw_material,accessory'],
+            'material_lots.*.id' => ['required', 'integer'],
+            'material_lots.*.batch' => ['nullable', 'string', 'max:255'],
+            'material_lots.*.quantity' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $selected = collect($validated['lots'])
+        $materialSelected = collect($validated['material_lots'] ?? [])
+            ->map(fn ($row) => ['type' => $row['type'], 'id' => (int) $row['id'], 'batch' => (string) ($row['batch'] ?? ''), 'quantity' => round((float) ($row['quantity'] ?? 0), 4)])
+            ->filter(fn ($row) => $row['quantity'] > 0)
+            ->groupBy(fn ($row) => $row['type'] . '|' . $row['id'] . '|' . $row['batch'])
+            ->map(fn ($rows) => ['type' => $rows[0]['type'], 'id' => $rows[0]['id'], 'batch' => $rows[0]['batch'], 'quantity' => round($rows->sum('quantity'), 4)])
+            ->values();
+        $selected = collect($validated['lots'] ?? [])
             ->mapWithKeys(fn ($quantity, $batchId) => [(int) $batchId => round((float) $quantity, 4)])
             ->filter(fn ($quantity) => $quantity > 0);
-        if ($selected->isEmpty()) {
+        if ($selected->isEmpty() && $materialSelected->isEmpty()) {
             return back()->withInput()->with('error', 'Kho chưa chọn lô nguyên liệu và số lượng xuất.');
         }
 
         try {
-            DB::transaction(function () use ($productionOrder, $selected, $inventoryLedger, $availability) {
+            DB::transaction(function () use ($productionOrder, $selected, $materialSelected, $inventoryLedger, $availability) {
                 $lockedOrder = ProductionOrder::whereKey($productionOrder->id)->lockForUpdate()->firstOrFail();
                 if ($lockedOrder->status !== 'released') {
                     throw new DomainException('Lệnh sản xuất không còn chờ xuất nguyên liệu.');
@@ -631,6 +656,43 @@ class ProductionController extends Controller
                         auth()->id(),
                     );
                     $material->issued_quantity = (float) $material->issued_quantity + $quantity;
+                }
+
+                foreach ($materialSelected as $row) {
+                    $catalogModel = $row['type'] === 'accessory' ? \App\Models\Accessory::class : \App\Models\RawMaterial::class;
+                    $catalogItem = $catalogModel::whereKey($row['id'])->lockForUpdate()->first();
+                    if (!$catalogItem) {
+                        throw new DomainException('Có nguyên liệu/phụ liệu được chọn không tồn tại.');
+                    }
+                    $lotBalance = \App\Models\MaterialStockMovement::lotBalance($row['type'], $row['id'], $row['batch']);
+                    if ($row['quantity'] > $lotBalance + 0.0001) {
+                        throw new DomainException("Lô {$row['batch']} của {$catalogItem->name} không đủ tồn để xuất (tồn {$lotBalance}).");
+                    }
+
+                    $key = $row['type'] . '|' . $row['id'];
+                    $material = $materials[$key] ??= $lockedOrder->materials()->firstOrCreate(
+                        ['material_type' => $row['type'], 'material_id' => $row['id']],
+                        ['required_quantity' => 0, 'issued_quantity' => 0, 'unit' => $catalogItem->unit ?: 'kg'],
+                    );
+                    $material->lots()->create([
+                        'batch_number' => $row['batch'] !== '' ? $row['batch'] : null,
+                        'allocated_quantity' => $row['quantity'],
+                        'issued_quantity' => $row['quantity'],
+                        'issued_at' => now(),
+                        'assigned_by' => auth()->id(),
+                    ]);
+                    \App\Models\MaterialStockMovement::create([
+                        'material_type' => $row['type'],
+                        'material_id' => $row['id'],
+                        'movement_type' => 'ISSUE_PRODUCTION',
+                        'direction' => 'out',
+                        'quantity' => $row['quantity'],
+                        'unit' => $material->unit,
+                        'batch_number' => $row['batch'] !== '' ? $row['batch'] : null,
+                        'user_id' => auth()->id(),
+                        'note' => 'Xuất sản xuất theo lệnh ' . $lockedOrder->id,
+                    ]);
+                    $material->issued_quantity = (float) $material->issued_quantity + $row['quantity'];
                 }
 
                 foreach ($materials as $material) {
@@ -734,20 +796,34 @@ class ProductionController extends Controller
                         $consumedTotal += $consumedQuantity;
 
                         if ($returnedQuantity > 0) {
-                            if (! $lockedAllocation->supplier_batch_id) {
-                                throw new DomainException('Chỉ nhận trả về đúng lô NCC đã xuất cho lệnh.');
+                            if (! $lockedAllocation->supplier_batch_id && $material->material_type) {
+                                \App\Models\MaterialStockMovement::create([
+                                    'material_type' => $material->material_type,
+                                    'material_id' => $material->material_id,
+                                    'movement_type' => 'RETURN_PRODUCTION',
+                                    'direction' => 'in',
+                                    'quantity' => $returnedQuantity,
+                                    'unit' => $material->unit,
+                                    'batch_number' => $lockedAllocation->batch_number,
+                                    'user_id' => auth()->id(),
+                                    'note' => 'Trả về kho từ lệnh sản xuất ' . $lockedOrder->id,
+                                ]);
+                            } else {
+                                if (! $lockedAllocation->supplier_batch_id) {
+                                    throw new DomainException('Chỉ nhận trả về đúng lô NCC đã xuất cho lệnh.');
+                                }
+                                $supplierSourceBatch = SupplierBatch::whereKey($lockedAllocation->supplier_batch_id)->lockForUpdate()->firstOrFail();
+                                $inventoryLedger->post(
+                                    $supplierSourceBatch,
+                                    'RETURN_PRODUCTION',
+                                    'in',
+                                    $returnedQuantity,
+                                    $material->unit,
+                                    ProductionOrder::class,
+                                    $lockedOrder->id,
+                                    auth()->id(),
+                                );
                             }
-                            $supplierSourceBatch = SupplierBatch::whereKey($lockedAllocation->supplier_batch_id)->lockForUpdate()->firstOrFail();
-                            $inventoryLedger->post(
-                                $supplierSourceBatch,
-                                'RETURN_PRODUCTION',
-                                'in',
-                                $returnedQuantity,
-                                $material->unit,
-                                ProductionOrder::class,
-                                $lockedOrder->id,
-                                auth()->id(),
-                            );
                         }
 
                         if ($consumedQuantity > 0) {

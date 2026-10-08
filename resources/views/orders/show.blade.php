@@ -10,6 +10,7 @@
                         'pending_sales_approval' => 'Chờ GĐ Kinh doanh duyệt',
                         'sales_rejected' => 'Kinh doanh từ chối',
                         'pending_warehouse_check' => 'Chờ Kho kiểm tồn',
+                        'pending_material_issue' => 'Chờ Kho xuất nguyên liệu',
                         'pending_qa' => 'Chờ QA chốt lô',
                         'pending_planning' => 'Chờ Kế hoạch',
                         'waiting_finished_goods_receipt' => 'Chờ Kho nhập lô thành phẩm',
@@ -166,19 +167,19 @@
                                 <tr class="hover:bg-blue-50/20 transition">
                                     <td class="py-2.5 px-3 border-r border-slate-200 text-center font-mono">{{ $index + 1 }}</td>
                                     <td class="py-2.5 px-3 border-r border-slate-200 font-bold text-slate-900">
-                                        {{ optional($item->product)->name ?? $item->product_name ?? 'N/A' }}
+                                        {{ optional($item->catalog_item)->name ?? $item->product_name ?? 'N/A' }}
                                     </td>
                                     <td class="py-2.5 px-3 border-r border-slate-200 font-mono text-slate-600">
-                                        {{ optional($item->product)->sku ?? $item->sku ?? '-' }}
+                                        {{ optional($item->catalog_item)->sku ?? $item->sku ?? '-' }}
                                     </td>
                                     <td class="py-2.5 px-3 border-r border-slate-200 text-center">
-                                        {{ $item->unit ?? optional($item->product)->unit ?? '-' }}
+                                        {{ $item->unit ?? optional($item->catalog_item)->unit ?? '-' }}
                                     </td>
                                     <td class="py-2.5 px-3 border-r border-slate-200">
-                                        {{ $item->classification ?? optional($item->product)->type ?? optional($item->product)->classification ?? '-' }}
+                                        {{ $item->classification ?? optional($item->catalog_item)->type ?? optional($item->catalog_item)->classification ?? '-' }}
                                     </td>
                                     <td class="py-2.5 px-3 border-r border-slate-200">
-                                        {{ $item->origin ?? optional($item->product)->origin ?? '-' }}
+                                        {{ $item->origin ?? optional($item->catalog_item)->origin ?? '-' }}
                                     </td>
                                     <td class="py-2.5 px-3 border-r border-slate-200 text-center font-mono font-bold">
                                         {{ $item->quantity ?? 0 }}

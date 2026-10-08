@@ -190,7 +190,7 @@
 
                 controller = new AbortController();
                 showMessage('Đang tìm...');
-                const url = new URL(settings.url, window.location.origin);
+                const url = new URL(typeof settings.url === 'function' ? settings.url() : settings.url, window.location.origin);
                 const requestData = settings.getRequestData ? settings.getRequestData(query) : { q: query };
                 Object.entries(requestData || {}).forEach(function (entry) {
                     url.searchParams.set(entry[0], entry[1]);

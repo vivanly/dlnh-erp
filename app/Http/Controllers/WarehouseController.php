@@ -570,6 +570,107 @@ class WarehouseController extends Controller
         }
     }
 
+    public function materialStock(Request $request)
+    {
+        $this->ensureWarehouseViewAccess();
+
+        $type = $request->input('type');
+        $search = trim((string) $request->input('search'));
+
+        $rows = collect(['raw_material' => \App\Models\RawMaterial::class, 'accessory' => \App\Models\Accessory::class])
+            ->when($type, fn ($c) => $c->only([$type]))
+            ->flatMap(function ($model, $materialType) use ($search) {
+                return $model::query()
+                    ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")))
+                    ->orderBy('name')
+                    ->get()
+                    ->map(function ($item) use ($materialType) {
+                        $in = (float) \App\Models\MaterialStockMovement::where('material_type', $materialType)->where('material_id', $item->id)->where('direction', 'in')->sum('quantity');
+                        $out = (float) \App\Models\MaterialStockMovement::where('material_type', $materialType)->where('material_id', $item->id)->where('direction', 'out')->sum('quantity');
+
+                        $lots = \App\Models\MaterialStockMovement::lotBalances($materialType, $item->id, false);
+
+                        return (object) ['type' => $materialType, 'item' => $item, 'in' => $in, 'out' => $out, 'balance' => $in - $out, 'lots' => $lots];
+                    });
+            })
+            ->values();
+
+        $movements = \App\Models\MaterialStockMovement::latest()->limit(20)->get();
+
+        return view('warehouse.material-stock', compact('rows', 'movements', 'type', 'search'));
+    }
+
+    public function materialIssues()
+    {
+        $this->ensureWarehouseViewAccess();
+
+        $orders = Order::with(['customer', 'items.rawMaterial'])
+            ->where('order_type', 'NL')
+            ->where('status', 'pending_material_issue')
+            ->latest()
+            ->paginate(20);
+
+        $orders->getCollection()->each(function (Order $order) {
+            foreach ($order->items as $item) {
+                $item->setAttribute('stock_balance', \App\Models\MaterialStockMovement::balance('raw_material', (int) $item->raw_material_id));
+            }
+        });
+
+        $canManageWarehouse = $this->canManageWarehouse();
+
+        return view('warehouse.material-issues', compact('orders', 'canManageWarehouse'));
+    }
+
+    public function issueMaterialOrder(Order $order)
+    {
+        $this->ensureWarehouseAccess();
+
+        try {
+            DB::transaction(function () use ($order) {
+                $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+                if ($locked->order_type !== 'NL' || $locked->status !== 'pending_material_issue') {
+                    throw new DomainException('Đơn không còn chờ xuất nguyên liệu thô.');
+                }
+
+                foreach ($locked->items()->with('rawMaterial')->get() as $item) {
+                    $balance = \App\Models\MaterialStockMovement::balance('raw_material', (int) $item->raw_material_id);
+                    if ((float) $item->quantity > $balance + 0.0001) {
+                        throw new DomainException('Không đủ tồn kho cho ' . ($item->rawMaterial->name ?? 'nguyên liệu') . " (cần {$item->quantity}, tồn {$balance}).");
+                    }
+                }
+
+                foreach ($locked->items as $item) {
+                    $needed = (float) $item->quantity;
+                    foreach (\App\Models\MaterialStockMovement::lotBalances('raw_material', (int) $item->raw_material_id) as $lot) {
+                        if ($needed <= 0.0001) {
+                            break;
+                        }
+                        $take = min($needed, $lot->balance);
+                        \App\Models\MaterialStockMovement::create([
+                            'material_type' => 'raw_material',
+                            'material_id' => $item->raw_material_id,
+                            'movement_type' => 'ISSUE_SALE',
+                            'direction' => 'out',
+                            'quantity' => $take,
+                            'unit' => $item->rawMaterial->unit ?? null,
+                            'batch_number' => $lot->batch !== '' ? $lot->batch : null,
+                            'order_item_id' => $item->id,
+                            'user_id' => auth()->id(),
+                            'note' => 'Xuất bán theo đơn ' . $locked->order_code . ' (FIFO/FEFO)',
+                        ]);
+                        $needed -= $take;
+                    }
+                    $item->update(['actual_quantity' => $item->quantity, 'packed_quantity' => $item->quantity]);
+                }
+
+                $locked->update(['status' => 'completed']);
+            });
+        } catch (DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('warehouse.material-issues')->with('success', 'Đã xuất kho nguyên liệu thô và hoàn tất đơn.');
+    }
     public function stockOverview(Request $request)
     {
         $this->ensureWarehouseViewAccess();

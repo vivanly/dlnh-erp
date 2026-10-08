@@ -93,7 +93,12 @@
                                 <tr class="item-row hover:bg-blue-50/20 transition">
                                     <td class="py-2 px-3 border-r border-slate-200 text-center font-mono row-index font-bold text-slate-600">1</td>
                                     <td class="py-2 px-3 border-r border-slate-200">
-                                        <select name="items[0][product_id]" class="w-full text-xs border-slate-300 rounded-none product-select" required>
+                                        <select name="items[0][item_type]" class="w-full text-xs border-slate-300 rounded-none mb-1 item-type-select" aria-label="Loại hàng">
+                                            <option value="product">Dược liệu / Sản phẩm</option>
+                                            <option value="raw_material">Nguyên liệu thô</option>
+                                            <option value="accessory">Phụ liệu</option>
+                                        </select>
+                                        <select name="items[0][item_id]" class="w-full text-xs border-slate-300 rounded-none product-select" required>
                                             <option value="">-- Gõ tìm tên vị thuốc / mã SKU --</option>
                                         </select>
                                     </td>
@@ -197,16 +202,17 @@
 
         // Hàm khởi tạo autocomplete AJAX cho sản phẩm
         function initProductSelect(element) {
+            if ($(element).length > 1) { $(element).each(function () { initProductSelect(this); }); return; }
             let $el =$(element);
             $el.autocompleteSelect({
                     theme: 'bootstrap-5',
                     placeholder: '-- Chọn vị thuốc --',
                     ajax: {
-                        url: '{{ route("api.products.search") }}',
+                        url: '{{ route("api.purchase-items.search") }}',
                         dataType: 'json',
                         delay: 250,
                         data: function (params) {
-                            return { q: params.term };
+                            return { q: params.term, type: $(element).closest('tr').find('.item-type-select').val() || 'product' };
                         },
                         processResults: function (response) {
                             let items = response.data || response;
@@ -232,6 +238,10 @@
                 });
         }
 
+        $(document).on('change', '.item-type-select', function () {
+            $(this).closest('tr').find('.ajax-autocomplete-clear').trigger('click');
+        });
+
         initProductSelect('.product-select');
 
         // Hàm cập nhật lại số thứ tự (STT) khi thêm hoặc xóa dòng
@@ -247,7 +257,12 @@
                 <tr class="item-row hover:bg-blue-50/20 transition">
                     <td class="py-2 px-3 border-r border-slate-200 text-center font-mono row-index font-bold text-slate-600"></td>
                     <td class="py-2 px-3 border-r border-slate-200">
-                        <select name="items[${rowIndex}][product_id]" class="w-full text-xs border-slate-300 rounded-none product-select" required>
+                        <select name="items[${rowIndex}][item_type]" class="w-full text-xs border-slate-300 rounded-none mb-1 item-type-select" aria-label="Loại hàng">
+                                            <option value="product">Dược liệu / Sản phẩm</option>
+                                            <option value="raw_material">Nguyên liệu thô</option>
+                                            <option value="accessory">Phụ liệu</option>
+                                        </select>
+                                        <select name="items[${rowIndex}][item_id]" class="w-full text-xs border-slate-300 rounded-none product-select" required>
                             <option value="">-- Gõ tìm tên vị thuốc / mã SKU --</option>
                         </select>
                     </td>

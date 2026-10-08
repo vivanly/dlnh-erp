@@ -14,6 +14,7 @@ class OrderItem extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'raw_material_id',
         'quantity',
         'actual_quantity',
         'packed_quantity',
@@ -44,6 +45,16 @@ class OrderItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function rawMaterial()
+    {
+        return $this->belongsTo(RawMaterial::class, 'raw_material_id');
+    }
+
+    public function getCatalogItemAttribute()
+    {
+        return $this->raw_material_id ? $this->rawMaterial : $this->product;
     }
 
     public function ppcb()

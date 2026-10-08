@@ -11,6 +11,7 @@ class Product extends Model
     use HasFactory;
 
     protected $fillable = [
+        'raw_material_id',
         'name',
         'slug',
         'part_used',
@@ -47,6 +48,11 @@ class Product extends Model
         }
 
         return $slug;
+    }
+
+    public function rawMaterial()
+    {
+        return $this->belongsTo(RawMaterial::class, 'raw_material_id');
     }
 
     public function boms()

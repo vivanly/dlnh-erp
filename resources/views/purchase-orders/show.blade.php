@@ -171,12 +171,16 @@
                                         }
                                     }
                                 }
+                                if ($item->material_type) {
+                                    $receivedQty = (float) $item->materialMovements()->where('movement_type', 'RECEIVE_PURCHASE')->sum('quantity');
+                                    $returnedQty = (float) $item->materialMovements()->where('movement_type', 'REJECT_PURCHASE')->sum('quantity');
+                                }
                             @endphp
                             <tr class="hover:bg-slate-50">
                                 <td class="py-2 px-3 border-r border-slate-200 text-center font-mono">{{ $index + 1 }}</td>
                                 <td class="py-2 px-3 border-r border-slate-200 font-medium">
-                                    {{ $item->product->name ?? 'Sản phẩm không tồn tại' }}
-                                    <span class="block text-[10px] text-slate-500 font-mono">SKU: {{ $item->product->sku ?? '' }}</span>
+                                    {{ $item->catalog_item->name ?? 'Sản phẩm không tồn tại' }} <span class="text-[10px] text-slate-500">[{{ $item->item_type_label }}]</span>
+                                    <span class="block text-[10px] text-slate-500 font-mono">SKU: {{ $item->catalog_item->sku ?? '' }}</span>
                                 </td>
                                 <td class="py-2 px-3 border-r border-slate-200 text-center">{{ $item->unit }}</td>
                                 <td class="py-2 px-3 border-r border-slate-200 text-center font-mono">{{ number_format($item->quantity, 2) }}</td>

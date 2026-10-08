@@ -52,7 +52,7 @@
                 request()->routeIs(['production*', 'boms.*']) => __('Kế hoạch & sản xuất'),
                 request()->routeIs(['qa.*', 'product-regulatory-documents.*', 'ppcb.*']) => __('Chất lượng'),
                 request()->routeIs('traceability.*') => __('Truy xuất nguồn gốc'),
-                request()->routeIs(['users.*', 'departments.*', 'products.*']) => __('Quản trị dữ liệu'),
+                request()->routeIs(['users.*', 'departments.*', 'products.*', 'raw-materials.*', 'accessories.*']) => __('Quản trị dữ liệu'),
                 default => __('Không gian làm việc'),
             };
         @endphp

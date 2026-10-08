@@ -35,7 +35,7 @@
                             <thead><tr class="border-b border-slate-200 text-[10px] uppercase text-slate-500"><th class="p-2.5">Sản phẩm</th><th class="p-2.5">SKU</th><th class="p-2.5 text-right">Số lượng</th><th class="p-2.5">QCĐG</th><th class="p-2.5 text-right">Thành phẩm</th></tr></thead>
                             <tbody class="divide-y divide-slate-100">
                                 @foreach($order->items as $item)
-                                    <tr><td class="p-2.5 font-semibold">{{ $item->product->name ?? '---' }}</td><td class="p-2.5 font-mono">{{ $item->product->sku ?? '---' }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->quantity, 2) }} {{ $item->product->unit ?? '' }}</td><td class="p-2.5">{{ $item->packaging_spec ?: '---' }}</td><td class="p-2.5 text-right font-mono">{{ $item->finished_quantity !== null ? number_format((float) $item->finished_quantity, 2) : '---' }}</td></tr>
+                                    <tr><td class="p-2.5 font-semibold">{{ $item->catalog_item->name ?? '---' }}</td><td class="p-2.5 font-mono">{{ $item->catalog_item->sku ?? '---' }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->quantity, 2) }} {{ $item->catalog_item->unit ?? '' }}</td><td class="p-2.5">{{ $item->packaging_spec ?: '---' }}</td><td class="p-2.5 text-right font-mono">{{ $item->finished_quantity !== null ? number_format((float) $item->finished_quantity, 2) : '---' }}</td></tr>
                                 @endforeach
                             </tbody>
                         </table>

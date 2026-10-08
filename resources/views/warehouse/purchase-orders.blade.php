@@ -55,7 +55,12 @@
                                     <span class="text-slate-400">Chỉ xem</span>
                                 @endif
                             @elseif($purchaseOrder->status === 'delivered')
-                                <a href="{{ route('goods-receipts.create', $purchaseOrder) }}" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold uppercase hover:bg-emerald-700">Lập phiếu nhập kho</a>
+                                @if($purchaseOrder->items->whereNotNull('product_id')->isNotEmpty())
+                                    <a href="{{ route('goods-receipts.create', $purchaseOrder) }}" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold uppercase hover:bg-emerald-700">Lập phiếu nhập kho</a>
+                                @endif
+                                @if($purchaseOrder->items->whereNotNull('material_type')->isNotEmpty())
+                                    <a href="{{ route('material-receipts.create', $purchaseOrder) }}" class="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold uppercase hover:bg-teal-700">Nhập kho NL thô / phụ liệu</a>
+                                @endif
                             @endif
                         </div>
                     </div>
@@ -74,7 +79,7 @@
                             <tbody class="divide-y divide-slate-200">
                                 @foreach($purchaseOrder->items as $item)
                                     <tr>
-                                        <td class="p-2 border-r font-medium">{{ $item->product->name ?? 'Sản phẩm' }} <span class="text-slate-500">({{ $item->product->sku ?? '---' }})</span></td>
+                                        <td class="p-2 border-r font-medium">{{ $item->catalog_item->name ?? 'Sản phẩm' }} <span class="text-slate-500">({{ $item->catalog_item->sku ?? '---' }})</span> <span class="text-[10px] text-slate-500">[{{ $item->item_type_label }}]</span></td>
                                         <td class="p-2 border-r text-right font-mono">{{ number_format($item->quantity, 2) }} {{ $item->unit }}</td>
                                         <td class="p-2 border-r text-right font-mono">{{ number_format($item->unit_price, 0, ',', '.') }} đ</td>
                                         <td class="p-2 border-r text-right font-mono">{{ number_format($item->total_price, 0, ',', '.') }} đ</td>
@@ -89,7 +94,19 @@
                                                     @if($receiptItem->return_reason)<span class="text-rose-600">Lý do: {{ $receiptItem->return_reason }}</span>@endif
                                                 </div>
                                             @empty
-                                                <span class="text-slate-400">Chưa có chi tiết nhận cho dòng hàng này</span>
+                                                @if($item->material_type)
+                                                    @forelse($item->materialMovements()->get() as $movement)
+                                                        <div class="flex flex-wrap gap-x-3 {{ !$loop->first ? 'mt-1 pt-1 border-t border-slate-100' : '' }}">
+                                                            <span>{{ $movement->created_at?->format('d/m/Y') }}</span>
+                                                            <span>{{ $movement->movement_type === 'RECEIVE_PURCHASE' ? 'Đạt' : 'Trả' }}: <strong class="{{ $movement->movement_type === 'RECEIVE_PURCHASE' ? '' : 'text-rose-600' }}">{{ number_format((float) $movement->quantity, 2) }}</strong></span>
+                                                            @if($movement->batch_number)<span>Lô: {{ $movement->batch_number }}</span>@endif
+                                                        </div>
+                                                    @empty
+                                                        <span class="text-slate-400">Chưa có chi tiết nhận cho dòng hàng này</span>
+                                                    @endforelse
+                                                @else
+                                                    <span class="text-slate-400">Chưa có chi tiết nhận cho dòng hàng này</span>
+                                                @endif
                                             @endforelse
                                         </td>
                                     </tr>

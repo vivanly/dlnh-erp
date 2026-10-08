@@ -150,6 +150,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/products/import', [ProductController::class, 'importForm'])->name('products.import.form');
     Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
     Route::resource('products', ProductController::class)->except(['show']);
+    Route::resource('raw-materials', \App\Http\Controllers\RawMaterialController::class)->except(['show']);
+    Route::resource('accessories', \App\Http\Controllers\AccessoryController::class)->except(['show']);
+    Route::get('/api/raw-materials/search', [\App\Http\Controllers\RawMaterialController::class, 'searchAjax'])->name('api.raw-materials.search');
+    Route::get('/api/accessories/search', [\App\Http\Controllers\AccessoryController::class, 'searchAjax'])->name('api.accessories.search');
     Route::resource('product-regulatory-documents', ProductRegulatoryDocumentController::class)->except(['show']);
     Route::resource('product-quality-standards', ProductQualityStandardController::class)->except(['show']);
     Route::resource('product-storage-methods', ProductStorageMethodController::class)->except(['show']);
@@ -185,6 +189,11 @@ Route::middleware('auth')->group(function () {
     // ==========================================
     Route::get('/warehouse/purchase-orders', [WarehouseController::class, 'purchaseOrders'])->name('warehouse.purchase-orders');
     Route::post('/warehouse/purchase-orders/{purchaseOrder}/mark-delivered', [WarehouseController::class, 'markPurchaseOrderDelivered'])->name('warehouse.purchase-orders.mark-delivered');
+    Route::get('/warehouse/material-stock', [WarehouseController::class, 'materialStock'])->name('warehouse.material-stock');
+    Route::get('/warehouse/material-issues', [WarehouseController::class, 'materialIssues'])->name('warehouse.material-issues');
+    Route::post('/warehouse/material-issues/{order}/issue', [WarehouseController::class, 'issueMaterialOrder'])->name('warehouse.material-issues.issue');
+    Route::get('/purchase-orders/{purchaseOrder}/material-receipt', [\App\Http\Controllers\MaterialReceiptController::class, 'create'])->name('material-receipts.create');
+    Route::post('/purchase-orders/{purchaseOrder}/material-receipt', [\App\Http\Controllers\MaterialReceiptController::class, 'store'])->name('material-receipts.store');
     Route::get('/warehouse/stock', [WarehouseController::class, 'stockOverview'])->name('warehouse.stock');
     Route::get('/warehouse/stock/{product}', [WarehouseController::class, 'showStockProduct'])->name('warehouse.stock.product');
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
@@ -211,8 +220,9 @@ Route::middleware('auth')->group(function () {
         ->name('supplier-batches.update-coa');
     Route::post('/supplier-batches/{supplierBatch}/approve', [SupplierBatchController::class, 'approve'])
         ->name('supplier-batches.approve');
-    Route::post('/supplier-batches/{supplierBatch}/reject', [SupplierBatchController::class, 'reject'])
-        ->name('supplier-batches.reject');
+    Route::get('/supplier-returns', [\App\Http\Controllers\SupplierReturnController::class, 'index'])->name('supplier-returns.index');
+    Route::post('/supplier-returns/items/{purchaseOrderItem}', [\App\Http\Controllers\SupplierReturnController::class, 'store'])->name('supplier-returns.store');
+    Route::post('/supplier-returns/{supplierReturnOrder}/dispatch', [\App\Http\Controllers\SupplierReturnController::class, 'dispatch'])->name('supplier-returns.dispatch');
     Route::resource('supplier-batches', SupplierBatchController::class)->except(['index']);
 
     // ==========================================
@@ -239,6 +249,7 @@ Route::middleware('auth')->group(function () {
     // KHU VỰC API / AJAX SEARCH DÙNG CHUNG CHO TOÀN BỘ HỆ THỐNG
     // ==========================================
     Route::get('/api/suppliers/search', [suppliercontroller::class, 'searchAjax'])->name('api.suppliers.search');
+    Route::get('/api/purchase-items/search', [\App\Http\Controllers\PurchaseOrderController::class, 'searchItems'])->name('api.purchase-items.search');
     Route::get('/api/products/search', [ProductController::class, 'searchAjax'])->name('api.products.search');
     Route::get('/api/ppcb/search', [PpcbController::class, 'searchAjax'])->name('api.ppcb.search');
     Route::get('/api/customers/search', [CustomerController::class, 'searchAjax'])->name('api.customers.search');

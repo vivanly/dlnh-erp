@@ -79,7 +79,7 @@ class OrderController extends Controller
     {
         abort_unless(auth()->check(), 403);
 
-        $orders = Order::with(['customer', 'items.product'])
+        $orders = Order::with(['customer', 'items.product', 'items.rawMaterial'])
             ->where('status', 'pending_sales_approval')
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
@@ -112,7 +112,7 @@ class OrderController extends Controller
                 }
 
                 $lockedOrder->update([
-                    'status' => 'pending_warehouse_check',
+                    'status' => $lockedOrder->order_type === 'NL' ? 'pending_material_issue' : 'pending_warehouse_check',
                     'sales_approved_at' => now(),
                     'sales_approved_by' => auth()->id(),
                     'sales_rejection_reason' => null,
@@ -122,7 +122,9 @@ class OrderController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        return back()->with('success', 'Đã duyệt đơn bán; đơn được chuyển sang Kho xác nhận tồn.');
+        return back()->with('success', $order->order_type === 'NL'
+            ? 'Đã duyệt đơn nguyên liệu thô; đơn được chuyển sang Kho xuất hàng.'
+            : 'Đã duyệt đơn bán; đơn được chuyển sang Kho xác nhận tồn.');
     }
 
     public function rejectSalesOrder(Request $request, Order $order)
@@ -350,8 +352,24 @@ class OrderController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+    private function normalizeSaleItems(Request $request): void
+    {
+        $items = collect($request->input('items', []))->map(function ($item) {
+            if (is_array($item) && empty($item['item_id']) && !empty($item['product_id'])) {
+                $item['item_id'] = $item['product_id'];
+            }
+
+            return $item;
+        })->all();
+
+        $request->merge(['items' => $items]);
+    }
+
     public function store(Request $request)
     {
+        $this->normalizeSaleItems($request);
+        $isRawMaterialOrder = $request->input('order_type') === 'NL';
+
         $validated = $request->validate([
             'order_code' => 'required|unique:orders,order_code',
             'customer_id' => 'required|exists:customers,id',
@@ -364,7 +382,7 @@ class OrderController extends Controller
 
             // Validate cấu trúc mảng items gửi từ form tạo đơn
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.item_id' => ['required', 'integer', $isRawMaterialOrder ? 'exists:raw_materials,id' : 'exists:products,id'],
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.packaging_spec' => 'nullable|string|max:255',
             'items.*.finished_quantity' => 'nullable|numeric|min:0',
@@ -397,7 +415,11 @@ class OrderController extends Controller
 
             // Tạo các dòng vị thuốc dược liệu chi tiết
             foreach ($validated['items'] as $itemData) {
-                $order->items()->create($itemData);
+                $itemId = $itemData['item_id'];
+                unset($itemData['item_id']);
+                $order->items()->create($itemData + ($isRawMaterialOrder
+                    ? ['raw_material_id' => $itemId, 'ppcb_id' => null]
+                    : ['product_id' => $itemId]));
             }
 
             DB::commit();
@@ -419,7 +441,7 @@ class OrderController extends Controller
      */
     public function show($id)
     {
-        $order = Order::with(['items.product', 'items.ppcb', 'items.lotAllocations.supplierBatch', 'items.lotAllocations.finishedBatch', 'customer', 'warehouseStockCheckedBy'])->findOrFail($id);
+        $order = Order::with(['items.product', 'items.rawMaterial', 'items.ppcb', 'items.lotAllocations.supplierBatch', 'items.lotAllocations.finishedBatch', 'customer', 'warehouseStockCheckedBy'])->findOrFail($id);
         $canManageLockedOrders = $this->isItOrAdmin(auth()->user());
         $user = auth()->user();
         $canManageOrderLots = $user && method_exists($user, 'isQADepartment') && $user->isQADepartment();
@@ -464,6 +486,9 @@ class OrderController extends Controller
     public function edit($id)
     {
         $order = Order::with('items.product', 'customer', 'items.ppcb', 'items.lotAllocations')->findOrFail($id);
+        if ($order->order_type === 'NL') {
+            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn nguyên liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
+        }
         if ($order->isEditLockedAfterQa()) {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã được QA chốt số lô, không thể chỉnh sửa.');
         }
@@ -568,6 +593,9 @@ class OrderController extends Controller
     public function update(Request $request, string $id)
     {
         $order = Order::findOrFail($id);
+        if ($order->order_type === 'NL') {
+            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn nguyên liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
+        }
         if ($order->isEditLockedAfterQa()) {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã được QA chốt số lô, không thể chỉnh sửa.');
         }

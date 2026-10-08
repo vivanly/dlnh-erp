@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\SupplierBatch;
-use App\Models\SupplierReturnOrder;
 use App\Models\GoodsReceiptItem;
 use App\Services\InventoryLedger;
 use DomainException;
@@ -84,74 +83,6 @@ class SupplierBatchController extends Controller
         return back()->with('success', 'QC đã xác nhận chất lượng đạt, lô NCC được kích hoạt.');
     }
 
-    public function reject(Request $request, SupplierBatch $supplierBatch, InventoryLedger $inventoryLedger)
-    {
-        abort_unless(auth()->user()->isQCDepartment() || auth()->user()->isITDepartment(), 403);
-
-        $validated = $request->validate([
-            'reason' => ['required', 'string', 'max:1000'],
-            'qc_test_report' => ['required', 'string', 'max:255'],
-            'qc_date' => ['required', 'date'],
-        ]);
-
-        try {
-            $returnOrder = DB::transaction(function () use ($supplierBatch, $validated, $inventoryLedger) {
-                $batch = SupplierBatch::with('goodsReceiptItem.goodsReceipt.purchaseOrder')
-                    ->whereKey($supplierBatch->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                if ($batch->status !== 'pending_qa') {
-                    throw new DomainException('Chỉ được trả lô NCC đang chờ QC xác nhận.');
-                }
-                $quantity = (float) $batch->current_quantity;
-                if ($quantity <= 0) {
-                    throw new DomainException('Lô không còn tồn để lập đơn trả nhà cung cấp.');
-                }
-
-                $purchaseOrder = $batch->goodsReceiptItem?->goodsReceipt?->purchaseOrder;
-                if (!$purchaseOrder) {
-                    throw new DomainException('Không tìm thấy đơn mua gốc của lô NCC.');
-                }
-
-                $returnOrder = SupplierReturnOrder::create([
-                    'supplier_id' => $purchaseOrder->supplier_id,
-                    'purchase_order_id' => $purchaseOrder->id,
-                    'supplier_batch_id' => $batch->id,
-                    'quantity' => $quantity,
-                    'unit' => $batch->product->unit ?? 'kg',
-                    'reason' => trim($validated['reason']),
-                    'qc_test_report' => trim($validated['qc_test_report']),
-                    'qc_date' => $validated['qc_date'],
-                    'status' => 'pending_dispatch',
-                    'created_by' => auth()->id(),
-                ]);
-                $returnOrder->update([
-                    'return_code' => 'RTN-' . now()->format('Ymd') . '-' . str_pad((string) $returnOrder->id, 6, '0', STR_PAD_LEFT),
-                ]);
-
-                $inventoryLedger->post(
-                    $batch,
-                    'RETURN_SUPPLIER',
-                    'out',
-                    $quantity,
-                    $returnOrder->unit,
-                    SupplierReturnOrder::class,
-                    $returnOrder->id,
-                    auth()->id(),
-                    $returnOrder->reason,
-                );
-                $batch->update(['status' => 'rejected']);
-                $this->syncGoodsReceiptQcStatus($batch);
-
-                return $returnOrder;
-            });
-        } catch (DomainException $exception) {
-            return back()->with('error', $exception->getMessage());
-        }
-
-        return back()->with('success', "Đã lập đơn trả {$returnOrder->return_code} cho lô không đạt QC.");
-    }
-
     private function syncGoodsReceiptQcStatus(SupplierBatch $supplierBatch): void
     {
         $receipt = $supplierBatch->goodsReceiptItem?->goodsReceipt;
@@ -209,14 +140,10 @@ class SupplierBatchController extends Controller
 
         $batches = $query->latest()->paginate($this->perPage($request))->withQueryString();
         $availability->addTo($batches->getCollection());
-        $returnOrders = SupplierReturnOrder::with(['supplier', 'supplierBatch'])
-            ->latest()
-            ->paginate($this->perPage($request), ['*'], 'returns_page')
-            ->withQueryString();
 
         $canManageBatches = $user && ((method_exists($user, 'isQCDepartment') && $user->isQCDepartment()) || (method_exists($user, 'isQADepartment') && $user->isQADepartment()) || (method_exists($user, 'isITDepartment') && $user->isITDepartment()) || in_array($user->role ?? '', ['qc', 'qc_manager', 'qa', 'qa_manager'], true));
 
-        return view('qa.batches.index', compact('batches', 'returnOrders', 'canManageBatches'));
+        return view('qa.batches.index', compact('batches', 'canManageBatches'));
     }
 
     public function coasIndex(Request $request, SupplierBatchAvailability $availability)
