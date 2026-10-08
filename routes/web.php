@@ -150,6 +150,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/products/import', [ProductController::class, 'importForm'])->name('products.import.form');
     Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
     Route::resource('products', ProductController::class)->except(['show']);
+    foreach (['raw-materials' => \App\Http\Controllers\RawMaterialController::class, 'accessories' => \App\Http\Controllers\AccessoryController::class] as $catalogPrefix => $catalogController) {
+        Route::get("/{$catalogPrefix}/export", [$catalogController, 'export'])->name("{$catalogPrefix}.export");
+        Route::get("/{$catalogPrefix}/import", [$catalogController, 'importForm'])->name("{$catalogPrefix}.import.form");
+        Route::post("/{$catalogPrefix}/import", [$catalogController, 'import'])->name("{$catalogPrefix}.import");
+    }
     Route::resource('raw-materials', \App\Http\Controllers\RawMaterialController::class)->except(['show']);
     Route::resource('accessories', \App\Http\Controllers\AccessoryController::class)->except(['show']);
     Route::get('/api/raw-materials/search', [\App\Http\Controllers\RawMaterialController::class, 'searchAjax'])->name('api.raw-materials.search');

@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\CatalogExport;
+use App\Imports\CatalogImport;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 abstract class CatalogController extends Controller
 {
@@ -60,8 +63,64 @@ abstract class CatalogController extends Controller
         ]);
     }
 
-    public function create()
+    public function export(Request $request)
     {
+        $this->authorizeManage();
+
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'classification' => ['nullable', 'string', 'max:255'],
+        ]);
+        $model = $this->modelClass();
+        $query = $model::query()
+            ->when(!empty($filters['classification']), fn ($q) => $q->where('classification', $filters['classification']))
+            ->when(!empty($filters['search']), function ($q) use ($filters) {
+                $search = trim($filters['search']);
+                $q->where(fn ($sub) => $sub->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"));
+            })
+            ->orderBy('classification')
+            ->orderBy('name');
+
+        return Excel::download(new CatalogExport($query), 'danh-muc-' . $this->routePrefix() . '.xlsx');
+    }
+
+    public function importForm()
+    {
+        $this->authorizeManage();
+
+        return view('catalog.import', ['prefix' => $this->routePrefix(), 'labels' => $this->labels()]);
+    }
+
+    public function import(Request $request)
+    {
+        $this->authorizeManage();
+
+        $request->validate(['file' => 'required|mimes:xlsx,xls,csv|max:2048'], [
+            'file.required' => 'Vui lòng chọn file Excel.',
+            'file.mimes' => 'File phải có định dạng: xlsx, xls, csv.',
+            'file.max' => 'Dung lượng file không được vượt quá 2MB.',
+        ]);
+
+        $import = new CatalogImport($this->modelClass());
+        Excel::import($import, $request->file('file'));
+
+        $failures = $import->failures();
+        if ($failures->isNotEmpty()) {
+            $byRow = $failures->groupBy(fn ($failure) => $failure->row());
+            $errors = $byRow->take(10)->map(fn ($rowFailures, $row) => [
+                'row' => $row,
+                'messages' => $rowFailures->flatMap(fn ($failure) => $failure->errors())->unique()->values()->all(),
+            ])->values()->all();
+
+            return redirect()->route($this->routePrefix() . '.import.form')
+                ->with('warning', sprintf('Đã import %d dòng; bỏ qua %d dòng không hợp lệ.', $import->importedCount(), $byRow->count()))
+                ->with('import_errors', $errors);
+        }
+
+        return redirect()->route($this->routePrefix() . '.index')->with('success', sprintf('Import thành công %d dòng!', $import->importedCount()));
+    }
+
+    public function create()    {
         $this->authorizeManage();
 
         return view('catalog.form', [

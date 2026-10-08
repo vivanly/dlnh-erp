@@ -3,9 +3,13 @@
         <div class="flex items-center justify-between">
             <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">{{ $labels['title'] }}</h2>
             @if($canManage)
+                <div class="flex items-center gap-2">
+                <a href="{{ route($prefix . '.import.form') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 border border-emerald-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-emerald-700 transition">Import Excel</a>
+                <a href="{{ route($prefix . '.export', request()->query()) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 border border-slate-800 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-slate-800 transition">Export Excel</a>
                 <a href="{{ route($prefix . '.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition">
                     + {{ $labels['add'] }}
                 </a>
+                </div>
             @endif
         </div>
     </x-slot>

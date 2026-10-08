@@ -78,4 +78,17 @@ class RawMaterialCatalogTest extends TestCase
         $this->actingAs($user)->delete(route('raw-materials.destroy', $raw))->assertSessionHas('error');
         $this->assertDatabaseHas('raw_materials', ['id' => $raw->id]);
     }
-}
+
+    public function test_catalogs_can_export_and_import_excel(): void
+    {
+        $user = $this->itUser();
+        foreach (['raw-materials' => \App\Models\RawMaterial::class, 'accessories' => \App\Models\Accessory::class] as $prefix => $model) {
+            $this->actingAs($user)->get(route($prefix . '.import.form'))->assertOk();
+            $this->actingAs($user)->get(route($prefix . '.export'))->assertOk();
+
+            $csv = "ma_hang_sku,ten_hang_hoa,dvt,phan_loai\nIMP-" . $prefix . ",Hang nhap," . "Kg,NL\n,thieu ma,Kg,NL\n";
+            $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('import.csv', $csv);
+            $this->actingAs($user)->post(route($prefix . '.import'), ['file' => $file])->assertRedirect();
+            $this->assertDatabaseHas((new $model)->getTable(), ['sku' => 'IMP-' . $prefix, 'name' => 'Hang nhap']);
+        }
+    }}
