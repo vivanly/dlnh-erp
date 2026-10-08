@@ -166,6 +166,9 @@
                 <a href="{{ route('warehouse.material-issues') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.material-issues*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                     Xuất đơn nguyên liệu thô
                 </a>
+                <a href="{{ route('warehouse.production-issues') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.production-issues*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
+                    Xuất nguyên liệu cho lệnh sản xuất
+                </a>
                 <a href="{{ route('supplier-returns.index') }}" class="block px-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('supplier-returns*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">
                     Trả hàng nhà cung cấp
                 </a>

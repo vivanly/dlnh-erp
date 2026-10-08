@@ -228,4 +228,9 @@ class RawMaterialFlowTest extends TestCase
         $payload = ['qc_test_report' => 'PKN', 'qc_date' => today()->toDateString(), 'reason' => 'x'];
         $this->actingAs($user)->post(route('supplier-returns.store', $item), $payload + ['quantity' => 3])->assertSessionHas('success');
         $this->assertSame(7.0, MaterialStockMovement::balance('accessory', $acc->id));
+    }
+
+    public function test_warehouse_production_issue_list_loads(): void
+    {
+        $this->actingAs($this->itUser())->get(route('warehouse.production-issues'))->assertOk()->assertSee('Xuất nguyên liệu');
     }}

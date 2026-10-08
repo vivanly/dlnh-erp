@@ -600,6 +600,18 @@ class WarehouseController extends Controller
         return view('warehouse.material-stock', compact('rows', 'movements', 'type', 'search'));
     }
 
+    public function productionIssues()
+    {
+        $this->ensureWarehouseViewAccess();
+
+        $productionOrders = \App\Models\ProductionOrder::with(['order.customer', 'product'])
+            ->where('status', 'released')
+            ->latest()
+            ->paginate(20);
+
+        return view('warehouse.production-issues', compact('productionOrders'));
+    }
+
     public function materialIssues()
     {
         $this->ensureWarehouseViewAccess();

@@ -190,6 +190,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/warehouse/purchase-orders', [WarehouseController::class, 'purchaseOrders'])->name('warehouse.purchase-orders');
     Route::post('/warehouse/purchase-orders/{purchaseOrder}/mark-delivered', [WarehouseController::class, 'markPurchaseOrderDelivered'])->name('warehouse.purchase-orders.mark-delivered');
     Route::get('/warehouse/material-stock', [WarehouseController::class, 'materialStock'])->name('warehouse.material-stock');
+    Route::get('/warehouse/production-issues', [WarehouseController::class, 'productionIssues'])->name('warehouse.production-issues');
     Route::get('/warehouse/material-issues', [WarehouseController::class, 'materialIssues'])->name('warehouse.material-issues');
     Route::post('/warehouse/material-issues/{order}/issue', [WarehouseController::class, 'issueMaterialOrder'])->name('warehouse.material-issues.issue');
     Route::get('/purchase-orders/{purchaseOrder}/material-receipt', [\App\Http\Controllers\MaterialReceiptController::class, 'create'])->name('material-receipts.create');
