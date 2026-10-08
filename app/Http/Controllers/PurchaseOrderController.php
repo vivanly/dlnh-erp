@@ -44,7 +44,7 @@ class PurchaseOrderController extends Controller
         $controller = match ($request->get('type')) {
             'raw_material' => app(RawMaterialController::class),
             'accessory' => app(AccessoryController::class),
-            default => app(ProductController::class),
+            default => app(RawMaterialController::class),
         };
 
         return $controller->searchAjax($request);
@@ -92,10 +92,10 @@ class PurchaseOrderController extends Controller
 
     private function normalizeItems(Request $request): void
     {
-        $items = collect($request->input('items', []))->map(function ($item) {
-            if (is_array($item) && empty($item['item_type']) && !empty($item['product_id'])) {
-                $item['item_type'] = 'product';
-                $item['item_id'] = $item['product_id'];
+        $orderType = $request->input('item_type');
+        $items = collect($request->input('items', []))->map(function ($item) use ($orderType) {
+            if (is_array($item) && in_array($orderType, ['raw_material', 'accessory'], true)) {
+                $item['item_type'] = $orderType;
             }
 
             return $item;
@@ -122,7 +122,7 @@ class PurchaseOrderController extends Controller
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.item_type' => 'required|in:product,raw_material,accessory',
+            'items.*.item_type' => 'required|in:raw_material,accessory',
             'items.*.item_id' => ['required', 'integer', function ($attribute, $value, $fail) use ($request) {
                 $index = explode('.', $attribute)[1];
                 if (!PurchaseOrderItem::catalogExists((string) $request->input("items.{$index}.item_type"), (int) $value)) {
@@ -216,7 +216,7 @@ class PurchaseOrderController extends Controller
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.item_type' => 'required|in:product,raw_material,accessory',
+            'items.*.item_type' => 'required|in:raw_material,accessory',
             'items.*.item_id' => ['required', 'integer', function ($attribute, $value, $fail) use ($request) {
                 $index = explode('.', $attribute)[1];
                 if (!PurchaseOrderItem::catalogExists((string) $request->input("items.{$index}.item_type"), (int) $value)) {

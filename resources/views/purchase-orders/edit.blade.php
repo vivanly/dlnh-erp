@@ -30,6 +30,7 @@
                 </div>
             @endif
 
+            @php $poType = $purchaseOrder->items->first()->item_type ?? 'raw_material'; if ($poType === 'product') { $poType = 'raw_material'; } @endphp
             <form action="{{ route('purchase-orders.update', $purchaseOrder->id) }}" method="POST" id="purchase-order-form">
                 @csrf
                 @method('PUT')
@@ -41,14 +42,21 @@
                         Thông tin chung đơn hàng
                     </h3>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                        <div>
+                            <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Loại hàng đặt mua <span class="text-rose-600">*</span></label>
+                            <select name="item_type" id="po-item-type" class="w-full text-xs border-slate-300 rounded-none py-1.5">
+                                <option value="raw_material" @selected(old('item_type', $poType) === 'raw_material')>Nguyên liệu thô</option>
+                                <option value="accessory" @selected(old('item_type', $poType) === 'accessory')>Phụ liệu</option>
+                            </select>
+                        </div>
                         <div>
                             <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Mã đơn mua <span class="text-rose-600">*</span></label>
                             <input type="text" name="po_number" class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none py-1.5 font-mono uppercase" value="{{ old('po_number', $purchaseOrder->po_number) }}" required>
                         </div>
 
                         <div class="sm:col-span-1">
-                            <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Nhà cung cấp dược liệu <span class="text-rose-600">*</span></label>
+                            <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Nhà cung cấp <span class="text-rose-600">*</span></label>
                             <select id="supplier-select" name="supplier_id" class="w-full text-xs border-slate-300 rounded-none" required>
                                 <option value="{{ $purchaseOrder->supplier_id }}" selected>{{ $purchaseOrder->supplier->name ?? '-- Chọn nhà cung cấp --' }}</option>
                             </select>
@@ -69,11 +77,11 @@
                     <div class="p-3 border-b border-slate-300 bg-slate-100 flex items-center justify-between">
                         <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-2">
                             <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                            Danh mục vị thuốc / dược liệu đặt mua
+                            Danh mục nguyên liệu thô / phụ liệu đặt mua
                         </h3>
                         <button type="button" id="add-item-btn" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600 border border-emerald-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-emerald-700 transition shadow-none">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
-                            Thêm vị thuốc
+                            Thêm dòng hàng
                         </button>
                     </div>
 
@@ -82,7 +90,7 @@
                             <thead>
                                 <tr class="bg-slate-200/80 border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
                                     <th class="py-2.5 px-3 border-r border-slate-300 w-12 text-center">STT</th>
-                                    <th class="py-2.5 px-3 border-r border-slate-300">Vị thuốc / Dược liệu <span class="text-rose-600">*</span></th>
+                                    <th class="py-2.5 px-3 border-r border-slate-300">Hàng hóa <span class="text-rose-600">*</span></th>
                                     <th class="py-2.5 px-3 border-r border-slate-300 w-28 text-center">Số lượng <span class="text-rose-600">*</span></th>
                                     <th class="py-2.5 px-3 border-r border-slate-300 w-20 text-center">ĐVT</th>
                                     <th class="py-2.5 px-3 border-r border-slate-300 w-36 text-right">Đơn giá (VNĐ) <span class="text-rose-600">*</span></th>
@@ -95,11 +103,7 @@
                                 <tr class="item-row hover:bg-blue-50/20 transition">
                                     <td class="py-2 px-3 border-r border-slate-200 text-center font-mono row-index font-bold text-slate-600">{{ $index + 1 }}</td>
                                     <td class="py-2 px-3 border-r border-slate-200">
-                                        <select name="items[{{ $index }}][item_type]" class="w-full text-xs border-slate-300 rounded-none mb-1 item-type-select" aria-label="Loại hàng">
-                                            <option value="product" @selected($item->item_type === 'product')>Dược liệu / Sản phẩm</option>
-                                            <option value="raw_material" @selected($item->item_type === 'raw_material')>Nguyên liệu thô</option>
-                                            <option value="accessory" @selected($item->item_type === 'accessory')>Phụ liệu</option>
-                                        </select>
+                                        <input type="hidden" name="items[{{ $index }}][item_type]" value="{{ old('item_type', $poType) }}" class="item-type-select">
                                         <select name="items[{{ $index }}][item_id]" class="w-full text-xs border-slate-300 rounded-none product-select" required>
                                             <option value="{{ $item->material_id ?? $item->product_id }}" selected>{{ $item->catalog_item->name ?? 'Hàng hóa' }} [{{ $item->catalog_item->sku ?? '' }}]</option>
                                         </select>
@@ -134,7 +138,7 @@
                     <div class="sm:col-span-2 bg-white border border-slate-300 rounded-none p-3 flex flex-col justify-between">
                         <div>
                             <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Ghi chú đơn hàng</label>
-                            <textarea name="notes" rows="4" class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none resize-none" placeholder="Nhập ghi chú hoặc yêu cầu đặc biệt khi mua dược liệu...">{{ $purchaseOrder->notes }}</textarea>
+                            <textarea name="notes" rows="4" class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none resize-none" placeholder="Nhập ghi chú hoặc yêu cầu đặc biệt khi mua hàng...">{{ $purchaseOrder->notes }}</textarea>
                         </div>
                     </div>
 
@@ -206,12 +210,12 @@
             let $el =$(element);
             $el.autocompleteSelect({
                     theme: 'bootstrap-5',
-                    placeholder: '-- Chọn vị thuốc --',
+                    placeholder: '-- Chọn hàng hóa --',
                     ajax: {
                         url: '{{ route("api.purchase-items.search") }}',
                         dataType: 'json',
                         delay: 250,
-                        data: function (params) { return { q: params.term, type: $(element).closest('tr').find('.item-type-select').val() || 'product' }; },
+                        data: function (params) { return { q: params.term, type: $(element).closest('tr').find('.item-type-select').val() || 'raw_material' }; },
                         processResults: function (data) {
                             return {
                                 results: data.map(function (item) {
@@ -235,8 +239,9 @@
                 });
         }
 
-        $(document).on('change', '.item-type-select', function () {
-            $(this).closest('tr').find('.ajax-autocomplete-clear').trigger('click');
+        $(document).on('change', '#po-item-type', function () {
+            $('.item-type-select').val($(this).val());
+            $('#items-container .ajax-autocomplete-clear').trigger('click');
         });
 
         initProductSelect('.product-select');
@@ -249,13 +254,9 @@
                 <tr class="item-row hover:bg-blue-50/20 transition">
                     <td class="py-2 px-3 border-r border-slate-200 text-center font-mono row-index font-bold text-slate-600"></td>
                     <td class="py-2 px-3 border-r border-slate-200">
-                        <select name="items[${rowIndex}][item_type]" class="w-full text-xs border-slate-300 rounded-none mb-1 item-type-select" aria-label="Loại hàng">
-                                            <option value="product">Dược liệu / Sản phẩm</option>
-                                            <option value="raw_material">Nguyên liệu thô</option>
-                                            <option value="accessory">Phụ liệu</option>
-                                        </select>
+                        <input type="hidden" name="items[${rowIndex}][item_type]" value="${$('#po-item-type').val()}" class="item-type-select">
                                         <select name="items[${rowIndex}][item_id]" class="w-full text-xs border-slate-300 rounded-none product-select" required>
-                            <option value="">-- Gõ tìm tên vị thuốc / mã SKU --</option>
+                            <option value="">-- Gõ tìm tên / mã SKU --</option>
                         </select>
                     </td>
                     <td class="py-2 px-3 border-r border-slate-200 text-center">

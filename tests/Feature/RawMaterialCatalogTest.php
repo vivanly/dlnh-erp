@@ -49,7 +49,7 @@ class RawMaterialCatalogTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_purchase_order_accepts_mixed_items_and_legacy_product_payload(): void
+    public function test_purchase_order_accepts_only_raw_materials_and_accessories(): void
     {
         $user = $this->itUser();
         $supplier = Supplier::create(['name' => 'NCC', 'code' => 'NCC1']);
@@ -58,20 +58,29 @@ class RawMaterialCatalogTest extends TestCase
         $product = Product::create(['name' => 'SP', 'slug' => 'sp', 'sku' => 'SP010', 'unit' => 'Kg']);
 
         $this->actingAs($user)->post(route('purchase-orders.store'), [
+            'po_number' => 'PO-SP-1', 'supplier_id' => $supplier->id, 'order_date' => today()->toDateString(),
+            'items' => [['item_type' => 'product', 'item_id' => $product->id, 'quantity' => 1, 'unit_price' => 50]],
+        ])->assertSessionHasErrors('items.0.item_type');
+        $this->assertDatabaseMissing('purchase_orders', ['po_number' => 'PO-SP-1']);
+
+        $this->actingAs($user)->post(route('purchase-orders.store'), [
+            'po_number' => 'PO-TYPE-1', 'supplier_id' => $supplier->id, 'order_date' => today()->toDateString(), 'item_type' => 'accessory',
+            'items' => [['item_id' => $acc->id, 'quantity' => 3, 'unit_price' => 10]],
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('purchase_order_items', ['material_type' => 'accessory', 'material_id' => $acc->id, 'quantity' => 3]);
+        $this->actingAs($user)->post(route('purchase-orders.store'), [
             'po_number' => 'PO-MIX-1',
             'supplier_id' => $supplier->id,
             'order_date' => today()->toDateString(),
             'items' => [
                 ['item_type' => 'raw_material', 'item_id' => $raw->id, 'quantity' => 5, 'unit_price' => 100],
                 ['item_type' => 'accessory', 'item_id' => $acc->id, 'quantity' => 2, 'unit_price' => 10],
-                ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 50],
             ],
         ])->assertSessionHasNoErrors();
 
         $po = PurchaseOrder::where('po_number', 'PO-MIX-1')->firstOrFail();
         $this->assertDatabaseHas('purchase_order_items', ['purchase_order_id' => $po->id, 'material_type' => 'raw_material', 'material_id' => $raw->id, 'product_id' => null]);
         $this->assertDatabaseHas('purchase_order_items', ['purchase_order_id' => $po->id, 'material_type' => 'accessory', 'material_id' => $acc->id]);
-        $this->assertDatabaseHas('purchase_order_items', ['purchase_order_id' => $po->id, 'product_id' => $product->id]);
 
         $this->actingAs($user)->get(route('purchase-orders.show', $po))->assertOk()->assertSee('NL010');
 
