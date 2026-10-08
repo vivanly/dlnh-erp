@@ -588,7 +588,7 @@ class WarehouseController extends Controller
                         $in = (float) \App\Models\MaterialStockMovement::where('material_type', $materialType)->where('material_id', $item->id)->where('direction', 'in')->sum('quantity');
                         $out = (float) \App\Models\MaterialStockMovement::where('material_type', $materialType)->where('material_id', $item->id)->where('direction', 'out')->sum('quantity');
 
-                        $lots = \App\Models\MaterialStockMovement::lotBalances($materialType, $item->id, false);
+                        $lots = $materialType === 'raw_material' ? \App\Models\MaterialStockMovement::lotBalances($materialType, $item->id, false) : collect();
 
                         return (object) ['type' => $materialType, 'item' => $item, 'in' => $in, 'out' => $out, 'balance' => $in - $out, 'lots' => $lots];
                     });
@@ -613,6 +613,14 @@ class WarehouseController extends Controller
         $orders->getCollection()->each(function (Order $order) {
             foreach ($order->items as $item) {
                 $item->setAttribute('stock_balance', \App\Models\MaterialStockMovement::balance('raw_material', (int) $item->raw_material_id));
+                $remaining = (float) $item->quantity;
+                $lots = \App\Models\MaterialStockMovement::lotBalances('raw_material', (int) $item->raw_material_id)->map(function ($lot) use (&$remaining) {
+                    $lot->suggested = round(min($remaining, $lot->balance), 4);
+                    $remaining -= $lot->suggested;
+
+                    return $lot;
+                });
+                $item->setAttribute('lots', $lots);
             }
         });
 
@@ -621,12 +629,13 @@ class WarehouseController extends Controller
         return view('warehouse.material-issues', compact('orders', 'canManageWarehouse'));
     }
 
-    public function issueMaterialOrder(Order $order)
+    public function issueMaterialOrder(Request $request, Order $order)
     {
+        $picked = collect($request->input('lots', []));
         $this->ensureWarehouseAccess();
 
         try {
-            DB::transaction(function () use ($order) {
+            DB::transaction(function () use ($order, $picked) {
                 $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
                 if ($locked->order_type !== 'NL' || $locked->status !== 'pending_material_issue') {
                     throw new DomainException('Đơn không còn chờ xuất nguyên liệu thô.');
@@ -641,7 +650,25 @@ class WarehouseController extends Controller
 
                 foreach ($locked->items as $item) {
                     $needed = (float) $item->quantity;
-                    foreach (\App\Models\MaterialStockMovement::lotBalances('raw_material', (int) $item->raw_material_id) as $lot) {
+                    $rows = collect($picked->get($item->id, []))
+                        ->map(fn ($r) => ['batch' => (string) ($r['batch'] ?? ''), 'quantity' => round((float) ($r['quantity'] ?? 0), 4)])
+                        ->filter(fn ($r) => $r['quantity'] > 0)->values();
+                    if ($rows->isNotEmpty()) {
+                        if (abs($rows->sum('quantity') - $needed) > 0.0001) {
+                            throw new DomainException('Tổng số lượng các lô đã chọn của ' . ($item->rawMaterial->name ?? 'nguyên liệu') . ' phải bằng số lượng cần xuất (' . $needed . ').');
+                        }
+                        $lotsToUse = $rows->map(function ($r) use ($item) {
+                            $balance = \App\Models\MaterialStockMovement::lotBalance('raw_material', (int) $item->raw_material_id, $r['batch']);
+                            if ($r['quantity'] > $balance + 0.0001) {
+                                throw new DomainException('Lô ' . ($r['batch'] ?: '---') . ' không đủ tồn (tồn ' . $balance . ').');
+                            }
+
+                            return (object) ['batch' => $r['batch'], 'balance' => $r['quantity']];
+                        });
+                    } else {
+                        $lotsToUse = \App\Models\MaterialStockMovement::lotBalances('raw_material', (int) $item->raw_material_id);
+                    }
+                    foreach ($lotsToUse as $lot) {
                         if ($needed <= 0.0001) {
                             break;
                         }

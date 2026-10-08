@@ -91,16 +91,16 @@ class MaterialReceiptController extends Controller
                     if ($received > 0 && $item->material_type === 'raw_material' && $batchNumber === '') {
                         throw new DomainException('Nguyên liệu thô ' . ($item->catalog_item->name ?? '') . ' phải nhập số lô nhà cung cấp.');
                     }
-                    if ($received > 0 && $item->material_type === 'accessory' && $batchNumber === '') {
-                        $batchNumber = 'DN-' . now()->format('Ymd') . '-' . $item->id;
-                    }
                     $isAccessory = $item->material_type === 'accessory';
+                    if ($isAccessory) {
+                        $batchNumber = '';
+                    }
                     if ($received > 0) {
                         MaterialStockMovement::create($base + [
                             'movement_type' => 'RECEIVE_PURCHASE',
                             'direction' => 'in',
                             'quantity' => $received,
-                            'batch_number' => $batchNumber,
+                            'batch_number' => $batchNumber !== '' ? $batchNumber : null,
                             'mfg_date' => $isAccessory ? null : ($data['mfg_date'] ?? null),
                             'exp_date' => $isAccessory ? null : ($data['exp_date'] ?? null),
                         ]);

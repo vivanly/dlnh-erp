@@ -59,17 +59,17 @@
                     </div>
                     <div class="divide-y divide-slate-200">
                         <div class="p-3">
-                            <h4 class="mb-2 text-xs font-bold uppercase text-slate-700">Nguyên liệu thô (lô NCC) &amp; phụ liệu (đợt mua)</h4>
+                            <h4 class="mb-2 text-xs font-bold uppercase text-slate-700">Nguyên liệu thô (chọn lô NCC) &amp; phụ liệu (chọn loại, trừ theo tổng)</h4>
                             @forelse($materialLots->groupBy(fn ($l) => $l->type . '|' . $l->id) as $group)
                                 @php $first = $group->first(); @endphp
                                 <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="text-slate-500">· {{ $first->type === 'accessory' ? 'Phụ liệu' : 'Nguyên liệu thô' }}</span>
                                     <table class="mt-1 w-full border border-slate-200 text-[11px]">
-                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'accessory' ? 'Đợt mua' : 'Lô NCC' }}</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 w-40 text-right">Số lượng xuất</th></tr></thead>
+                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'accessory' ? 'Tồn tổng' : 'Lô NCC' }}</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 w-40 text-right">Số lượng xuất</th></tr></thead>
                                         <tbody class="divide-y divide-slate-200">
                                             @foreach($group as $lot)
                                                 @php $i = $loop->parent->index . '_' . $loop->index; @endphp
                                                 <tr>
-                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $lot->batch ?: '(không số lô)' }}</td>
+                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $first->type === 'accessory' ? 'Toàn bộ' : ($lot->batch ?: '(không số lô)') }}</td>
                                                     <td class="px-2 py-1.5">{{ $lot->exp_date ? \Illuminate\Support\Carbon::parse($lot->exp_date)->format('d/m/Y') : 'Không hạn' }}</td>
                                                     <td class="px-2 py-1.5 text-right font-mono">{{ number_format($lot->balance, 4) }} {{ $lot->item->unit }}</td>
                                                     <td class="px-2 py-1.5">

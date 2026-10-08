@@ -136,7 +136,7 @@ class RawMaterialFlowTest extends TestCase
 
         $this->actingAs($user)->post(route('material-receipts.store', $po), $rows('NCC-LOT-9'))->assertSessionHas('success');
         $this->assertDatabaseHas('material_stock_movements', ['material_type' => 'raw_material', 'batch_number' => 'NCC-LOT-9']);
-        $this->assertDatabaseHas('material_stock_movements', ['material_type' => 'accessory', 'batch_number' => 'DN-' . now()->format('Ymd') . '-' . $accItem->id]);
+        $this->assertDatabaseHas('material_stock_movements', ['material_type' => 'accessory', 'batch_number' => null]);
         $this->actingAs($user)->get(route('warehouse.material-stock'))->assertOk()->assertSee('NCC-LOT-9');
     }
 
@@ -171,11 +171,11 @@ class RawMaterialFlowTest extends TestCase
         $acc = \App\Models\Accessory::create(['sku' => 'PL600', 'name' => 'PL6', 'slug' => 'pl-600', 'unit' => 'Cái']);
         $in = fn ($type, $id, $lot, $qty) => MaterialStockMovement::create(['material_type' => $type, 'material_id' => $id, 'movement_type' => 'RECEIVE_PURCHASE', 'direction' => 'in', 'quantity' => $qty, 'batch_number' => $lot]);
         $in('raw_material', $raw->id, 'NCC-A', 10);
-        $in('accessory', $acc->id, 'DN-1', 20);
+        $in('accessory', $acc->id, null, 20);
         $product = Product::create(['name' => 'TP', 'slug' => 'tp-6', 'sku' => 'TP6', 'unit' => 'kg', 'classification' => 'VT']);
         $mo = \App\Models\ProductionOrder::create(['production_code' => 'MO-NL-6', 'product_id' => $product->id, 'planned_quantity' => 5, 'unit' => 'kg', 'yield_rate' => 1, 'status' => 'released']);
 
-        $this->actingAs($user)->get(route('production-orders.show', $mo))->assertOk()->assertSee('NCC-A')->assertSee('DN-1');
+        $this->actingAs($user)->get(route('production-orders.show', $mo))->assertOk()->assertSee('NCC-A')->assertSee('PL6');
 
         $this->actingAs($user)->post(route('production-orders.issue-materials', $mo), ['material_lots' => [
             ['type' => 'raw_material', 'id' => $raw->id, 'batch' => 'NCC-A', 'quantity' => 11],
@@ -184,10 +184,10 @@ class RawMaterialFlowTest extends TestCase
 
         $this->actingAs($user)->post(route('production-orders.issue-materials', $mo), ['material_lots' => [
             ['type' => 'raw_material', 'id' => $raw->id, 'batch' => 'NCC-A', 'quantity' => 6],
-            ['type' => 'accessory', 'id' => $acc->id, 'batch' => 'DN-1', 'quantity' => 4],
+            ['type' => 'accessory', 'id' => $acc->id, 'batch' => '', 'quantity' => 4],
         ]])->assertSessionHas('success');
         $this->assertSame(4.0, MaterialStockMovement::lotBalance('raw_material', $raw->id, 'NCC-A'));
-        $this->assertSame(16.0, MaterialStockMovement::lotBalance('accessory', $acc->id, 'DN-1'));
+        $this->assertSame(16.0, MaterialStockMovement::lotBalance('accessory', $acc->id, ''));
         $this->assertSame('materials_issued', $mo->fresh()->status);
 
         $lot = \App\Models\ProductionMaterialLot::whereHas('material', fn ($q) => $q->where('material_type', 'raw_material'))->sole();
@@ -195,4 +195,37 @@ class RawMaterialFlowTest extends TestCase
             'actual_quantity' => 5, 'returned_materials' => [$lot->id => 2], 'mfg_date' => today()->toDateString(),
         ])->assertSessionHasNoErrors();
         $this->assertSame(6.0, MaterialStockMovement::lotBalance('raw_material', $raw->id, 'NCC-A'));
+    }
+
+    public function test_sales_issue_uses_manually_chosen_lots_and_accessory_return_is_by_total(): void
+    {
+        $user = $this->itUser();
+        $raw = RawMaterial::create(['sku' => 'NL700', 'name' => 'NL7', 'slug' => 'nl-700', 'unit' => 'Kg']);
+        foreach (['LOT-X' => '2027-01-01', 'LOT-Y' => '2027-12-31'] as $lot => $exp) {
+            MaterialStockMovement::create(['material_type' => 'raw_material', 'material_id' => $raw->id, 'movement_type' => 'RECEIVE_PURCHASE', 'direction' => 'in', 'quantity' => 5, 'batch_number' => $lot, 'exp_date' => $exp]);
+        }
+        $customer = Customer::create(['code' => 'KH7', 'name' => 'KH', 'type' => 'Retail']);
+        $this->actingAs($user)->post(route('orders.store'), [
+            'order_code' => 'DH-NL-7', 'customer_id' => $customer->id, 'order_type' => 'NL',
+            'order_date' => today()->toDateString(), 'delivery_date' => today()->addDay()->toDateString(), 'province_city' => 'HN',
+            'items' => [['item_id' => $raw->id, 'quantity' => 4]],
+        ])->assertSessionHasNoErrors();
+        $order = Order::where('order_code', 'DH-NL-7')->firstOrFail();
+        $this->actingAs($user)->post(route('orders.approve-sales', $order));
+        $itemId = $order->items()->firstOrFail()->id;
+
+        $this->actingAs($user)->post(route('warehouse.material-issues.issue', $order), ['lots' => [$itemId => [['batch' => 'LOT-Y', 'quantity' => 3]]]])->assertSessionHas('error');
+        $this->actingAs($user)->post(route('warehouse.material-issues.issue', $order), ['lots' => [$itemId => [['batch' => 'LOT-Y', 'quantity' => 4]]]])->assertSessionHas('success');
+        $this->assertSame(5.0, MaterialStockMovement::lotBalance('raw_material', $raw->id, 'LOT-X'));
+        $this->assertSame(1.0, MaterialStockMovement::lotBalance('raw_material', $raw->id, 'LOT-Y'));
+
+        $supplier = Supplier::create(['name' => 'NCC', 'code' => 'NCC6']);
+        $acc = \App\Models\Accessory::create(['sku' => 'PL700', 'name' => 'PL7', 'slug' => 'pl-700', 'unit' => 'Cái']);
+        $po = PurchaseOrder::create(['po_number' => 'PO-ACC-7', 'supplier_id' => $supplier->id, 'order_date' => today(), 'status' => 'delivered', 'user_id' => $user->id]);
+        $item = $po->items()->create(['material_type' => 'accessory', 'material_id' => $acc->id, 'quantity' => 10, 'unit_price' => 1, 'total_price' => 10, 'unit' => 'Cái']);
+        $this->actingAs($user)->post(route('material-receipts.store', $po), ['items' => [$item->id => ['received_quantity' => 10, 'returned_quantity' => 0, 'batch_number' => 'IGNORED']]])->assertSessionHas('success');
+        $this->assertDatabaseHas('material_stock_movements', ['material_type' => 'accessory', 'material_id' => $acc->id, 'batch_number' => null]);
+        $payload = ['qc_test_report' => 'PKN', 'qc_date' => today()->toDateString(), 'reason' => 'x'];
+        $this->actingAs($user)->post(route('supplier-returns.store', $item), $payload + ['quantity' => 3])->assertSessionHas('success');
+        $this->assertSame(7.0, MaterialStockMovement::balance('accessory', $acc->id));
     }}
