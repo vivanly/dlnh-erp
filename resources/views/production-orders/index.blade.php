@@ -37,6 +37,7 @@
                                     'pending_director_approval' => 'Chờ Tổng Giám đốc/Giám đốc duyệt kế hoạch',
                                     'released' => 'Đã duyệt - Kho chờ xuất nguyên liệu FIFO',
                                     'materials_issued' => 'Đang sản xuất',
+                                    'production_reported' => 'Sản xuất đã báo sản lượng - Chờ Kho xác nhận',
                                 ][$productionOrder->status] ?? $productionOrder->status }}</td>
                                 <td class="p-2.5 text-center whitespace-nowrap">
                                     <a href="{{ route('production-orders.show', $productionOrder) }}" class="px-3 py-1.5 bg-blue-600 text-[10px] font-bold uppercase text-white hover:bg-blue-700">Mở lệnh</a>

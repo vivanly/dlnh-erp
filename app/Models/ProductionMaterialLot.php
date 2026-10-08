@@ -12,6 +12,7 @@ class ProductionMaterialLot extends Model
         'batch_number',
         'allocated_quantity',
         'issued_quantity',
+        'reported_returned_quantity',
         'returned_quantity',
         'issued_at',
         'assigned_by',
@@ -20,6 +21,7 @@ class ProductionMaterialLot extends Model
     protected $casts = [
         'allocated_quantity' => 'decimal:4',
         'issued_quantity' => 'decimal:4',
+        'reported_returned_quantity' => 'decimal:4',
         'returned_quantity' => 'decimal:4',
         'issued_at' => 'datetime',
     ];

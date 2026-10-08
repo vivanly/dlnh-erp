@@ -70,7 +70,7 @@ class ProductionController extends Controller
         abort_unless($user, 403);
 
         $productionOrders = ProductionOrder::with(['order.customer', 'order.productionOrders', 'product', 'materials.product', 'monthlyPlanLine.plan'])
-            ->whereIn('status', ['pending_director_approval', 'released', 'materials_issued'])
+            ->whereIn('status', ['pending_director_approval', 'released', 'materials_issued', 'production_reported'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
                 $query->where(function ($subQuery) use ($search) {
@@ -91,6 +91,9 @@ class ProductionController extends Controller
                         })
                         ->orWhereHas('finishedBatches', function ($batchQuery) use ($search) {
                             $batchQuery->where('batch_number', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('allocatedFinishedBatches', function ($batchQuery) use ($search) {
+                            $batchQuery->where('batch_number', 'like', "%{$search}%");
                         });
                 });
             })
@@ -106,9 +109,10 @@ class ProductionController extends Controller
         abort_unless(auth()->check(), 403);
         $canManageQuality = $this->userCanManageQuality();
 
-        $batches = ProductionFinishedBatch::with(['product', 'productionOrder.order', 'ppcb'])
+        $batches = ProductionFinishedBatch::with(['product', 'productionOrder.order', 'orderAllocations.productionOrder', 'ppcb'])
             ->where('status', 'active')
             ->whereNotNull('warehouse_received_at')
+            ->where('pending_warehouse_quantity', '<=', 0.000001)
             ->where(function ($query) {
                 $query->whereNull('qc_test_report_file')->orWhere('qc_result', 'failed');
             })
@@ -166,8 +170,13 @@ class ProductionController extends Controller
 
         $products = Product::query()->orderBy('name')->get(['id', 'name', 'sku', 'unit', 'classification', 'origin']);
         $ppcbs = Ppcb::query()->orderBy('ten_ppcb')->get(['id', 'ma', 'ten_ppcb']);
+        $availableProductionOrders = ProductionOrder::with(['product', 'monthlyPlanLine.plan'])
+            ->where('status', 'completed')
+            ->where('pending_finished_quantity', '>', 0)
+            ->orderByDesc('completed_at')
+            ->get();
 
-        return view('qa.internal-lots.create', compact('products', 'ppcbs', 'sourceProductionOrder'));
+        return view('qa.internal-lots.create', compact('products', 'ppcbs', 'sourceProductionOrder', 'availableProductionOrders'));
     }
 
     public function internalLotsIndex(Request $request)
@@ -175,7 +184,7 @@ class ProductionController extends Controller
         abort_unless(auth()->check(), 403);
         $canManageLots = $this->userCanManageBom();
 
-        $batches = ProductionFinishedBatch::with(['product', 'productionOrder', 'ppcb'])
+        $batches = ProductionFinishedBatch::with(['product', 'productionOrder', 'orderAllocations.productionOrder', 'ppcb'])
             ->withCount(['salesOrderAllocations', 'inventoryMovements', 'inputs', 'codeHistories'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
@@ -187,7 +196,8 @@ class ProductionController extends Controller
                         ->orWhere('license_number', 'like', "%{$search}%")
                         ->orWhereHas('product', fn ($product) => $product->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
                         ->orWhereHas('ppcb', fn ($ppcb) => $ppcb->where('ma', 'like', "%{$search}%")->orWhere('ten_ppcb', 'like', "%{$search}%"))
-                        ->orWhereHas('productionOrder', fn ($order) => $order->where('production_code', 'like', "%{$search}%"));
+                        ->orWhereHas('productionOrder', fn ($order) => $order->where('production_code', 'like', "%{$search}%"))
+                        ->orWhereHas('orderAllocations.productionOrder', fn ($order) => $order->where('production_code', 'like', "%{$search}%"));
                 });
             })
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
@@ -198,6 +208,12 @@ class ProductionController extends Controller
         foreach ($batches as $batch) {
             $batch->setAttribute('can_delete', $this->canDeleteInternalLot($batch));
         }
+
+        $availableProductionOrders = ProductionOrder::with('product')
+            ->where('status', 'completed')
+            ->where('pending_finished_quantity', '>', 0)
+            ->orderByDesc('completed_at')
+            ->get();
 
         $lotsToClose = ProductionFinishedBatch::with('product')
             ->where('status', 'active')
@@ -213,19 +229,34 @@ class ProductionController extends Controller
             ->paginate($this->perPage($request), ['*'], 'close_page')
             ->withQueryString();
 
-        return view('qa.internal-lots.index', compact('batches', 'lotsToClose', 'canManageLots'));
+        return view('qa.internal-lots.index', compact('batches', 'lotsToClose', 'canManageLots', 'availableProductionOrders'));
     }
 
     public function editInternalLot(ProductionFinishedBatch $productionFinishedBatch)
     {
         abort_unless($this->userCanManageBom(), 403);
 
-        $productionFinishedBatch->load(['product', 'productionOrder']);
+        $productionFinishedBatch->load(['product', 'productionOrder', 'orderAllocations.productionOrder']);
         $products = Product::query()->orderBy('name')->get(['id', 'name', 'sku', 'unit', 'classification', 'origin']);
         $ppcbs = Ppcb::query()->orderBy('ten_ppcb')->get(['id', 'ma', 'ten_ppcb']);
         $canEditDefinition = $this->canEditInternalLotDefinition($productionFinishedBatch);
+        $canEditProductionAllocations = $this->canEditInternalLotProductionAllocations($productionFinishedBatch);
+        $existingProductionOrderIds = $productionFinishedBatch->orderAllocations->pluck('production_order_id')->all();
+        if ($productionFinishedBatch->orderAllocations->isEmpty() && $productionFinishedBatch->production_order_id) {
+            $existingProductionOrderIds[] = $productionFinishedBatch->production_order_id;
+        }
+        $availableProductionOrders = ProductionOrder::with('product')
+            ->where('status', 'completed')
+            ->where(function ($query) use ($existingProductionOrderIds) {
+                $query->where('pending_finished_quantity', '>', 0);
+                if ($existingProductionOrderIds) {
+                    $query->orWhereIn('id', $existingProductionOrderIds);
+                }
+            })
+            ->orderByDesc('completed_at')
+            ->get();
 
-        return view('qa.internal-lots.edit', compact('productionFinishedBatch', 'products', 'ppcbs', 'canEditDefinition'));
+        return view('qa.internal-lots.edit', compact('productionFinishedBatch', 'products', 'ppcbs', 'canEditDefinition', 'canEditProductionAllocations', 'availableProductionOrders'));
     }
 
     public function updateInternalLot(Request $request, ProductionFinishedBatch $productionFinishedBatch)
@@ -241,13 +272,19 @@ class ProductionController extends Controller
             'origin' => ['nullable', 'string', 'max:255'],
             'ppcb_id' => ['nullable', 'exists:ppcb,id'],
             'license_number' => ['nullable', 'string', 'max:255'],
+            'production_order_allocations' => ['sometimes', 'array'],
+            'production_order_allocations.*' => ['nullable', 'numeric', 'gte:0'],
         ]);
 
         try {
             DB::transaction(function () use ($productionFinishedBatch, $validated) {
                 $batch = ProductionFinishedBatch::whereKey($productionFinishedBatch->id)->lockForUpdate()->firstOrFail();
                 $canEditDefinition = $this->canEditInternalLotDefinition($batch);
+                $canEditProductionAllocations = $this->canEditInternalLotProductionAllocations($batch);
                 $newCode = trim($validated['batch_number']);
+                if (array_key_exists('production_order_allocations', $validated) && ! $canEditProductionAllocations) {
+                    throw new DomainException('Khong the sua phan bo lenh sau khi QA duyet hoac Kho da nhap lo.');
+                }
                 if ($newCode !== $batch->batch_number && $batch->salesOrderAllocations()->whereHas('labelPrints')->exists()) {
                     throw new DomainException('Không thể đổi số lô sau khi đã in nhãn cho đơn hàng.');
                 }
@@ -282,6 +319,9 @@ class ProductionController extends Controller
                 }
 
                 $batch->update($updates);
+                if (array_key_exists('production_order_allocations', $validated)) {
+                    $this->syncInternalLotProductionAllocations($batch, $validated['production_order_allocations'] ?? []);
+                }
             });
         } catch (DomainException $exception) {
             return back()->withInput()->with('error', $exception->getMessage());
@@ -312,6 +352,7 @@ class ProductionController extends Controller
     private function canEditInternalLotDefinition(ProductionFinishedBatch $batch): bool
     {
         return ! $batch->production_order_id
+            && ! $batch->orderAllocations()->exists()
             && ! $batch->warehouse_received_at
             && (float) $batch->current_quantity <= 0.000001
             && ! $batch->salesOrderAllocations()->exists()
@@ -319,9 +360,78 @@ class ProductionController extends Controller
             && ! $batch->inputs()->exists();
     }
 
+    private function canEditInternalLotProductionAllocations(ProductionFinishedBatch $batch): bool
+    {
+        return $batch->status === 'pending_qa'
+            && ! $batch->qa_approved_at
+            && ! $batch->qc_test_report_file
+            && ! $batch->warehouse_received_at
+            && (float) $batch->current_quantity <= 0.000001
+            && ! $batch->salesOrderAllocations()->exists()
+            && ! $batch->inventoryMovements()->exists();
+    }
+
+    private function syncInternalLotProductionAllocations(ProductionFinishedBatch $batch, array $requestedAllocations): void
+    {
+        $newAllocations = collect($requestedAllocations)
+            ->mapWithKeys(fn ($quantity, $orderId) => [(int) $orderId => (float) ($quantity ?? 0)])
+            ->filter(fn ($quantity) => $quantity > 0);
+        $newTotal = (float) $newAllocations->sum();
+        if ($newTotal > (float) $batch->planned_quantity + 0.000001) {
+            throw new DomainException('Tong san luong phan bo khong duoc vuot suc chua cua lo.');
+        }
+
+        $existingAllocations = $batch->orderAllocations()->get();
+        $previousAllocations = $existingAllocations->mapWithKeys(
+            fn ($allocation) => [(int) $allocation->production_order_id => (float) $allocation->quantity],
+        );
+        if ($previousAllocations->isEmpty() && $batch->production_order_id && (float) $batch->initial_quantity > 0) {
+            $previousAllocations->put((int) $batch->production_order_id, (float) $batch->initial_quantity);
+        }
+
+        $orderIds = $previousAllocations->keys()->merge($newAllocations->keys())->unique()->sort()->values();
+        $orders = ProductionOrder::whereIn('id', $orderIds)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+        if ($orders->count() !== $orderIds->count()) {
+            throw new DomainException('Khong tim thay mot lenh san xuat dang lien ket.');
+        }
+
+        foreach ($previousAllocations as $orderId => $quantity) {
+            $orders->get($orderId)->increment('pending_finished_quantity', $quantity);
+        }
+
+        $batch->orderAllocations()->delete();
+        $batch->inputs()->delete();
+
+        foreach ($newAllocations as $orderId => $quantity) {
+            $order = $orders->get($orderId);
+            if (
+                $order->status !== 'completed'
+                || (int) $order->product_id !== (int) $batch->product_id
+                || (float) $order->pending_finished_quantity + 0.000001 < $quantity
+            ) {
+                throw new DomainException('Lenh phai hoan thanh, dung san pham va con du san luong chua phan bo.');
+            }
+
+            $availableBeforeAllocation = (float) $order->pending_finished_quantity;
+            $batch->orderAllocations()->create([
+                'production_order_id' => $order->id,
+                'quantity' => $quantity,
+            ]);
+            $order->decrement('pending_finished_quantity', $quantity);
+            $this->allocateOrderInputsToBatch($order, $batch, $quantity, $availableBeforeAllocation);
+        }
+
+        $batch->update([
+            'production_order_id' => $newAllocations->count() === 1 ? $newAllocations->keys()->first() : null,
+            'initial_quantity' => $newTotal,
+            'pending_warehouse_quantity' => $newTotal > 0 ? $newTotal : $batch->planned_quantity,
+        ]);
+    }
+
     private function canDeleteInternalLot(ProductionFinishedBatch $batch): bool
     {
         return ! $batch->production_order_id
+            && ! $batch->orderAllocations()->exists()
             && ! $batch->warehouse_received_at
             && (float) $batch->current_quantity <= 0.000001
             && ((float) $batch->pending_warehouse_quantity > 0 || $batch->status === 'planned')
@@ -343,14 +453,15 @@ class ProductionController extends Controller
             'mfg_date' => ['nullable', 'date'],
             'exp_date' => ['nullable', 'date', 'after_or_equal:mfg_date'],
             'license_number' => ['nullable', 'string', 'max:255'],
-            'production_order_id' => ['prohibited'],
+            'production_order_allocations' => ['nullable', 'array'],
+            'production_order_allocations.*' => ['nullable', 'numeric', 'gt:0'],
         ]);
 
         try {
             DB::transaction(function () use ($validated) {
                 $product = Product::findOrFail($validated['product_id']);
                 $capacity = (float) $validated['planned_quantity'];
-                ProductionFinishedBatch::create([
+                $batch = ProductionFinishedBatch::create([
                     'product_id' => $product->id,
                     'origin' => $product->origin,
                     'ppcb_id' => $validated['ppcb_id'] ?? null,
@@ -360,11 +471,44 @@ class ProductionController extends Controller
                     'planned_quantity' => $capacity,
                     'initial_quantity' => 0,
                     'current_quantity' => 0,
-                    'pending_warehouse_quantity' => $capacity,
+                    'pending_warehouse_quantity' => 0,
                     'unit' => $product->unit,
                     'mfg_date' => $validated['mfg_date'] ?? null,
                     'exp_date' => $validated['exp_date'] ?? null,
                     'status' => 'pending_qa',
+                ]);
+
+                $allocations = collect($validated['production_order_allocations'] ?? [])
+                    ->mapWithKeys(fn ($quantity, $orderId) => [(int) $orderId => (float) $quantity])
+                    ->filter(fn ($quantity) => $quantity > 0);
+                $allocationTotal = (float) $allocations->sum();
+                if ($allocationTotal > $capacity + 0.000001) {
+                    throw new DomainException('Total allocated production quantity cannot exceed the lot capacity.');
+                }
+
+                foreach ($allocations as $orderId => $quantity) {
+                    $order = ProductionOrder::whereKey($orderId)->lockForUpdate()->firstOrFail();
+                    if (
+                        $order->status !== 'completed'
+                        || (int) $order->product_id !== (int) $product->id
+                        || (float) $order->pending_finished_quantity + 0.000001 < $quantity
+                    ) {
+                        throw new DomainException('A selected production order has insufficient unallocated output or a different product.');
+                    }
+
+                    $availableBeforeAllocation = (float) $order->pending_finished_quantity;
+                    $existingAllocation = $batch->orderAllocations()->where('production_order_id', $order->id)->first();
+                    $batch->orderAllocations()->updateOrCreate(
+                        ['production_order_id' => $order->id],
+                        ['quantity' => (float) ($existingAllocation?->quantity ?? 0) + $quantity],
+                    );
+                    $order->decrement('pending_finished_quantity', $quantity);
+                    $this->allocateOrderInputsToBatch($order, $batch, $quantity, $availableBeforeAllocation);
+                }
+
+                $batch->update([
+                    'initial_quantity' => $allocationTotal,
+                    'pending_warehouse_quantity' => $allocationTotal > 0 ? $allocationTotal : $capacity,
                 ]);
             });
         } catch (DomainException $exception) {
@@ -373,6 +517,60 @@ class ProductionController extends Controller
 
         return redirect()->route('qa.internal-lots.index')
             ->with('success', 'Đã tạo mã lô độc lập với sản lượng/lệnh sản xuất. QA có thể phân bổ lượng dự kiến ngay; Kho nhập số lượng thực tế theo từng lần, không vượt lượng dự kiến.');
+    }
+
+    public function allocateProductionOrderToLot(Request $request, ProductionFinishedBatch $productionFinishedBatch)
+    {
+        abort_unless($this->userCanManageBom(), 403);
+        $validated = $request->validate([
+            'production_order_id' => ['required', 'integer', 'exists:production_orders,id'],
+            'quantity' => ['required', 'numeric', 'gt:0'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($productionFinishedBatch, $validated) {
+                $batch = ProductionFinishedBatch::whereKey($productionFinishedBatch->id)->lockForUpdate()->firstOrFail();
+                if (
+                    ! in_array($batch->status, ['pending_qa', 'active'], true)
+                    || $batch->qa_approved_at !== null
+                    || $batch->qc_test_report_file !== null
+                    || ((float) $batch->initial_quantity > (float) $batch->orderAllocations()->sum('quantity') + 0.000001)
+                ) {
+                    throw new DomainException('Production can only be allocated before QA approval and must belong to the same lot genealogy.');
+                }
+
+                $order = ProductionOrder::whereKey($validated['production_order_id'])->lockForUpdate()->firstOrFail();
+                $quantity = (float) $validated['quantity'];
+                if (
+                    $order->status !== 'completed'
+                    || (int) $order->product_id !== (int) $batch->product_id
+                    || (float) $order->pending_finished_quantity + 0.000001 < $quantity
+                ) {
+                    throw new DomainException('The production order must have enough unallocated output and match the lot product.');
+                }
+                if ((float) $batch->initial_quantity + $quantity > (float) $batch->planned_quantity + 0.000001) {
+                    throw new DomainException('Allocated output cannot exceed the lot capacity.');
+                }
+
+                $availableBeforeAllocation = (float) $order->pending_finished_quantity;
+                $existingAllocation = $batch->orderAllocations()->where('production_order_id', $order->id)->first();
+                $batch->orderAllocations()->updateOrCreate(
+                    ['production_order_id' => $order->id],
+                    ['quantity' => (float) ($existingAllocation?->quantity ?? 0) + $quantity],
+                );
+                $batch->update([
+                    'initial_quantity' => (float) $batch->initial_quantity + $quantity,
+                    'pending_warehouse_quantity' => (float) $batch->pending_warehouse_quantity + $quantity,
+                    'status' => $batch->warehouse_received_at ? 'active' : 'pending_qa',
+                ]);
+                $order->decrement('pending_finished_quantity', $quantity);
+                $this->allocateOrderInputsToBatch($order, $batch, $quantity, $availableBeforeAllocation);
+            });
+        } catch (DomainException $exception) {
+            return back()->withInput()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Production output was allocated to the internal lot.');
     }
 
     public function closeFinishedBatch(ProductionFinishedBatch $productionFinishedBatch)
@@ -409,6 +607,41 @@ class ProductionController extends Controller
         return back()->with('success', 'Đã chốt lô thành phẩm đã dùng hết.');
     }
 
+    private function allocateOrderInputsToBatch(ProductionOrder $order, ProductionFinishedBatch $batch, float $quantity, float $unallocatedBefore): void
+    {
+        $order->loadMissing('materials.lots.finishedBatchInputs');
+        $actualQuantity = (float) $order->actual_quantity;
+        if ($actualQuantity <= 0) {
+            throw new DomainException('Production order has no confirmed actual output to allocate.');
+        }
+
+        $isFinalAllocation = $quantity >= $unallocatedBefore - 0.000001;
+        foreach ($order->materials as $material) {
+            foreach ($material->lots as $materialLot) {
+                $consumed = max(0, (float) $materialLot->issued_quantity - (float) $materialLot->returned_quantity);
+                $alreadyAssigned = (float) $materialLot->finishedBatchInputs()->sum('consumed_quantity');
+                $remaining = max(0, $consumed - $alreadyAssigned);
+                $inputQuantity = $isFinalAllocation
+                    ? $remaining
+                    : min($remaining, round($consumed * $quantity / $actualQuantity, 4));
+                if ($inputQuantity <= 0) {
+                    continue;
+                }
+
+                $existingInput = $batch->inputs()->where('production_material_lot_id', $materialLot->id)->first();
+                if ($existingInput) {
+                    $existingInput->update(['consumed_quantity' => (float) $existingInput->consumed_quantity + $inputQuantity]);
+                } else {
+                    $batch->inputs()->create([
+                        'production_material_lot_id' => $materialLot->id,
+                        'consumed_quantity' => $inputQuantity,
+                        'unit' => $material->unit,
+                    ]);
+                }
+            }
+        }
+    }
+
     public function approveFinishedBatch(Request $request, ProductionFinishedBatch $productionFinishedBatch)
     {
         abort_unless($this->userCanManageQuality(), 403);
@@ -428,6 +661,9 @@ class ProductionController extends Controller
                 $batch = ProductionFinishedBatch::whereKey($productionFinishedBatch->id)->lockForUpdate()->firstOrFail();
                 if ($batch->status !== 'active' || ! $batch->warehouse_received_at) {
                     throw new DomainException('QC chỉ kiểm nghiệm lô sau khi Kho đã nhập thành phẩm.');
+                }
+                if ((float) $batch->pending_warehouse_quantity > 0.000001) {
+                    throw new DomainException('QC chỉ được duyệt sau khi Kho nhập đủ sản lượng đã phân bổ cho lô.');
                 }
 
                 $reportPath = $request->file('qc_test_report_file')->store('qc-reports', 'local');
@@ -470,8 +706,13 @@ class ProductionController extends Controller
             'materials.product',
             'materials.lots.supplierBatch',
             'finishedBatches',
+            'allocatedFinishedBatches',
             'monthlyPlanLine.plan',
         ]);
+        $productionOrder->setRelation(
+            'allFinishedBatches',
+            $productionOrder->finishedBatches->merge($productionOrder->allocatedFinishedBatches)->unique('id')->values(),
+        );
 
         $materialLots = collect();
         if ($productionOrder->status === 'released') {
@@ -494,6 +735,92 @@ class ProductionController extends Controller
             'canManageLots' => $this->userCanManageBom(),
             'canWorkInProduction' => $this->userCanWorkInProduction(),
         ]);
+    }
+
+    public function reportProductionOutput(Request $request, ProductionOrder $productionOrder)
+    {
+        abort_unless($this->userCanWorkInProduction(), 403);
+
+        if ($productionOrder->status !== 'materials_issued') {
+            return back()->with('error', 'Production order is no longer waiting for an output report.');
+        }
+
+        $validated = $request->validate([
+            'actual_quantity' => ['required', 'numeric', 'min:0.0001'],
+            'mfg_date' => ['nullable', 'date'],
+            'reported_returned_materials' => ['nullable', 'array'],
+            'reported_returned_materials.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($productionOrder, $validated) {
+                $lockedOrder = ProductionOrder::whereKey($productionOrder->id)->lockForUpdate()->firstOrFail();
+                if ($lockedOrder->status !== 'materials_issued') {
+                    throw new DomainException('Production order is no longer waiting for an output report.');
+                }
+                $lockedOrder->load('materials.lots');
+
+                $issuedLots = $lockedOrder->materials
+                    ->flatMap(fn ($material) => $material->lots)
+                    ->filter(fn ($allocation) => (float) $allocation->issued_quantity > 0);
+                $submittedReturnIds = array_map('intval', array_keys($validated['reported_returned_materials'] ?? []));
+                if (array_diff($submittedReturnIds, $issuedLots->pluck('id')->map(fn ($id) => (int) $id)->all())) {
+                    throw new DomainException('A returned material does not belong to this production order.');
+                }
+                foreach ($issuedLots as $allocation) {
+                    $reportedReturn = (float) ($validated['reported_returned_materials'][$allocation->id] ?? 0);
+                    if ($reportedReturn > (float) $allocation->issued_quantity + 0.0001) {
+                        throw new DomainException('Reported returned material cannot exceed the issued quantity.');
+                    }
+                    $allocation->update(['reported_returned_quantity' => $reportedReturn]);
+                }
+
+                $actualOutputQuantity = (float) $validated['actual_quantity'];
+                $remainingOutput = $actualOutputQuantity;
+                $isMonthlyPlanOrder = $lockedOrder->monthlyPlanLine()->exists();
+
+                if (! $isMonthlyPlanOrder) {
+                    $outputBatches = $lockedOrder->finishedBatches()
+                        ->where('status', 'planned')
+                        ->lockForUpdate()
+                        ->get();
+                    foreach ($outputBatches as $outputBatch) {
+                        $capacity = max(0, (float) $outputBatch->planned_quantity
+                            - (float) $outputBatch->initial_quantity);
+                        $reportedBatchQuantity = min($remainingOutput, $capacity);
+                        if ($reportedBatchQuantity <= 0) {
+                            continue;
+                        }
+
+                        $outputBatch->update([
+                            'initial_quantity' => (float) $outputBatch->initial_quantity + $reportedBatchQuantity,
+                            'pending_warehouse_quantity' => (float) $outputBatch->pending_warehouse_quantity + $reportedBatchQuantity,
+                            'mfg_date' => $validated['mfg_date'] ?? today(),
+                            'status' => 'pending_qa',
+                            'received_by' => auth()->id(),
+                        ]);
+                        $outputBatch->orderAllocations()->updateOrCreate(
+                            ['production_order_id' => $lockedOrder->id],
+                            ['quantity' => (float) $outputBatch->orderAllocations()->where('production_order_id', $lockedOrder->id)->value('quantity') + $reportedBatchQuantity],
+                        );
+                        $remainingOutput -= $reportedBatchQuantity;
+                    }
+                }
+
+                $lockedOrder->update([
+                    'actual_quantity' => $actualOutputQuantity,
+                    'pending_finished_quantity' => $remainingOutput,
+                    'status' => 'production_reported',
+                    'production_reported_at' => now(),
+                    'production_reported_by' => auth()->id(),
+                ]);
+            });
+        } catch (DomainException $exception) {
+            return back()->withInput()->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('production-orders.show', $productionOrder)
+            ->with('success', 'Production output reported. The order is waiting for Warehouse to verify returned materials and confirm completion.');
     }
 
     public function packagingQueue(Request $request)
@@ -704,55 +1031,41 @@ class ProductionController extends Controller
 
         return back()->with('success', 'Đã xuất nguyên liệu theo lô và ghi nhận giao dịch EXPORT_PRODUCTION.');
     }
-    public function receiveFinishedBatch(Request $request, ProductionOrder $productionOrder, InventoryLedger $inventoryLedger)
+    public function confirmProductionCompletion(Request $request, ProductionOrder $productionOrder, InventoryLedger $inventoryLedger)
     {
         abort_unless($this->userCanWorkInWarehouse(), 403);
 
-        if ($productionOrder->status !== 'materials_issued') {
+        if ($productionOrder->status !== 'production_reported') {
             return back()->with('error', 'Chỉ được nhập thành phẩm sau khi nguyên liệu đã xuất cho sản xuất.');
         }
 
         $rules = [
             'returned_materials' => 'nullable|array',
             'returned_materials.*' => 'nullable|numeric|min:0',
-            'actual_quantity' => ['required', 'numeric', 'min:0.0001'],
-            'mfg_date' => 'nullable|date',
         ];
         $validated = $request->validate($rules);
 
         try {
             DB::transaction(function () use ($productionOrder, $validated, $inventoryLedger) {
                 $lockedOrder = ProductionOrder::whereKey($productionOrder->id)->lockForUpdate()->firstOrFail();
-                if ($lockedOrder->status !== 'materials_issued') {
+                if ($lockedOrder->status !== 'production_reported') {
                     throw new DomainException('Lệnh sản xuất không còn chờ nhập thành phẩm.');
                 }
                 $lockedOrder->load(['materials.product', 'materials.lots']);
-                $actualOutputQuantity = (float) $validated['actual_quantity'];
-                $remainingOutput = $actualOutputQuantity;
-                $stagedBatches = [];
+                $actualOutputQuantity = (float) $lockedOrder->actual_quantity;
                 $isMonthlyPlanOrder = $lockedOrder->monthlyPlanLine()->exists();
+                $stagedBatches = [];
                 if (! $isMonthlyPlanOrder) {
                     $outputBatches = $lockedOrder->finishedBatches()
-                        ->where('status', 'planned')
+                        ->where('status', 'pending_qa')
+                        ->where('pending_warehouse_quantity', '>', 0)
                         ->lockForUpdate()
                         ->get();
                     foreach ($outputBatches as $outputBatch) {
-                        $capacity = max(0, (float) $outputBatch->planned_quantity
-                            - (float) $outputBatch->initial_quantity);
-                        $stagedQuantity = min($remainingOutput, $capacity);
-                        if ($stagedQuantity <= 0) {
-                            continue;
-                        }
-
-                        $outputBatch->update([
-                            'initial_quantity' => (float) $outputBatch->initial_quantity + $stagedQuantity,
-                            'pending_warehouse_quantity' => (float) $outputBatch->pending_warehouse_quantity + $stagedQuantity,
-                            'mfg_date' => $validated['mfg_date'] ?? today(),
-                            'status' => 'pending_qa',
-                            'received_by' => auth()->id(),
-                        ]);
-                        $stagedBatches[] = ['batch' => $outputBatch, 'quantity' => $stagedQuantity];
-                        $remainingOutput -= $stagedQuantity;
+                        $stagedBatches[] = [
+                            'batch' => $outputBatch,
+                            'quantity' => (float) $outputBatch->pending_warehouse_quantity,
+                        ];
                     }
                 }
 
@@ -847,10 +1160,10 @@ class ProductionController extends Controller
                 }
 
                 $lockedOrder->update([
-                    'actual_quantity' => $actualOutputQuantity,
-                    'pending_finished_quantity' => $remainingOutput,
                     'status' => 'completed',
                     'completed_at' => now(),
+                    'warehouse_confirmed_at' => now(),
+                    'warehouse_confirmed_by' => auth()->id(),
                 ]);
 
                 if ($lockedOrder->order_id) {

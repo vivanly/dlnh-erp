@@ -50,6 +50,18 @@ class ProductionFinishedBatch extends Model
         return $this->belongsTo(ProductionOrder::class);
     }
 
+    public function orderAllocations()
+    {
+        return $this->hasMany(ProductionOrderBatchAllocation::class);
+    }
+
+    public function allocatedProductionOrders()
+    {
+        return $this->belongsToMany(ProductionOrder::class, 'production_order_batch_allocations')
+            ->withPivot('quantity')
+            ->withTimestamps();
+    }
+
     public function product()
     {
         return $this->belongsTo(Product::class);

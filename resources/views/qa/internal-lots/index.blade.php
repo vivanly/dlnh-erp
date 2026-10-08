@@ -47,10 +47,38 @@
                                 <td class="p-2.5">{{ $batch->qc_test_report ?: 'Chưa có PKN' }}<span class="block text-slate-500">{{ optional($batch->qc_date)->format('d/m/Y') ?: '---' }} · {{ $batch->qc_result === 'passed' ? 'Đạt' : ($batch->qc_result === 'failed' ? 'Không đạt' : 'Chờ QC') }}</span></td>
                                 <td class="p-2.5">{{ $batch->license_number ?: '---' }}</td>
                                 <td class="p-2.5 text-right font-mono whitespace-nowrap">{{ number_format((float) $batch->current_quantity, 4) }} / {{ number_format((float) $batch->pending_warehouse_quantity, 4) }} / {{ number_format((float) $batch->planned_quantity, 4) }} {{ $batch->unit }}</td>
-                                <td class="p-2.5">{{ $batch->productionOrder?->production_code ?? 'QA tạo độc lập' }}<span class="block text-slate-500">{{ ['planned' => 'Dự kiến', 'pending_qa' => 'Chờ Kho nhập', 'active' => 'Đang hoạt động', 'closed' => 'Đã chốt'][$batch->status] ?? $batch->status }}</span></td>
+                                <td class="p-2.5">
+                                    @if($batch->orderAllocations->isNotEmpty())
+                                        @foreach($batch->orderAllocations as $allocation)
+                                            <span class="block font-mono">{{ $allocation->productionOrder?->production_code }} · {{ number_format((float) $allocation->quantity, 4) }} {{ $batch->unit }}</span>
+                                        @endforeach
+                                    @else
+                                        <span>{{ $batch->productionOrder?->production_code ?? 'Lô QA tạo độc lập' }}</span>
+                                    @endif
+                                    <span class="mt-1 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ ['planned' => 'Dự kiến', 'pending_qa' => 'Chờ kho nhập', 'active' => 'Đang hoạt động', 'closed' => 'Đã chốt'][$batch->status] ?? $batch->status }}</span>
+                                </td>
                                 <td class="p-2.5 whitespace-nowrap">
                                     @if($canManageLots)
                                     <a href="{{ route('qa.internal-lots.edit', $batch) }}" class="inline-block border border-slate-300 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100">Sửa</a>
+                                    @php
+                                        $appendableOrders = $availableProductionOrders->where('product_id', $batch->product_id);
+                                        $canAppendProduction = in_array($batch->status, ['pending_qa', 'active'], true) && !$batch->qa_approved_at && (float) $batch->initial_quantity < (float) $batch->planned_quantity;
+                                    @endphp
+                                    @if($canAppendProduction && $appendableOrders->isNotEmpty())
+                                        <form method="POST" action="{{ route('qa.internal-lots.allocate-production-order', $batch) }}" class="mt-2 flex max-w-xs flex-col gap-1 border-t border-slate-200 pt-2">
+                                            @csrf
+                                            <select name="production_order_id" required class="w-full border-slate-300 py-1 text-[10px]">
+                                                <option value="">Chọn lệnh sản xuất</option>
+                                                @foreach($appendableOrders as $availableOrder)
+                                                    <option value="{{ $availableOrder->id }}">{{ $availableOrder->production_code }} · {{ number_format((float) $availableOrder->pending_finished_quantity, 4) }} {{ $availableOrder->unit }} còn</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="flex gap-1">
+                                                <input type="number" name="quantity" min="0.0001" step="0.0001" max="{{ min((float) $appendableOrders->max('pending_finished_quantity'), max(0, (float) $batch->planned_quantity - (float) $batch->initial_quantity)) }}" placeholder="Số lượng" aria-label="Số lượng cần phân bổ" required class="w-24 border-slate-300 text-right font-mono text-[10px]">
+                                                <button class="border border-emerald-700 px-2 py-1 text-[10px] font-semibold text-emerald-800">Phân bổ</button>
+                                            </div>
+                                        </form>
+                                    @endif
                                     @if($batch->can_delete)
                                         <form method="POST" action="{{ route('qa.internal-lots.destroy', $batch) }}" class="inline" onsubmit="return confirm('Xóa lô chưa nhập kho và chưa phát sinh giao dịch?');">@csrf @method('DELETE')<button class="ml-1 border border-rose-300 px-2 py-1 text-[10px] font-semibold text-rose-700 hover:bg-rose-50">Xóa</button></form>
                                     @endif

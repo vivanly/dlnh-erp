@@ -22,15 +22,21 @@
                     <thead><tr class="border-b border-slate-300 bg-slate-100 text-[10px] uppercase text-slate-600"><th class="p-2.5">Lô BTP / TP</th><th class="p-2.5">Nguồn lô</th><th class="p-2.5 text-right">Lượng chờ nhập</th><th class="p-2.5">Trạng thái PKN</th><th class="p-2.5">SL nhận thực tế</th></tr></thead>
                     <tbody class="divide-y divide-slate-200">
                         @forelse($batches as $batch)
+                            @php
+                                $usesAllocationCapacity = $batch->order_allocations_count > 0
+                                    || ($batch->production_order_id && ! $batch->productionOrder?->monthlyPlanLine);
+                                $authorizedQuantity = $usesAllocationCapacity
+                                    ? min((float) $batch->planned_quantity, (float) $batch->initial_quantity)
+                                    : (float) $batch->planned_quantity;
+                                $maxReceivableQuantity = min(
+                                    (float) $batch->pending_warehouse_quantity,
+                                    max(0, $authorizedQuantity - (float) $batch->received_quantity),
+                                );
+                            @endphp
                             <tr>
                                 <td class="p-2.5"><strong class="font-mono">{{ $batch->batch_number }}</strong><span class="block">{{ $batch->product->name }}</span><span class="block text-[10px] text-slate-500">{{ str_contains(strtoupper((string) $batch->product->classification), 'VT') ? 'Thành phẩm · vị thuốc' : 'Bán thành phẩm · dược liệu đã sơ chế' }}</span></td>
-                                <td class="p-2.5 font-mono">
-                                    {{ $batch->productionOrder?->production_code ?? 'Lô QA tạo độc lập' }}
-                                    @if($batch->productionOrder?->monthlyPlanLine)
-                                        <span class="block text-[10px] text-slate-500">Kế hoạch tháng {{ $batch->productionOrder->monthlyPlanLine->plan->plan_month->format('m/Y') }}</span>
-                                    @endif
-                                </td>
-                                <td class="p-2.5 text-right font-mono">{{ number_format($batch->pending_warehouse_quantity, 4) }} {{ $batch->unit }}<span class="block text-[10px] text-slate-500">Cỡ lô {{ number_format((float) $batch->planned_quantity, 4) }} · đã nhập {{ number_format((float) $batch->current_quantity, 4) }}</span></td>
+                                <td class="p-2.5 font-mono">@if($batch->orderAllocations->isNotEmpty()) @foreach($batch->orderAllocations as $allocation)<span class="block">{{ $allocation->productionOrder?->production_code }} · {{ number_format((float) $allocation->quantity, 4) }} {{ $batch->unit }}</span>@endforeach @elseif($batch->productionOrder) {{ $batch->productionOrder->production_code }} @else QA-created independent lot @endif</td>
+                                <td class="p-2.5 text-right font-mono">{{ number_format($maxReceivableQuantity, 4) }} {{ $batch->unit }}<span class="block text-[10px] text-slate-500">Cỡ lô {{ number_format((float) $batch->planned_quantity, 4) }} · đã nhập {{ number_format((float) $batch->current_quantity, 4) }}</span></td>
                                 <td class="p-2.5">
                                     <span class="block {{ $batch->qc_result === 'passed' ? 'text-emerald-700' : ($batch->qc_result === 'failed' ? 'text-rose-700' : 'text-slate-500') }}">{{ $batch->qc_result === 'passed' ? 'PKN Đạt' : ($batch->qc_result === 'failed' ? 'PKN Không đạt' : 'Chờ QC · không chặn nhập kho') }}</span>
                                 </td>
@@ -44,7 +50,8 @@
                                                 && ! $batch->warehouse_received_at
                                                 && $batch->sales_order_allocations_count === 0
                                                 && $batch->inputs_count === 0
-                                                && $batch->inventory_movements_count === 0;
+                                                && $batch->inventory_movements_count === 0
+                                                && $batch->order_allocations_count === 0;
                                         @endphp
                                         <form method="POST" action="{{ route('warehouse.production-batches.receive', $batch) }}" class="flex min-w-56 flex-col items-start gap-2" onsubmit="return confirm('Xác nhận nhập số lượng thực tế đã khai báo?');">
                                             @csrf
@@ -64,7 +71,7 @@
                                                 @endif
                                             @endif
                                             <div class="flex items-center gap-2">
-                                                <input type="number" name="received_quantity" min="0.0001" max="{{ $batch->pending_warehouse_quantity }}" step="0.0001" placeholder="Tối đa {{ number_format($batch->pending_warehouse_quantity, 4) }}" required class="w-32 border-slate-300 text-right font-mono text-xs">
+                                                <input type="number" name="received_quantity" min="0.0001" max="{{ $maxReceivableQuantity }}" step="0.0001" placeholder="Tối đa {{ number_format($maxReceivableQuantity, 4) }}" required @disabled($maxReceivableQuantity <= 0) class="w-32 border-slate-300 text-right font-mono text-xs">
                                                 <button class="whitespace-nowrap bg-emerald-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white">Nhập kho</button>
                                             </div>
                                         </form>

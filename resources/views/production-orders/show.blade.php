@@ -29,7 +29,7 @@
                     <p class="mt-1 text-[10px] text-slate-500">Mã lô chưa được tạo trước khi sản xuất. Sau khi chốt sản lượng, QA cấp một hoặc nhiều mã lô cho lượng hoàn thành; Kho nhập theo từng mã.</p>
                 </div>
                 <div class="divide-y divide-slate-200">
-                    @forelse($productionOrder->finishedBatches as $finishedBatch)
+                    @forelse($productionOrder->allFinishedBatches as $finishedBatch)
                         <div class="flex flex-wrap items-center justify-between gap-2 p-3 text-xs">
                             <strong class="font-mono">{{ $finishedBatch->batch_number }}</strong>
                             <span>Cỡ lô {{ number_format((float) $finishedBatch->planned_quantity, 4) }} {{ $finishedBatch->unit }} · Đã xếp nhập {{ number_format((float) $finishedBatch->initial_quantity, 4) }} · {{ $finishedBatch->status }}</span>
@@ -92,34 +92,67 @@
                 </form>
             @endif
 
-            @if($canIssueMaterials && $productionOrder->status === 'materials_issued')
-                <form method="POST" action="{{ route('production-orders.receive-finished-batch', $productionOrder) }}" class="bg-white border border-slate-300 p-4 space-y-3" onsubmit="return confirm('Xác nhận sản lượng thực tế và lượng nguyên liệu trả kho?');">
+            @if($canWorkInProduction && $productionOrder->status === 'materials_issued')
+                <form method="POST" action="{{ route('production-orders.report-output', $productionOrder) }}" class="space-y-3 border border-slate-300 bg-white p-4" onsubmit="return confirm('Xac nhan san luong thuc te va nguyen lieu du kien tra kho?');">
                     @csrf
-                    <div class="grid grid-cols-1 gap-3 border-b border-slate-200 p-3 sm:grid-cols-2">
-                        <label class="text-xs font-semibold">Sản lượng thực tế Sản xuất
-                            <input type="number" name="actual_quantity" min="0.0001" step="0.0001" value="{{ old('actual_quantity', $productionOrder->planned_quantity) }}" required class="mt-1 w-full text-right font-mono text-xs border-slate-300 rounded-none">
+                    <div class="border-b border-slate-200 bg-emerald-50 p-3">
+                        <h3 class="text-xs font-bold uppercase text-emerald-900">San xuat xac nhan san luong hoan thanh</h3>
+                        <p class="mt-1 text-xs text-emerald-800">Nhap san luong thuc te va luong nguyen lieu chua su dung du kien tra kho. Kho se kiem tra luong tra thuc te truoc khi hoan tat lenh.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2">
+                        <label class="text-xs font-semibold">San luong thuc te <span class="text-rose-600">*</span>
+                            <input type="number" name="actual_quantity" min="0.0001" step="0.0001" value="{{ old('actual_quantity', $productionOrder->planned_quantity) }}" required class="mt-1 w-full border-slate-300 text-right font-mono text-sm">
                         </label>
-                        <label class="text-xs font-semibold">Ngày sản xuất<input type="date" name="mfg_date" value="{{ date('Y-m-d') }}" class="mt-1 w-full text-xs border-slate-300 rounded-none"></label>
+                        <label class="text-xs font-semibold">Ngay san xuat
+                            <input type="date" name="mfg_date" value="{{ date('Y-m-d') }}" class="mt-1 w-full border-slate-300 text-sm">
+                        </label>
                     </div>
                     <div class="border-t border-slate-200 pt-3">
-                        <h3 class="text-xs font-bold uppercase text-slate-700">Nguyên liệu chưa dùng trả kho</h3>
-                        <p class="mt-1 text-[10px] text-slate-500">Nhập lượng trả theo từng lô; lượng tiêu hao truy xuất bằng lượng xuất trừ lượng trả.</p>
-                        <div class="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <h3 class="text-xs font-bold uppercase text-slate-700">Nguyen lieu chua su dung, du kien tra kho</h3>
+                        <p class="mt-1 text-[11px] text-slate-500">Nhap luong du kien tra theo tung lo. Luong tieu hao bang luong da xuat tru luong kho xac nhan tra.</p>
+                        <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                             @foreach($productionOrder->materials as $material)
                                 @foreach($material->lots as $allocation)
                                     @if((float) $allocation->issued_quantity > 0)
-                                        @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô NCC'; @endphp
+                                        @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lo nha cung cap'; @endphp
                                         <label class="flex items-center justify-between gap-3 border border-slate-200 p-2 text-xs">
-                                            <span>{{ $material->display_name }} · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
-                                            <input type="number" name="returned_materials[{{ $allocation->id }}]" value="{{ old('returned_materials.'.$allocation->id, 0) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 text-right font-mono text-xs border-slate-300 rounded-none" aria-label="Lượng trả về lô {{ $sourceLotCode }}">
+                                            <span>{{ $material->display_name }} - {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Da xuat {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
+                                            <input type="number" name="reported_returned_materials[{{ $allocation->id }}]" value="{{ old('reported_returned_materials.'.$allocation->id, 0) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 border-slate-300 text-right font-mono text-xs" aria-label="Luong du kien tra cua lo {{ $sourceLotCode }}">
                                         </label>
                                     @endif
                                 @endforeach
                             @endforeach
                         </div>
                     </div>
-                    <div class="flex justify-end"><button class="px-3 py-2 bg-emerald-600 text-xs font-bold uppercase text-white hover:bg-emerald-700">Chốt sản lượng sản xuất</button></div>
+                    <div class="flex justify-end border-t border-slate-200 pt-3"><button class="bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Gui xac nhan san luong</button></div>
                 </form>
+            @endif
+            @if($canIssueMaterials && $productionOrder->status === 'production_reported')
+                <form method="POST" action="{{ route('production-orders.confirm-completion', $productionOrder) }}" class="bg-white border border-slate-300 p-4 space-y-3" onsubmit="return confirm('Xác nhận lượng nguyên liệu trả kho và hoàn thành lệnh sản xuất?');">
+                    @csrf
+                    <div class="border-b border-slate-200 p-3">
+                        <h3 class="text-xs font-bold uppercase text-emerald-900">Kho kiểm tra và xác nhận hoàn thành lệnh</h3>
+                        <p class="mt-1 text-xs text-slate-600">Sản xuất đã báo cáo {{ number_format((float) $productionOrder->actual_quantity, 4) }} {{ $productionOrder->unit }}. Kho xác nhận lượng nguyên liệu thực tế nhận lại; lượng tiêu hao được tính bằng lượng đã xuất trừ lượng trả kho.</p>
+                    </div>
+                    <div class="space-y-2">
+                        @foreach($productionOrder->materials as $material)
+                            @foreach($material->lots as $allocation)
+                                @if((float) $allocation->issued_quantity > 0)
+                                    @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô nhà cung cấp'; @endphp
+                                    <label class="flex items-center justify-between gap-3 border border-slate-200 p-2 text-xs">
+                                            <span>{{ $material->display_name }} · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">SX du kien tra {{ number_format((float) $allocation->reported_returned_quantity, 4) }} / da xuat {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
+                                            <input type="number" name="returned_materials[{{ $allocation->id }}]" value="{{ old('returned_materials.'.$allocation->id, $allocation->reported_returned_quantity) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 text-right font-mono text-xs border-slate-300 rounded-none" aria-label="Kho xac nhan luong tra cua lo {{ $sourceLotCode }}">
+                                    </label>
+                                @endif
+                            @endforeach
+                        @endforeach
+                    </div>
+                    <div class="flex justify-end border-t border-slate-200 pt-3"><button class="px-4 py-2 bg-emerald-700 text-xs font-bold uppercase text-white hover:bg-emerald-800">Xác nhận hoàn thành lệnh</button></div>
+                </form>
+            @endif
+
+            @if($productionOrder->status === 'production_reported')
+                <div class="border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">Sản xuất đã báo cáo sản lượng lúc {{ $productionOrder->production_reported_at?->format('d/m/Y H:i') }}. Đang chờ Kho xác nhận.</div>
             @endif
 
             @if($productionOrder->status === 'completed')

@@ -211,16 +211,30 @@ class ProductionWarehouseFlowTest extends TestCase
             ->assertRedirect();
         $this->assertEquals(12, InventoryMovement::where('movement_type', 'EXPORT_PRODUCTION')->sum('quantity'));
 
-        $this->actingAs($warehouseUser)
+        $this->actingAs($productionUser)
             ->get(route('production-orders.show', $productionOrder))
             ->assertOk()
-            ->assertSee('returned_materials['.$firstAllocation->id.']', false);
+            ->assertSee('reported_returned_materials['.$firstAllocation->id.']', false);
 
         $this->actingAs($warehouseUser)
-            ->post(route('production-orders.receive-finished-batch', $productionOrder), [
+            ->post(route('production-orders.report-output', $productionOrder), ['actual_quantity' => 8])
+            ->assertForbidden();
+
+        $this->actingAs($productionUser)
+            ->post(route('production-orders.report-output', $productionOrder), [
                 'actual_quantity' => '8.0000',
-                'returned_materials' => [$firstAllocation->id => '0.6789', $secondAllocation->id => '0'],
+                'reported_returned_materials' => [$firstAllocation->id => '0.6789', $secondAllocation->id => '0'],
                 'mfg_date' => today()->toDateString(),
+            ])
+            ->assertRedirect(route('production-orders.show', $productionOrder));
+
+        $this->assertSame('production_reported', $productionOrder->fresh()->status);
+        $this->actingAs($productionUser)
+            ->post(route('production-orders.confirm-completion', $productionOrder), [])
+            ->assertForbidden();
+        $this->actingAs($warehouseUser)
+            ->post(route('production-orders.confirm-completion', $productionOrder), [
+                'returned_materials' => [$firstAllocation->id => '0.6789', $secondAllocation->id => '0'],
             ])
             ->assertRedirect(route('warehouse.production-batches'));
 

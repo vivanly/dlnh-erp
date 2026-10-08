@@ -27,7 +27,7 @@
                             <strong class="text-xs">{{ $batch->product->name }}</strong>
                             <span class="block font-mono text-[10px] text-slate-500">{{ $batch->product->sku ?: '---' }} · {{ $batch->product->classification ?: '---' }} · {{ $batch->unit }}</span>
                             <span class="block text-[10px] text-slate-500">Nguồn gốc: {{ $batch->origin ?: '---' }} · PPCB: {{ $batch->ppcb ? $batch->ppcb->ma . ' · ' . $batch->ppcb->ten_ppcb : '---' }}</span>
-                            <span class="block text-[10px] text-slate-500">{{ $batch->productionOrder ? $batch->productionOrder->production_code . ' · ' . ($batch->productionOrder->order->order_code ?? '---') : 'Lô độc lập' }}</span>
+                            <span class="block text-[10px] text-slate-500">@if($batch->orderAllocations->isNotEmpty()) @foreach($batch->orderAllocations as $allocation){{ $allocation->productionOrder?->production_code }} · {{ number_format((float) $allocation->quantity, 4) }} {{ $batch->unit }} @endforeach @else {{ $batch->productionOrder ? $batch->productionOrder->production_code . ' · ' . ($batch->productionOrder->order->order_code ?? '---') : 'Lô độc lập' }} @endif</span>
                         </div>
                         <label class="text-xs">Mã dự trù
                             <input value="{{ $batch->provisional_batch_number ?: $batch->batch_number }}" readonly class="mt-1 w-full text-xs bg-slate-100 border-slate-300 rounded-none">

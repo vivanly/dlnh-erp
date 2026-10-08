@@ -121,6 +121,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/qa/internal-lots', [ProductionController::class, 'internalLotsIndex'])->name('qa.internal-lots.index');
     Route::get('/qa/internal-lots/create', [ProductionController::class, 'createInternalLot'])->name('qa.internal-lots.create');
     Route::post('/qa/internal-lots', [ProductionController::class, 'storeInternalLot'])->name('qa.internal-lots.store');
+    Route::post('/qa/internal-lots/{productionFinishedBatch}/allocate-production-order', [ProductionController::class, 'allocateProductionOrderToLot'])->name('qa.internal-lots.allocate-production-order');
     Route::get('/qa/internal-lots/{productionFinishedBatch}/edit', [ProductionController::class, 'editInternalLot'])->name('qa.internal-lots.edit');
     Route::put('/qa/internal-lots/{productionFinishedBatch}', [ProductionController::class, 'updateInternalLot'])->name('qa.internal-lots.update');
     Route::delete('/qa/internal-lots/{productionFinishedBatch}', [ProductionController::class, 'destroyInternalLot'])->name('qa.internal-lots.destroy');
@@ -132,7 +133,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/production/packaging/{order}/confirm', [ProductionController::class, 'confirmOrderPackaged'])->name('production.packaging.confirm');
     Route::get('/production-orders/{productionOrder}', [ProductionController::class, 'show'])->name('production-orders.show');
     Route::post('/production-orders/{productionOrder}/issue-materials', [ProductionController::class, 'issueMaterials'])->name('production-orders.issue-materials');
-    Route::post('/production-orders/{productionOrder}/receive-finished-batch', [ProductionController::class, 'receiveFinishedBatch'])->name('production-orders.receive-finished-batch');
+    Route::post('/production-orders/{productionOrder}/report-output', [ProductionController::class, 'reportProductionOutput'])->name('production-orders.report-output');
+    Route::post('/production-orders/{productionOrder}/confirm-completion', [ProductionController::class, 'confirmProductionCompletion'])->name('production-orders.confirm-completion');
 
     // Truy vết lô nguyên liệu / thành phẩm / giao hàng
     Route::get('/traceability', [TraceabilityController::class, 'index'])->name('traceability.index');

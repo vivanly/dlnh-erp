@@ -327,8 +327,9 @@ class WarehouseController extends Controller
     {
         $this->ensureWarehouseViewAccess();
 
-        $batches = ProductionFinishedBatch::with(['product', 'productionOrder.order', 'productionOrder.monthlyPlanLine.plan'])
-            ->withCount(['salesOrderAllocations', 'inputs', 'inventoryMovements'])
+        $batches = ProductionFinishedBatch::with(['product', 'productionOrder.order', 'productionOrder.monthlyPlanLine.plan', 'orderAllocations.productionOrder'])
+            ->withCount(['salesOrderAllocations', 'inputs', 'inventoryMovements', 'orderAllocations'])
+            ->withSum(['inventoryMovements as received_quantity' => fn ($query) => $query->where('direction', 'in')], 'quantity')
             ->where('pending_warehouse_quantity', '>', 0)
             ->whereIn('status', ['pending_qa', 'active'])
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -381,6 +382,9 @@ class WarehouseController extends Controller
                     $linkedOrder = ProductionOrder::whereKey($batch->production_order_id)
                         ->lockForUpdate()
                         ->firstOrFail();
+                    if ($linkedOrder->status !== 'completed') {
+                        throw new DomainException('Warehouse must confirm production completion before receiving finished goods.');
+                    }
                     if ($linkedOrder->monthlyPlanLine()->exists()) {
                         $productionOrder = $linkedOrder;
                     }
@@ -434,13 +438,20 @@ class WarehouseController extends Controller
 
                 $plannedCapacity = (float) $batch->planned_quantity;
                 $isMonthlyPlanBatch = $productionOrder !== null;
-                $capacityUsage = $batch->production_order_id && ! $isMonthlyPlanBatch
-                    ? (float) $batch->initial_quantity
-                    : (float) $batch->initial_quantity + $quantity;
-                if ($plannedCapacity > 0 && $capacityUsage > $plannedCapacity + 0.000001) {
-                    throw new DomainException("Số lượng nhập vượt lượng dự kiến của lô {$batch->batch_number} ({$plannedCapacity} {$batch->unit}).");
+                $hasExistingAllocations = $batch->orderAllocations()->exists();
+                $isProductionAllocationBatch = $hasExistingAllocations || ($batch->production_order_id && ! $isMonthlyPlanBatch);
+                $authorizedQuantity = $isProductionAllocationBatch
+                    ? min($plannedCapacity, (float) $batch->initial_quantity)
+                    : $plannedCapacity;
+                $receivedQuantity = (float) InventoryMovement::query()
+                    ->where('production_finished_batch_id', $batch->id)
+                    ->where('direction', 'in')
+                    ->sum('quantity');
+                $remainingCapacity = max(0, $authorizedQuantity - $receivedQuantity);
+                $maximumReceivableQuantity = min($pendingQuantity, $remainingCapacity);
+                if ($plannedCapacity <= 0 || $quantity > $maximumReceivableQuantity + 0.000001) {
+                    throw new DomainException("Số lượng nhập vượt sức chứa còn được phép của lô ({$maximumReceivableQuantity} {$batch->unit}).");
                 }
-
                 $inventoryLedger->post(
                     $batch,
                     'RECEIVE_PRODUCTION',
@@ -488,18 +499,28 @@ class WarehouseController extends Controller
                     $productionOrder->update([
                         'pending_finished_quantity' => $remainingProductionQuantity,
                     ]);
+                    $batch->orderAllocations()->updateOrCreate(
+                        ['production_order_id' => $productionOrder->id],
+                        ['quantity' => (float) $batch->orderAllocations()->where('production_order_id', $productionOrder->id)->value('quantity') + $quantity],
+                    );
                 } else {
                     $remainingProductionQuantity = null;
                 }
 
+                $pendingAfterReceipt = min(
+                    max(0, $pendingQuantity - $quantity),
+                    max(0, $remainingCapacity - $quantity),
+                );
+                if ($isMonthlyPlanBatch) {
+                    $pendingAfterReceipt = min($pendingAfterReceipt, max(0, (float) $remainingProductionQuantity));
+                }
+
                 $batch->update([
                     'production_order_id' => $productionOrder?->id ?? $batch->production_order_id,
-                    'initial_quantity' => $batch->production_order_id && ! $isMonthlyPlanBatch
+                    'initial_quantity' => ($hasExistingAllocations || ($batch->production_order_id && ! $isMonthlyPlanBatch))
                         ? $batch->initial_quantity
                         : (float) $batch->initial_quantity + $quantity,
-                    'pending_warehouse_quantity' => $isMonthlyPlanBatch
-                        ? min(max(0, $pendingQuantity - $quantity), $remainingProductionQuantity)
-                        : max(0, $pendingQuantity - $quantity),
+                    'pending_warehouse_quantity' => $pendingAfterReceipt,
                     'status' => 'active',
                     'warehouse_received_at' => $batch->warehouse_received_at ?? now(),
                     'warehouse_received_by' => $batch->warehouse_received_by ?? auth()->id(),

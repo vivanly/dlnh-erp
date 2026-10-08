@@ -233,8 +233,11 @@ class RawMaterialFlowTest extends TestCase
         $this->assertSame('materials_issued', $mo->fresh()->status);
 
         $lot = \App\Models\ProductionMaterialLot::whereHas('material', fn ($q) => $q->where('material_type', 'raw_material'))->sole();
-        $this->actingAs($user)->post(route('production-orders.receive-finished-batch', $mo), [
-            'actual_quantity' => 5, 'returned_materials' => [$lot->id => 2], 'mfg_date' => today()->toDateString(),
+        $this->actingAs($user)->post(route('production-orders.report-output', $mo), [
+            'actual_quantity' => 5, 'reported_returned_materials' => [$lot->id => 2], 'mfg_date' => today()->toDateString(),
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($user)->post(route('production-orders.confirm-completion', $mo), [
+            'returned_materials' => [$lot->id => 2],
         ])->assertSessionHasNoErrors();
         $this->assertSame(6.0, MaterialStockMovement::lotBalance('raw_material', $raw->id, 'NCC-A'));
     }

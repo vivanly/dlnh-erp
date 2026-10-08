@@ -22,6 +22,7 @@ class ProductionMonthlyPlanTest extends TestCase
         $planner = User::factory()->create(['role' => 'planning']);
         $director = User::factory()->create(['role' => 'general_director']);
         $warehouse = User::factory()->create(['role' => 'warehouse']);
+        $production = User::factory()->create(['role' => 'production']);
         $qa = User::factory()->create(['role' => 'qa']);
         $it = User::factory()->create(['role' => 'it']);
         $this->actingAs($it)
@@ -127,11 +128,15 @@ class ProductionMonthlyPlanTest extends TestCase
             ->assertOk()
             ->assertDontSee('name="finished_batch_id"', false)
             ->assertDontSee('MONTHLY-FIN-LOT-1');
-        $this->actingAs($warehouse)
-            ->post(route('production-orders.receive-finished-batch', $productionOrder), [
+        $this->actingAs($production)
+            ->post(route('production-orders.report-output', $productionOrder), [
                 'actual_quantity' => 5,
                 'mfg_date' => today()->toDateString(),
             ])
+            ->assertRedirect(route('production-orders.show', $productionOrder))
+            ->assertSessionHas('success');
+        $this->actingAs($warehouse)
+            ->post(route('production-orders.confirm-completion', $productionOrder), [])
             ->assertRedirect(route('warehouse.production-batches'))
             ->assertSessionHas('success');
 

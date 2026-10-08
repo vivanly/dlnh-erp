@@ -22,6 +22,10 @@ class ProductionOrder extends Model
         'status',
         'created_by',
         'materials_issued_at',
+        'production_reported_at',
+        'production_reported_by',
+        'warehouse_confirmed_at',
+        'warehouse_confirmed_by',
         'completed_at',
         'notes',
     ];
@@ -32,6 +36,8 @@ class ProductionOrder extends Model
         'pending_finished_quantity' => 'decimal:4',
         'yield_rate' => 'decimal:5',
         'materials_issued_at' => 'datetime',
+        'production_reported_at' => 'datetime',
+        'warehouse_confirmed_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
 
@@ -68,5 +74,17 @@ class ProductionOrder extends Model
     public function finishedBatches()
     {
         return $this->hasMany(ProductionFinishedBatch::class);
+    }
+
+    public function batchAllocations()
+    {
+        return $this->hasMany(ProductionOrderBatchAllocation::class);
+    }
+
+    public function allocatedFinishedBatches()
+    {
+        return $this->belongsToMany(ProductionFinishedBatch::class, 'production_order_batch_allocations')
+            ->withPivot('quantity')
+            ->withTimestamps();
     }
 }
