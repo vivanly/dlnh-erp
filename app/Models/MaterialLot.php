@@ -11,6 +11,8 @@ class MaterialLot extends Model
     protected $casts = [
         'quantity' => 'decimal:4',
         'qc_at' => 'datetime',
+        'mfg_date' => 'date',
+        'exp_date' => 'date',
     ];
 
     public function purchaseOrderItem()
