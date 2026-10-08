@@ -30,7 +30,9 @@ class MaterialLotController extends Controller
         $user = auth()->user();
         abort_unless($user && ($this->canQa() || $this->canQc() || $user->isWarehouseDepartment() || $user->isWarehouseManager()), 403);
 
+        $type = $request->query('type') === 'accessory' ? 'accessory' : 'raw_material';
         $lots = MaterialLot::with('purchaseOrderItem.purchaseOrder.supplier')
+            ->where('material_type', $type)
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->search;
@@ -47,6 +49,7 @@ class MaterialLotController extends Controller
 
         return view('material-lots.index', [
             'lots' => $lots,
+            'type' => $type,
             'canQa' => $this->canQa(),
             'canQc' => $this->canQc(),
         ]);

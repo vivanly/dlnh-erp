@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Hàng nhập chờ kiểm (NL thô: QA cập nhật lô/COA → QC xác nhận; phụ liệu: QC xác nhận)</h2>
+        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">{{ $type === 'accessory' ? 'Kiểm tra phụ liệu (QC xác nhận mới vào tồn)' : 'Kiểm tra lô NCC - nguyên liệu thô (QA cập nhật lô/COA → QC xác nhận)' }}</h2>
     </x-slot>
 
     <div class="py-2">
@@ -10,6 +10,7 @@
             @if($errors->any())<div class="p-3 bg-red-50 border border-red-300 text-red-800 text-xs font-medium">{{ $errors->first() }}</div>@endif
 
             <form method="GET" class="bg-white border border-slate-300 p-3 flex flex-wrap items-center gap-2">
+                <input type="hidden" name="type" value="{{ $type }}">
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm số lô hoặc tên/mã nguyên liệu..." class="w-full sm:w-80 text-xs border-slate-300 py-1.5">
                 <select name="status" class="text-xs border-slate-300 py-1.5">
                     <option value="">-- Tất cả trạng thái --</option>
@@ -82,7 +83,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="p-6 text-center text-slate-500">Chưa có hàng nhập nào.</td></tr>
+                            <tr><td colspan="6" class="p-6 text-center text-slate-500">{{ $type === 'accessory' ? 'Chưa có phụ liệu nào chờ kiểm.' : 'Chưa có lô nguyên liệu thô nào.' }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

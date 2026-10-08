@@ -43,11 +43,12 @@ class NotificationService
         if ($user->isQADepartment()) {
             $add('Đơn hàng cần chốt lô', Order::where('status', 'pending_qa')->count(), 'qa.order-batches');
             $add('Lô NCC chờ kiểm tra', SupplierBatch::where('status', 'pending_qa')->count(), 'qa.batches.index');
-            $add('Lô nguyên liệu thô chờ QA cập nhật lô/COA', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'raw_material')->where(fn ($q) => $q->whereNull('batch_number')->orWhereNull('coa_file'))->count(), 'material-lots.index', ['status' => 'pending_qa']);
+            $add('Lô nguyên liệu thô chờ QA cập nhật lô/COA', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'raw_material')->where(fn ($q) => $q->whereNull('batch_number')->orWhereNull('coa_file'))->count(), 'material-lots.index', ['type' => 'raw_material', 'status' => 'pending_qa']);
         }
 
         if ($user->isQCDepartment()) {
-            $add('Hàng nhập (NL thô/phụ liệu) chờ QC xác nhận', \App\Models\MaterialLot::where('status', 'pending_qa')->where(fn ($q) => $q->where('material_type', 'accessory')->orWhere(fn ($r) => $r->whereNotNull('batch_number')->whereNotNull('coa_file')))->count(), 'material-lots.index', ['status' => 'pending_qa']);
+            $add('Lô NCC nguyên liệu thô chờ QC xác nhận', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'raw_material')->whereNotNull('batch_number')->whereNotNull('coa_file')->count(), 'material-lots.index', ['type' => 'raw_material', 'status' => 'pending_qa']);
+            $add('Phụ liệu chờ QC xác nhận', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'accessory')->count(), 'material-lots.index', ['type' => 'accessory', 'status' => 'pending_qa']);
         }
 
         if ($user->isQADepartment() || $user->isQCDepartment()) {
