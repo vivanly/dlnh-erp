@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductBom;
 use App\Models\ProductBomItem;
+use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionMaterialLot;
 use App\Models\ProductionOrder;
 use App\Models\ProductionOrderMaterial;
@@ -102,10 +103,26 @@ class WarehouseStockAvailabilityTest extends TestCase
             'allocated_quantity' => 10,
             'issued_quantity' => 4,
         ]);
+        ProductionFinishedBatch::create([
+            'production_order_id' => $productionOrder->id,
+            'product_id' => $product->id,
+            'batch_number' => 'STOCK-AVAILABLE-INTERNAL-LOT',
+            'initial_quantity' => 8,
+            'current_quantity' => 8,
+            'unit' => 'kg',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($warehouseUser)
+            ->get(route('warehouse.stock'))
+            ->assertOk()
+            ->assertSee('Lô NCC: 1')
+            ->assertSee('Lô nội bộ: 1');
 
         $this->actingAs($warehouseUser)
             ->get(route('warehouse.stock.product', ['product' => $product->id, 'lot_type' => 'supplier']))
             ->assertOk()
+            ->assertSee('Lô NCC')
             ->assertSee('Tồn khả dụng sau giữ chỗ')
             ->assertSee('20,00 kg')
             ->assertSee('9,00 kg')

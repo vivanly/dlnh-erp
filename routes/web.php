@@ -59,6 +59,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/notifications/summary', [\App\Http\Controllers\NotificationController::class, 'summary'])->name('notifications.summary');
     Route::get('/documents/supplier-batches/{supplierBatch}/coa', [PrivateDocumentController::class, 'supplierCoa'])
         ->name('private-documents.supplier-coa');
     Route::get('/documents/production-batches/{productionFinishedBatch}/qc-report', [PrivateDocumentController::class, 'productionQualityReport'])

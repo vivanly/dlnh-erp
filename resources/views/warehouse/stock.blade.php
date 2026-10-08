@@ -82,7 +82,7 @@
                     <thead>
                         <tr class="border-b border-slate-200 bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
                             <th class="p-3">Sản phẩm</th>
-                            <th class="p-3 text-center">Số lô</th>
+                            <th class="p-3 text-center">Cơ cấu lô</th>
                             <th class="p-3">Tổng tồn</th>
                             <th class="p-3">HSD gần nhất</th>
                             <th class="p-3 text-center">Chi tiết</th>
@@ -95,7 +95,13 @@
                                     <a href="{{ route('warehouse.stock.product', ['product' => $item['product_id']] + request()->query()) }}" class="font-semibold text-blue-700 hover:underline">{{ $item['product_name'] }}</a>
                                     <div class="text-[10px] text-slate-500">SKU: {{ $item['product_sku'] }}</div>
                                 </td>
-                                <td class="p-3 text-center font-mono text-slate-600">{{ number_format($item['lot_count']) }}</td>
+                                <td class="p-3 text-center">
+                                    <div class="font-mono font-semibold text-slate-700">Tổng {{ number_format($item['lot_count']) }}</div>
+                                    <div class="mt-1 flex flex-wrap justify-center gap-1">
+                                        <span class="inline-flex rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">Lô NCC: {{ number_format($item['supplier_lot_count']) }}</span>
+                                        <span class="inline-flex rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">Lô nội bộ: {{ number_format($item['internal_lot_count']) }}</span>
+                                    </div>
+                                </td>
                                 <td class="p-3">
                                     <div class="flex flex-wrap gap-x-3 gap-y-1">
                                         @foreach($item['quantity_by_unit'] as $unit => $quantity)

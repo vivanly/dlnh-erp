@@ -23,6 +23,84 @@ class SalesOrderShipmentTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_qa_must_match_order_ppcb_to_internal_lot_before_confirming_allocations(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        $customer = Customer::create(['code' => 'PPCB-MATCH-CUSTOMER', 'name' => 'PPCB Match Customer', 'type' => 'Retail']);
+        $product = Product::create([
+            'name' => 'PPCB match product',
+            'slug' => 'ppcb-match-product',
+            'sku' => 'PPCB-MATCH-TEST',
+            'unit' => 'kg',
+            'classification' => 'VT',
+        ]);
+        $orderPpcb = Ppcb::create(['ma' => 'PPCB-ORDER', 'ten_ppcb' => 'PPCB trên đơn']);
+        $lotPpcb = Ppcb::create(['ma' => 'PPCB-LOT', 'ten_ppcb' => 'PPCB trên lô']);
+        $order = Order::create([
+            'order_code' => 'SO-PPCB-MATCH-TEST',
+            'customer_id' => $customer->id,
+            'order_type' => 'VT',
+            'order_date' => today(),
+            'delivery_date' => today()->addDays(2),
+            'province_city' => 'Hà Nội',
+            'status' => 'pending_qa',
+        ]);
+        $item = $order->items()->create([
+            'product_id' => $product->id,
+            'quantity' => 5,
+            'packaging_spec' => '1',
+            'finished_quantity' => 5,
+            'ppcb_id' => $orderPpcb->id,
+        ]);
+        $batch = ProductionFinishedBatch::create([
+            'product_id' => $product->id,
+            'ppcb_id' => $lotPpcb->id,
+            'batch_number' => 'PPCB-MISMATCH-LOT',
+            'initial_quantity' => 5,
+            'current_quantity' => 5,
+            'pending_warehouse_quantity' => 0,
+            'unit' => 'kg',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($qaUser)
+            ->get(route('orders.edit', $order))
+            ->assertOk()
+            ->assertSee('PPCB trên đơn')
+            ->assertSee('PPCB lô: PPCB-LOT · PPCB trên lô')
+            ->assertSee('Sửa PPCB lô')
+            ->assertSee('name="items[0][ppcb_id]"', false);
+
+        $this->actingAs($qaUser)
+            ->put(route('orders.update', $order), [
+                'items' => [[
+                    'id' => $item->id,
+                    'ppcb_id' => $orderPpcb->id,
+                    'allocations' => [['lot' => 'finished:'.$batch->id]],
+                ]],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Có lỗi xảy ra: PPCB đơn hàng của PPCB match product không khớp PPCB lô PPCB-MISMATCH-LOT. Hãy sửa PPCB đơn hàng hoặc PPCB lô nội bộ trước khi chốt.');
+
+        $this->assertSame('pending_qa', $order->fresh()->status);
+        $this->assertSame($orderPpcb->id, $item->fresh()->ppcb_id);
+        $this->assertDatabaseMissing('sales_order_lot_allocations', ['order_item_id' => $item->id]);
+
+        $this->actingAs($qaUser)
+            ->put(route('orders.update', $order), [
+                'items' => [[
+                    'id' => $item->id,
+                    'ppcb_id' => $lotPpcb->id,
+                    'allocations' => [['lot' => 'finished:'.$batch->id]],
+                ]],
+            ])
+            ->assertRedirect(route('orders.show', $order))
+            ->assertSessionHas('success');
+
+        $this->assertSame($lotPpcb->id, $item->fresh()->ppcb_id);
+        $this->assertSame('pending_planning', $order->fresh()->status);
+    }
+
     public function test_qa_can_assign_an_existing_internal_stock_lot_to_an_order(): void
     {
         $qaUser = User::factory()->create(['role' => 'qa']);
@@ -57,6 +135,7 @@ class SalesOrderShipmentTest extends TestCase
             'quantity' => 5,
             'packaging_spec' => '1',
             'finished_quantity' => 5,
+            'ppcb_id' => $ppcb->id,
         ]);
 
         $this->actingAs($qaUser)
@@ -789,6 +868,7 @@ class SalesOrderShipmentTest extends TestCase
             'quantity' => 5,
             'packaging_spec' => '1',
             'finished_quantity' => 5,
+            'ppcb_id' => $qcPpcb->id,
         ]);
         $bom = ProductBom::create([
             'product_id' => $product->id,

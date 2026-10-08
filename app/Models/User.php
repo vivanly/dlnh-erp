@@ -72,39 +72,53 @@ class User extends Authenticatable
 
     public function isSalesDepartment()
     {
-        return $this->isDepartment('KINH-DOANH') || in_array($this->role, ['sales', 'sales_staff', 'sales_director']);
+        return $this->isITDepartment()
+            || $this->isDepartment('KINH-DOANH') || in_array($this->role, ['sales', 'sales_staff', 'sales_director']);
     }
 
     public function isPlanningDepartment()
     {
-        return $this->isDepartment('KE-HOACH')
+        return $this->isITDepartment()
+            || $this->isDepartment('KE-HOACH')
             || $this->isDepartment('KẾ HOẠCH')
             || in_array($this->role, ['planning', 'planner', 'production_planner', 'planning_manager']);
     }
 
     public function isWarehouseDepartment()
     {
-        return $this->isDepartment('KHO') || in_array($this->role, ['warehouse', 'warehouse_manager']);
+        return $this->isITDepartment()
+            || $this->isDepartment('KHO') || in_array($this->role, ['warehouse', 'warehouse_manager']);
     }
 
     public function isQADepartment()
     {
-        return $this->isDepartment('QA') || in_array($this->role, ['qa', 'qa_manager']);
+        return $this->isITDepartment()
+            || $this->isDepartment('QA') || in_array($this->role, ['qa', 'qa_manager']);
     }
 
     public function isQCDepartment()
     {
-        return $this->isDepartment('QC') || in_array($this->role, ['qc', 'qc_manager']);
+        return $this->isITDepartment()
+            || $this->isDepartment('QC') || in_array($this->role, ['qc', 'qc_manager']);
     }
 
     public function isProductionDepartment()
     {
-        return $this->isDepartment('SAN-XUAT') || in_array($this->role, ['production', 'production_manager']);
+        return $this->isITDepartment()
+            || $this->isDepartment('SAN-XUAT') || in_array($this->role, ['production', 'production_manager']);
     }
 
     public function isAccountingDepartment()
     {
-        return $this->isDepartment('KE-TOAN') || in_array($this->role, ['accounting', 'accountant']);
+        return $this->isITDepartment()
+            || $this->isDepartment('KE-TOAN') || in_array($this->role, ['accounting', 'accountant']);
+    }
+
+    public function isDirector()
+    {
+        return $this->isITDepartment()
+            || ($this->position === 'Giám Đốc')
+            || in_array($this->role, ['director', 'sales_director', 'bidding_director'], true);
     }
 
     public function isITDepartment()
@@ -118,31 +132,36 @@ class User extends Authenticatable
 
     public function isGeneralDirector()
     {
-        return $this->position === 'Tổng Giám Đốc' || $this->role === 'general_director';
+        return $this->isITDepartment()
+            || $this->position === 'Tổng Giám Đốc' || $this->role === 'general_director';
     }
 
     public function isSalesDirector()
     {
         // Phải thuộc phòng Kinh doanh VÀ có vị trí Giám Đốc Kinh Doanh (hoặc role phù hợp)
-        return ($this->isDepartment('KINH-DOANH') && $this->position === 'Giám Đốc') 
+        return $this->isITDepartment()
+            || ($this->isDepartment('KINH-DOANH') && $this->position === 'Giám Đốc') 
             || $this->role === 'sales_director';
     }
 
     public function isBiddingDirector()
     {
         // Phải thuộc phòng Thầu VÀ có vị trí Giám Đốc Thầu (hoặc role phù hợp)
-        return ($this->isDepartment('THAU') && $this->position === 'Giám Đốc') 
+        return $this->isITDepartment()
+            || ($this->isDepartment('THAU') && $this->position === 'Giám Đốc') 
             || $this->role === 'bidding_director';
     }
 
     public function isDepartmentHead()
     {
-        return $this->position === 'Trưởng Phòng' || $this->role === 'department_head';
+        return $this->isITDepartment()
+            || $this->position === 'Trưởng Phòng' || $this->role === 'department_head';
     }
 
     public function isProductionManager()
     {
-        return $this->position === 'Quản Lý Sản Xuất' || $this->role === 'production_manager';
+        return $this->isITDepartment()
+            || $this->position === 'Quản Lý Sản Xuất' || $this->role === 'production_manager';
     }
 
     public function isProductionStaffMember()
@@ -173,7 +192,8 @@ class User extends Authenticatable
     // Kiểm tra xem có phải Trưởng phòng kho không
     public function isWarehouseManager()
     {
-        return ($this->isDepartment('KHO') && $this->position === 'Trưởng Phòng') 
+        return $this->isITDepartment()
+            || ($this->isDepartment('KHO') && $this->position === 'Trưởng Phòng') 
             || $this->role === 'warehouse_manager';
     }
 

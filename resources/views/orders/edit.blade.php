@@ -30,7 +30,7 @@
         <div class="max-w-none px-2 space-y-3">
             @if($canManageQaLots)
                 <div class="flex flex-wrap items-center justify-between gap-2 border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-                    <span>QA có thể phân bổ lượng dự kiến của lô nội bộ vừa tạo độc lập với lệnh sản xuất. Đơn chỉ chuyển đóng gói sau khi Kho nhập đủ lượng đã giữ.</span>
+                    <span>Với lô nội bộ, PPCB trên đơn phải khớp PPCB của lô. Có thể đổi PPCB tại đơn hoặc mở sửa PPCB lô; không thể chốt khi còn lệch. QA có thể phân bổ lượng dự kiến của lô nội bộ vừa tạo độc lập với lệnh sản xuất.</span>
                 </div>
             @endif
             <form action="{{ route('orders.update', $order->id) }}" method="POST" class="space-y-3">
@@ -134,7 +134,7 @@
                                     <th class="py-2.5 px-3 border-r border-slate-300 text-center w-24">QCĐG <span class="text-rose-600">*</span></th>
                                     <th class="py-2.5 px-3 border-r border-slate-300 text-center">Thành Phẩm</th>
                                     <th class="py-2.5 px-3 border-r border-slate-300 min-w-[160px]">Yêu Cầu Bào Chế</th>
-                                    <th class="py-2.5 px-3 border-r border-slate-300">Mã PPCB</th>
+                                    <th class="py-2.5 px-3 border-r border-slate-300">PPCB đơn hàng</th>
                                     
                                     @if($canManageQaLots)
                                         <th class="py-2.5 px-3 border-r border-slate-300 min-w-[340px]">QA chọn lô · hệ thống tự phân bổ lượng</th>
@@ -182,14 +182,15 @@
                                         <input type="number" step="any" name="items[{{ $index }}][finished_quantity]" value="{{ $item->finished_quantity ?? 0 }}" class="item-finished w-full text-xs text-center border-slate-300 rounded px-1 py-1 focus:border-blue-500 focus:ring-blue-500 font-mono font-bold text-blue-600 bg-slate-50" readonly>
                                     </td>
                                     <td class="py-2 px-3 border-r border-slate-200">
-                                        <select name="items[{{ $index }}][ppcb_id]" {{ !$canEditGeneralInfo ? 'disabled' : '' }}                                         class="ppcb-select w-full text-xs">
-                                                                                    @if($item->ppcb)
-                                                                                        <option value="{{ $item->ppcb->id }}" selected>{{ $item->ppcb->ten_ppcb }}</option>
-                                                                                    @endif
-                                                                                </select>
+                                        @php($selectedPpcb = $ppcbList->firstWhere('id', old("items.$index.ppcb_id", $item->ppcb_id)))
+                                        <select name="items[{{ $index }}][ppcb_id]" {{ !($canEditGeneralInfo || $canManageQaLots) ? 'disabled' : '' }} class="ppcb-select w-full text-xs">
+                                            @if($selectedPpcb)
+                                                <option value="{{ $selectedPpcb->id }}" selected>{{ $selectedPpcb->ma }} · {{ $selectedPpcb->ten_ppcb }}</option>
+                                            @endif
+                                        </select>
                                     </td>
                                     <td class="py-2 px-3 border-r border-slate-200 font-mono item-ppcb-ma">
-                                        {{ optional($item->ppcb)->ma ?? $item->ppcb_ma ?? '-' }}
+                                        {{ $selectedPpcb->ma ?? $item->ppcb_ma ?? '-' }}
                                     </td>
 
 
@@ -202,6 +203,9 @@
                                                         <label for="lot-{{ $item->id }}-{{ $lotIndex }}" class="min-w-0">
                                                             <span class="block truncate font-mono font-semibold">{{ $lotOption['code'] }}</span>
                                                             <span class="block text-[10px] text-slate-500">Tồn {{ number_format($lotOption['current_quantity'], 4) }} · Chờ nhập {{ number_format($lotOption['pending_quantity'], 4) }} · Khả dụng {{ number_format($lotOption['available_quantity'], 4) }} · Đơn này {{ number_format($lotOption['reserved_quantity'], 4) }}</span>
+                                                            @if($lotOption['ppcb'] !== null)
+                                                                <span class="block text-[10px] font-semibold text-violet-700">PPCB lô: {{ $lotOption['ppcb'] }} · <a href="{{ $lotOption['edit_url'] }}" target="_blank" rel="noopener" class="underline">Sửa PPCB lô</a></span>
+                                                            @endif
                                                         </label>
                                                     </div>
                                                 @empty
@@ -240,6 +244,7 @@
     @push('scripts')
     <script>
         const canEditGeneralInfo = @json($canEditGeneralInfo);
+        const canEditPpcb = @json($canEditGeneralInfo || $canManageQaLots);
 
         $(document).ready(function() {
             // Khởi tạo autocomplete cho khách hàng
@@ -341,7 +346,7 @@
                     theme: 'bootstrap-5',
                     placeholder: '-- Chọn YCBC / PPCB --',
                     allowClear: true,
-                    disabled: !canEditGeneralInfo,
+                    disabled: !canEditPpcb,
                     ajax: {
                         url: '{{ route("api.ppcb.search") }}',
                         dataType: 'json',

@@ -589,6 +589,8 @@ class WarehouseController extends Controller
                 'available_quantity_by_unit' => $rows->groupBy('product_unit')->map(fn ($unitRows) => $unitRows->sum('available_quantity')),
                 'quantity_sort' => $quantityByUnit->get($first['base_unit'], $quantityByUnit->first() ?? 0),
                 'lot_count' => $rows->count(),
+                'supplier_lot_count' => $rows->where('lot_type', 'Lô NCC')->count(),
+                'internal_lot_count' => $rows->where('lot_type', 'Lô nội bộ')->count(),
                 'earliest_exp_date' => $expirations->first(),
             ];
         })->values()->sort(function ($left, $right) use ($filters) {

@@ -95,7 +95,14 @@
                     <tbody class="divide-y divide-slate-200">
                         @forelse($stockRows as $row)
                             <tr class="hover:bg-slate-50">
-                                <td class="p-2.5 border-r">{{ $row['lot_type'] }}</td>
+                                <td class="p-2.5 border-r">
+                                    @php
+                                        $lotTypeClass = $row['lot_type'] === 'Lô NCC'
+                                        ? 'border-sky-200 bg-sky-50 text-sky-700'
+                                        : 'border-violet-200 bg-violet-50 text-violet-700';
+                                    @endphp
+                                    <span class="inline-flex rounded border px-2 py-1 text-[10px] font-semibold {{ $lotTypeClass }}">{{ $row['lot_type'] }}</span>
+                                </td>
                                 <td class="p-2.5 border-r font-mono font-semibold text-blue-700">{{ $row['lot_code'] ?: '---' }}</td>
                                 <td class="p-2.5 border-r text-right font-mono">{{ number_format($row['initial_quantity'], 2, ',', '.') }} {{ $row['product_unit'] }}</td>
                                 <td class="p-2.5 border-r text-right font-mono font-bold text-emerald-700">{{ number_format($row['quantity'], 2, ',', '.') }} {{ $row['product_unit'] }}</td>

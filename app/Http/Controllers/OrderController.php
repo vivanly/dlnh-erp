@@ -500,6 +500,7 @@ class OrderController extends Controller
                 $qaLotsByProduct[$item->id] = collect();
                 foreach ($lotSources as $lotType => [$model, $allocationColumn, $codeColumn]) {
                     $batches = $model::query()
+                        ->when($model === ProductionFinishedBatch::class, fn ($query) => $query->with('ppcb'))
                         ->where('product_id', $item->product_id)
                         ->when($model === ProductionFinishedBatch::class, fn ($query) => $query->where(function ($query) {
                             $query->where(function ($activeQuery) {
@@ -542,6 +543,12 @@ class OrderController extends Controller
                         $qaLotsByProduct[$item->id]->push([
                             'lot' => $lotType.':'.$batch->id,
                             'code' => $batch->{$codeColumn},
+                            'ppcb' => $batch instanceof ProductionFinishedBatch
+                                ? ($batch->ppcb ? $batch->ppcb->ma.' · '.$batch->ppcb->ten_ppcb : 'Chưa khai báo')
+                                : null,
+                            'edit_url' => $batch instanceof ProductionFinishedBatch
+                                ? route('qa.internal-lots.edit', $batch)
+                                : null,
                             'current_quantity' => $lotQuantity,
                             'available_quantity' => max(0, $lotQuantity - $otherSalesReservations - $productionReservations),
                             'pending_quantity' => $batch instanceof ProductionFinishedBatch ? (float) $batch->pending_warehouse_quantity : 0,
@@ -592,6 +599,7 @@ class OrderController extends Controller
                 $validatedQA = $request->validate([
                     'items' => 'nullable|array',
                     'items.*.id' => 'required|exists:order_items,id',
+                    'items.*.ppcb_id' => 'nullable|exists:ppcb,id',
                     'items.*.allocations' => 'nullable|array',
                     'items.*.allocations.*.lot' => 'required|string',
                 ]);
@@ -615,6 +623,10 @@ class OrderController extends Controller
                     $itemData = collect($validatedQA['items'])->firstWhere('id', $item->id);
                     if (! $itemData) {
                         throw new DomainException('Danh sách sản phẩm cần QA chốt lô không hợp lệ.');
+                    }
+
+                    if (array_key_exists('ppcb_id', $itemData)) {
+                        $item->update(['ppcb_id' => $itemData['ppcb_id'] ?: null]);
                     }
 
                     $this->assignQaSalesOrderLots($lockedOrder, $item, $itemData['allocations'] ?? []);
@@ -766,6 +778,14 @@ class OrderController extends Controller
 
             if (! $batch) {
                 throw new DomainException("Lô chọn cho {$item->product->name} không còn hoạt động, đã hết hạn hoặc không đúng sản phẩm.");
+            }
+
+            if ($batch instanceof ProductionFinishedBatch
+                && (int) ($batch->ppcb_id ?? 0) !== (int) ($item->ppcb_id ?? 0)) {
+                throw new DomainException(
+                    "PPCB đơn hàng của {$item->product->name} không khớp PPCB lô {$batch->batch_number}. "
+                    .'Hãy sửa PPCB đơn hàng hoặc PPCB lô nội bộ trước khi chốt.'
+                );
             }
 
             $key = $type.':'.$batch->id;

@@ -23,6 +23,18 @@
             .ajax-autocomplete-option:hover, .ajax-autocomplete-option.is-active { background: #eff6ff; }
             .ajax-autocomplete-description { display: block; margin-top: .125rem; color: #64748b; }
             .ajax-autocomplete-message { color: #64748b; }
+            .erp-bell { position: relative; }
+            .erp-bell > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border: 1px solid #e2e8f0; border-radius: 9999px; background: #fff; color: #475569; }
+            .erp-bell > summary::-webkit-details-marker { display: none; }
+            .erp-bell > summary:hover { background: #f1f5f9; }
+            .erp-bell-badge { position: absolute; top: -.35rem; right: -.35rem; min-width: 1.1rem; height: 1.1rem; padding: 0 .25rem; border-radius: 9999px; background: #dc2626; color: #fff; font-size: .65rem; font-weight: 700; line-height: 1.1rem; text-align: center; }
+            .erp-bell-badge[hidden] { display: none; }
+            .erp-bell-panel { position: absolute; right: 0; top: 2.5rem; z-index: 60; width: 20rem; max-height: 24rem; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 15%); }
+            .erp-bell-title { padding: .5rem .75rem; border-bottom: 1px solid #e2e8f0; font-size: .75rem; font-weight: 700; color: #0f172a; }
+            .erp-bell-item { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .6rem .75rem; font-size: .75rem; color: #334155; border-bottom: 1px solid #f1f5f9; }
+            .erp-bell-item:hover { background: #eff6ff; color: #1d4ed8; }
+            .erp-bell-count { flex-shrink: 0; min-width: 1.4rem; padding: .05rem .4rem; border-radius: 9999px; background: #fee2e2; color: #b91c1c; font-weight: 700; text-align: center; }
+            .erp-bell-empty { padding: 1rem .75rem; font-size: .75rem; color: #64748b; text-align: center; }
         </style>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script src="{{ asset('js/ajax-autocomplete.js') }}"></script>
@@ -93,6 +105,18 @@
                             </svg>
                             {{ app()->getLocale() === 'en' ? now()->format('m/d/Y') : now()->format('d/m/Y') }}
                         </span>
+                        <details class="erp-bell" id="erp-bell" data-url="{{ route('notifications.summary') }}">
+                            <summary aria-label="{{ __('Thông báo') }}">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2a2 2 0 01-.6 1.4L4 17h5m6 0a3 3 0 11-6 0"></path>
+                                </svg>
+                                <span class="erp-bell-badge" id="erp-bell-badge" hidden>0</span>
+                            </summary>
+                            <div class="erp-bell-panel">
+                                <div class="erp-bell-title">{{ __('Việc cần xử lý') }}</div>
+                                <div id="erp-bell-list"><div class="erp-bell-empty">{{ __('Đang tải...') }}</div></div>
+                            </div>
+                        </details>
                         <details class="erp-user-menu relative">
                             <summary class="erp-user-trigger list-none cursor-pointer">
                                 @if(Auth::user()->avatar_path)
@@ -131,6 +155,59 @@
 
         <!-- SCRIPTS ĐẶT Ở DƯỚI CÙNG ĐỂ ĐẢM BẢO DOM ĐÃ RENDER XONG -->
         <!-- Điểm đón các đoạn script AJAX từ trang con -->
+        <script>
+            (function () {
+                var bell = document.getElementById('erp-bell');
+                if (!bell) return;
+                var badge = document.getElementById('erp-bell-badge');
+                var list = document.getElementById('erp-bell-list');
+                var emptyText = @json(__('Không có việc nào cần xử lý.'));
+                var lastTotal = null;
+
+                function render(data) {
+                    badge.textContent = data.total > 99 ? '99+' : data.total;
+                    badge.hidden = data.total === 0;
+                    list.innerHTML = '';
+                    if (!data.items.length) {
+                        var empty = document.createElement('div');
+                        empty.className = 'erp-bell-empty';
+                        empty.textContent = emptyText;
+                        list.appendChild(empty);
+                        return;
+                    }
+                    data.items.forEach(function (item) {
+                        var link = document.createElement('a');
+                        link.className = 'erp-bell-item';
+                        link.href = item.url;
+                        var label = document.createElement('span');
+                        label.textContent = item.label;
+                        var count = document.createElement('span');
+                        count.className = 'erp-bell-count';
+                        count.textContent = item.count;
+                        link.appendChild(label);
+                        link.appendChild(count);
+                        list.appendChild(link);
+                    });
+                    if (lastTotal !== null && data.total > lastTotal) {
+                        bell.classList.add('has-new');
+                    }
+                    lastTotal = data.total;
+                }
+
+                function load() {
+                    if (document.hidden) return;
+                    fetch(bell.dataset.url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+                        .then(function (r) { return r.ok ? r.json() : null; })
+                        .then(function (data) { if (data) render(data); })
+                        .catch(function () {});
+                }
+
+                load();
+                setInterval(load, 15000);
+                document.addEventListener('visibilitychange', load);
+                document.addEventListener('click', function (e) { if (!bell.contains(e.target)) bell.removeAttribute('open'); });
+            })();
+        </script>
         @stack('scripts')
     </body>
 </html>
