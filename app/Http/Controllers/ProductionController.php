@@ -454,7 +454,7 @@ class ProductionController extends Controller
             : 'Đã ghi nhận PKN không đạt; lô bị chặn xuất giao.');
     }
 
-    public function show(ProductionOrder $productionOrder, SupplierBatchAvailability $availability)
+    public function show(ProductionOrder $productionOrder)
     {
         $user = auth()->user();
         $canPlanOrders = $user && (
@@ -473,17 +473,6 @@ class ProductionController extends Controller
             'monthlyPlanLine.plan',
         ]);
 
-        $supplierBatches = SupplierBatch::with('product')
-            ->where('status', 'active')
-            ->where('current_quantity', '>', 0)
-            ->where(function ($query) {
-                $query->whereNull('exp_date')->orWhereDate('exp_date', '>=', today());
-            })
-            ->orderByRaw('CASE WHEN exp_date IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('exp_date')
-            ->orderBy('id')
-            ->get();
-        $availability->addTo($supplierBatches);
         $materialLots = collect();
         if ($productionOrder->status === 'released') {
             $pairs = \App\Models\MaterialStockMovement::select('material_type', 'material_id')->distinct()->get();
@@ -499,7 +488,6 @@ class ProductionController extends Controller
         }
         return view('production-orders.show', [
             'productionOrder' => $productionOrder,
-            'supplierBatches' => $supplierBatches,
             'materialLots' => $materialLots,
             'canIssueMaterials' => $this->userCanWorkInWarehouse(),
             'canReceiveFinishedBatch' => $this->userCanWorkInWarehouse(),
