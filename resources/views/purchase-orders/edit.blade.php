@@ -42,7 +42,7 @@
                         Thông tin chung đơn hàng
                     </h3>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                    <div class="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
                         <div>
                             <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Loại hàng đặt mua <span class="text-rose-600">*</span></label>
                             <select name="item_type" id="po-item-type" class="w-full text-xs border-slate-300 rounded-none py-1.5">
@@ -89,13 +89,13 @@
                         <table class="w-full text-left border-collapse" id="items-table">
                             <thead>
                                 <tr class="bg-slate-200/80 border-b border-slate-300 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                                    <th class="py-2.5 px-3 border-r border-slate-300 w-12 text-center">STT</th>
-                                    <th class="py-2.5 px-3 border-r border-slate-300">Hàng hóa <span class="text-rose-600">*</span></th>
-                                    <th class="py-2.5 px-3 border-r border-slate-300 w-28 text-center">Số lượng <span class="text-rose-600">*</span></th>
-                                    <th class="py-2.5 px-3 border-r border-slate-300 w-20 text-center">ĐVT</th>
-                                    <th class="py-2.5 px-3 border-r border-slate-300 w-36 text-right">Đơn giá (VNĐ) <span class="text-rose-600">*</span></th>
-                                    <th class="py-2.5 px-3 border-r border-slate-300 w-36 text-right">Thành tiền</th>
-                                    <th class="py-2.5 px-3 text-center w-16">Xóa</th>
+                                    <th class="whitespace-nowrap py-2.5 px-3 border-r border-slate-300 w-12 text-center">STT</th>
+                                    <th class="whitespace-nowrap py-2.5 px-3 border-r border-slate-300 min-w-[14rem]">Hàng hóa <span class="text-rose-600">*</span></th>
+                                    <th class="whitespace-nowrap py-2.5 px-3 border-r border-slate-300 w-28 text-center">Số lượng <span class="text-rose-600">*</span></th>
+                                    <th class="whitespace-nowrap py-2.5 px-3 border-r border-slate-300 w-20 text-center">ĐVT</th>
+                                    <th class="whitespace-nowrap py-2.5 px-3 border-r border-slate-300 w-36 text-right">Đơn giá (VNĐ) <span class="text-rose-600">*</span></th>
+                                    <th class="whitespace-nowrap py-2.5 px-3 border-r border-slate-300 w-36 text-right">Thành tiền</th>
+                                    <th class="whitespace-nowrap py-2.5 px-3 text-center w-16">Xóa</th>
                                 </tr>
                             </thead>
                             <tbody id="items-container" class="divide-y divide-slate-200 text-xs text-slate-800 font-normal">
