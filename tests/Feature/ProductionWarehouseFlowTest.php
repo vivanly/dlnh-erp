@@ -98,10 +98,7 @@ class ProductionWarehouseFlowTest extends TestCase
             ->assertDontSee('MO-OTHER-PRODUCTION-ORDER');
 
         $this->get(route('production-orders.show', $productionOrder))
-            ->assertOk()
-            ->assertSee('id="supplier-batch-search"', false)
-            ->assertSee('data-searchable="Searchable raw material SEARCH-RAW-LOT-1"', false)
-            ->assertSee('data-searchable="Other raw material OTHER-RAW-LOT-1"', false);
+            ->assertOk();
     }
 
     public function test_warehouse_records_actual_issue_and_finished_receipt_quantities_once(): void
@@ -182,9 +179,7 @@ class ProductionWarehouseFlowTest extends TestCase
         ]);
         $this->actingAs($warehouseUser)
             ->get(route('production-orders.show', $productionOrder))
-            ->assertOk()
-            ->assertSee('lots['.$firstRawBatch->id.']', false)
-            ->assertSee('PROD-WH-RAW-1');
+            ->assertOk();
 
         $this->actingAs($qaUser)
             ->get(route('production-orders.show', $productionOrder))

@@ -85,42 +85,6 @@
                                 <div class="text-xs text-slate-500">Chưa có nguyên liệu thô/phụ liệu còn tồn.</div>
                             @endforelse
                         </div>
-                        <div class="border-b border-slate-200 p-3">
-                            <label for="supplier-batch-search" class="mb-1 block text-xs font-semibold text-slate-700">Tìm sản phẩm hoặc lô nhà cung cấp</label>
-                            <input id="supplier-batch-search" type="search" class="w-full max-w-md text-xs border-slate-300 rounded-none py-1.5" placeholder="Nhập tên sản phẩm hoặc mã lô NCC...">
-                        </div>
-                        @forelse($supplierBatches->where('available_quantity', '>', 0)->groupBy('product_id') as $productBatches)
-                            <section class="supplier-batch-group p-3" data-searchable="{{ $productBatches->first()->product->name }} {{ $productBatches->pluck('batch_number')->implode(' ') }}">
-                                <div class="mb-2 text-xs"><strong>{{ $productBatches->first()->product->name }}</strong></div>
-                                <div class="overflow-x-auto border border-slate-200">
-                                    <table class="w-full text-[11px]">
-                                        <thead class="bg-slate-100 text-left uppercase text-slate-600">
-                                            <tr>
-                                                <th class="px-2 py-1.5">Lô NCC</th>
-                                                <th class="px-2 py-1.5">Hạn dùng</th>
-                                                <th class="px-2 py-1.5 text-right">Khả dụng</th>
-                                                <th class="px-2 py-1.5 w-40 text-right">Số lượng xuất</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-200">
-                                            @foreach($productBatches as $batch)
-                                                <tr>
-                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $batch->batch_number }}</td>
-                                                    <td class="px-2 py-1.5">{{ $batch->exp_date?->format('d/m/Y') ?? 'Không hạn' }}</td>
-                                                    <td class="px-2 py-1.5 text-right font-mono">{{ number_format($batch->available_quantity, 4) }} {{ $batch->product->unit }}</td>
-                                                    <td class="px-2 py-1.5">
-                                                        <input type="number" name="lots[{{ $batch->id }}]" value="{{ old("lots.{$batch->id}", 0) }}" min="0" max="{{ $batch->available_quantity }}" step="0.0001" class="w-full text-right font-mono text-xs border-slate-300 rounded-none" aria-label="Số lượng xuất từ lô {{ $batch->batch_number }}">
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </section>
-                        @empty
-                            <div class="p-3 text-xs text-slate-500">Chưa có lô nguyên liệu đạt QC còn khả dụng.</div>
-                        @endforelse
-                        <div id="supplier-batch-search-empty" class="hidden p-3 text-xs text-slate-500">Không tìm thấy sản phẩm hoặc lô NCC phù hợp.</div>
                     </div>
                     <div class="p-3 border-t border-slate-200 flex justify-end">
                         <button class="px-4 py-2 bg-amber-600 text-xs font-bold uppercase text-white hover:bg-amber-700">Lập phiếu xuất và trừ kho</button>
@@ -193,23 +157,4 @@
         });
     </script>
     @endpush
-    <script>
-        const supplierBatchSearch = document.getElementById('supplier-batch-search');
-        if (supplierBatchSearch) {
-            supplierBatchSearch.addEventListener('input', function () {
-                const search = this.value.trim().toLocaleLowerCase();
-                const groups = document.querySelectorAll('.supplier-batch-group');
-                let visibleGroups = 0;
-
-                groups.forEach(function (group) {
-                    const matches = group.dataset.searchable.toLocaleLowerCase().includes(search);
-                    group.hidden = !matches;
-                    visibleGroups += matches ? 1 : 0;
-                });
-
-                const emptyMessage = document.getElementById('supplier-batch-search-empty');
-                emptyMessage.classList.toggle('hidden', visibleGroups > 0 || search === '');
-            });
-        }
-    </script>
 </x-app-layout>
