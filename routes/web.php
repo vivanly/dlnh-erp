@@ -220,7 +220,12 @@ Route::middleware('auth')->group(function () {
     // MODULE: QA & LÔ HÀNG NHÀ CUNG CẤP (SUPPLIER BATCHES & COA)
     // ==========================================
     Route::get('/qa/batches', [SupplierBatchController::class, 'index'])->name('qa.batches.index');
-    Route::get('/qa/coas', [SupplierBatchController::class, 'coasIndex'])->name('qa.coas.index'); 
+    Route::get('/qa/coas', [SupplierBatchController::class, 'coasIndex'])->name('qa.coas.index');
+    Route::get('/qa/material-lots', [\App\Http\Controllers\MaterialLotController::class, 'index'])->name('material-lots.index');
+    Route::get('/qa/material-lots/{materialLot}/coa', [\App\Http\Controllers\MaterialLotController::class, 'coa'])->name('material-lots.coa');
+    Route::patch('/qa/material-lots/{materialLot}', [\App\Http\Controllers\MaterialLotController::class, 'updateCoa'])->name('material-lots.update-coa');
+    Route::post('/qa/material-lots/{materialLot}/approve', [\App\Http\Controllers\MaterialLotController::class, 'approve'])->name('material-lots.approve');
+    Route::post('/qa/material-lots/{materialLot}/reject', [\App\Http\Controllers\MaterialLotController::class, 'reject'])->name('material-lots.reject'); 
     
     Route::patch('/supplier-batches/{supplierBatch}/update-coa', [SupplierBatchController::class, 'updateCoa'])
         ->name('supplier-batches.update-coa');

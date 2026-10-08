@@ -91,7 +91,8 @@ class PurchaseOrderItem extends Model
         if ($this->material_type) {
             return (float) MaterialStockMovement::where('purchase_order_item_id', $this->id)
                 ->whereIn('movement_type', ['RECEIVE_PURCHASE', 'REJECT_PURCHASE'])
-                ->sum('quantity');
+                ->sum('quantity')
+                + (float) MaterialLot::where('purchase_order_item_id', $this->id)->where('status', 'pending_qa')->sum('quantity');
         }
 
         return (float) GoodsReceiptItem::where('purchase_order_item_id', $this->id)

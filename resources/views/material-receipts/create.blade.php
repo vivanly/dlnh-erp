@@ -15,7 +15,7 @@
                 @csrf
                 <div class="bg-white border border-slate-300 overflow-x-auto">
                     <div class="p-3 bg-slate-100 border-b border-slate-300">
-                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Lượng đạt sẽ được cộng thẳng vào tồn kho</h3>
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Phụ liệu cộng thẳng vào tồn. Nguyên liệu thô tạo lô chờ QA cập nhật số lô NCC/COA, QC xác nhận đạt mới vào tồn</h3>
                     </div>
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
@@ -25,9 +25,6 @@
                                 <th class="p-2.5 border-r text-center">Còn xử lý</th>
                                 <th class="p-2.5 border-r text-center w-28">SL nhập kho</th>
                                 <th class="p-2.5 border-r text-center w-28">SL trả lại</th>
-                                <th class="p-2.5 border-r w-40">Lô NCC (chỉ nguyên liệu thô)</th>
-                                <th class="p-2.5 border-r w-32">NSX</th>
-                                <th class="p-2.5 border-r w-32">HSD</th>
                                 <th class="p-2.5">Ghi chú</th>
                             </tr>
                         </thead>
@@ -40,9 +37,6 @@
                                     <td class="p-2.5 border-r text-center font-mono">{{ number_format($item->remaining_quantity, 2) }} {{ $item->unit }}</td>
                                     <td class="p-2.5 border-r"><input type="number" min="0" max="{{ $item->remaining_quantity }}" step="0.01" name="items[{{ $item->id }}][received_quantity]" value="{{ old('items.'.$item->id.'.received_quantity', $item->remaining_quantity) }}" class="w-full text-xs text-center border-slate-300 font-mono py-1" required></td>
                                     <td class="p-2.5 border-r"><input type="number" min="0" max="{{ $item->remaining_quantity }}" step="0.01" name="items[{{ $item->id }}][returned_quantity]" value="{{ old('items.'.$item->id.'.returned_quantity', 0) }}" class="w-full text-xs text-center border-slate-300 font-mono py-1 text-rose-600" required></td>
-                                    <td class="p-2.5 border-r"><input type="text" name="items[{{ $item->id }}][batch_number]" value="{{ old('items.'.$item->id.'.batch_number') }}" maxlength="255" @if($item->material_type === 'raw_material') required placeholder="Số lô NCC" @else disabled placeholder="Quản lý theo tổng" @endif class="w-full text-xs border-slate-300 font-mono py-1"></td>
-                                    <td class="p-2.5 border-r"><input type="date" @disabled($item->material_type === 'accessory') name="items[{{ $item->id }}][mfg_date]" value="{{ old('items.'.$item->id.'.mfg_date') }}" class="w-full text-xs border-slate-300 py-1"></td>
-                                    <td class="p-2.5 border-r"><input type="date" @disabled($item->material_type === 'accessory') name="items[{{ $item->id }}][exp_date]" value="{{ old('items.'.$item->id.'.exp_date') }}" class="w-full text-xs border-slate-300 py-1"></td>
                                     <td class="p-2.5"><input type="text" name="items[{{ $item->id }}][note]" value="{{ old('items.'.$item->id.'.note') }}" class="w-full text-xs border-slate-300 py-1"></td>
                                 </tr>
                             @endforeach

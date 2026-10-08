@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Department;
+use App\Models\MaterialLot;
 use App\Models\MaterialStockMovement;
 use App\Models\Order;
 use App\Models\Product;
@@ -25,6 +26,16 @@ class RawMaterialFlowTest extends TestCase
         return User::factory()->create(['department_id' => $department->id, 'role' => 'it']);
     }
 
+    private function qaThenQcApprove(User $user, MaterialLot $lot, string $batch): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->actingAs($user)->patch(route('material-lots.update-coa', $lot), [
+            'batch_number' => $batch, 'mfg_date' => '2026-01-01', 'exp_date' => '2028-01-01',
+            'coa_file' => \Illuminate\Http\UploadedFile::fake()->create('coa.pdf', 10, 'application/pdf'),
+        ])->assertSessionHas('success');
+        $this->actingAs($user)->post(route('material-lots.approve', $lot))->assertSessionHas('success');
+    }
+
     public function test_mixed_purchase_order_receives_materials_into_stock_and_completes(): void
     {
         $user = $this->itUser();
@@ -41,9 +52,12 @@ class RawMaterialFlowTest extends TestCase
 
         $this->actingAs($user)->get(route('material-receipts.create', $po))->assertOk();
         $this->actingAs($user)->post(route('material-receipts.store', $po), [
-            'items' => [$itemId => ['received_quantity' => 8, 'returned_quantity' => 2, 'batch_number' => 'L1']],
+            'items' => [$itemId => ['received_quantity' => 8, 'returned_quantity' => 2]],
         ])->assertSessionHasNoErrors();
 
+        $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
+        $lot = MaterialLot::firstOrFail();
+        $this->qaThenQcApprove($user, $lot, 'L1');
         $this->assertSame(8.0, MaterialStockMovement::balance('raw_material', $raw->id));
         $this->assertSame('completed', $po->fresh()->status);
         $this->actingAs($user)->get(route('warehouse.material-stock'))->assertOk()->assertSee('NL100');
@@ -117,7 +131,7 @@ class RawMaterialFlowTest extends TestCase
         $this->assertSame('dispatched', $returnOrder->fresh()->status);
     }
 
-    public function test_raw_material_requires_supplier_lot_and_accessory_gets_receipt_batch(): void
+    public function test_raw_material_lot_waits_for_qa_coa_and_qc_before_entering_stock(): void
     {
         $user = $this->itUser();
         $supplier = Supplier::create(['name' => 'NCC', 'code' => 'NCC7']);
@@ -127,17 +141,42 @@ class RawMaterialFlowTest extends TestCase
         $rawItem = $po->items()->create(['material_type' => 'raw_material', 'material_id' => $raw->id, 'quantity' => 5, 'unit_price' => 1, 'total_price' => 5, 'unit' => 'Kg']);
         $accItem = $po->items()->create(['material_type' => 'accessory', 'material_id' => $acc->id, 'quantity' => 5, 'unit_price' => 1, 'total_price' => 5, 'unit' => 'Cái']);
 
-        $rows = fn ($lot) => ['items' => [
-            $rawItem->id => ['received_quantity' => 5, 'returned_quantity' => 0, 'batch_number' => $lot],
-            $accItem->id => ['received_quantity' => 5, 'returned_quantity' => 0, 'batch_number' => ''],
-        ]];
-        $this->actingAs($user)->post(route('material-receipts.store', $po), $rows(''))->assertSessionHas('error');
-        $this->assertSame(0, MaterialStockMovement::count());
+        $this->actingAs($user)->post(route('material-receipts.store', $po), ['items' => [
+            $rawItem->id => ['received_quantity' => 5, 'returned_quantity' => 0],
+            $accItem->id => ['received_quantity' => 5, 'returned_quantity' => 0],
+        ]])->assertSessionHas('success');
 
-        $this->actingAs($user)->post(route('material-receipts.store', $po), $rows('NCC-LOT-9'))->assertSessionHas('success');
+        $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
+        $this->assertSame(5.0, MaterialStockMovement::balance('accessory', $acc->id));
+        $lot = MaterialLot::firstOrFail();
+        $this->assertSame('pending_qa', $lot->status);
+        $this->actingAs($user)->get(route('material-lots.index'))->assertOk()->assertSee('NL400');
+
+        $this->actingAs($user)->post(route('material-lots.approve', $lot))->assertSessionHas('error');
+        $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
+
+        $this->qaThenQcApprove($user, $lot, 'NCC-LOT-9');
         $this->assertDatabaseHas('material_stock_movements', ['material_type' => 'raw_material', 'batch_number' => 'NCC-LOT-9']);
-        $this->assertDatabaseHas('material_stock_movements', ['material_type' => 'accessory', 'batch_number' => null]);
+        $this->assertSame(5.0, MaterialStockMovement::balance('raw_material', $raw->id));
         $this->actingAs($user)->get(route('warehouse.material-stock'))->assertOk()->assertSee('NCC-LOT-9');
+    }
+
+    public function test_qc_rejecting_raw_material_lot_keeps_it_out_of_stock(): void
+    {
+        $user = $this->itUser();
+        $supplier = Supplier::create(['name' => 'NCC', 'code' => 'NCC8']);
+        $raw = RawMaterial::create(['sku' => 'NL500', 'name' => 'NL5', 'slug' => 'nl-500', 'unit' => 'Kg']);
+        $po = PurchaseOrder::create(['po_number' => 'PO-LOT-2', 'supplier_id' => $supplier->id, 'order_date' => today(), 'status' => 'delivered', 'user_id' => $user->id]);
+        $item = $po->items()->create(['material_type' => 'raw_material', 'material_id' => $raw->id, 'quantity' => 4, 'unit_price' => 1, 'total_price' => 4, 'unit' => 'Kg']);
+        $this->actingAs($user)->post(route('material-receipts.store', $po), ['items' => [$item->id => ['received_quantity' => 4, 'returned_quantity' => 0]]])->assertSessionHas('success');
+        $lot = MaterialLot::firstOrFail();
+
+        $this->actingAs($user)->post(route('material-lots.reject', $lot), ['qc_note' => 'Không đạt chỉ tiêu'])->assertSessionHas('success');
+
+        $this->assertSame('rejected', $lot->fresh()->status);
+        $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
+        $this->assertSame(4.0, $item->fresh()->processedQuantity());
+        $this->actingAs($user)->post(route('material-lots.approve', $lot))->assertSessionHas('error');
     }
 
     public function test_issue_consumes_lots_in_expiry_order_and_return_is_per_lot(): void

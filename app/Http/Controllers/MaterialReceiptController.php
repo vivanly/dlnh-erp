@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MaterialLot;
 use App\Models\MaterialStockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
@@ -51,9 +52,6 @@ class MaterialReceiptController extends Controller
             'items' => 'required|array',
             'items.*.received_quantity' => 'required|numeric|min:0',
             'items.*.returned_quantity' => 'required|numeric|min:0',
-            'items.*.batch_number' => 'nullable|string|max:255',
-            'items.*.mfg_date' => 'nullable|date',
-            'items.*.exp_date' => 'nullable|date',
             'items.*.note' => 'nullable|string|max:1000',
         ]);
 
@@ -87,22 +85,21 @@ class MaterialReceiptController extends Controller
                         'user_id' => auth()->id(),
                         'note' => $data['note'] ?? null,
                     ];
-                    $batchNumber = trim((string) ($data['batch_number'] ?? ''));
-                    if ($received > 0 && $item->material_type === 'raw_material' && $batchNumber === '') {
-                        throw new DomainException('Nguyên liệu thô ' . ($item->catalog_item->name ?? '') . ' phải nhập số lô nhà cung cấp.');
-                    }
-                    $isAccessory = $item->material_type === 'accessory';
-                    if ($isAccessory) {
-                        $batchNumber = '';
-                    }
-                    if ($received > 0) {
+                    if ($received > 0 && $item->material_type === 'raw_material') {
+                        MaterialLot::create([
+                            'purchase_order_item_id' => $item->id,
+                            'material_type' => 'raw_material',
+                            'material_id' => $item->material_id,
+                            'quantity' => $received,
+                            'unit' => $item->unit,
+                            'status' => 'pending_qa',
+                            'received_by' => auth()->id(),
+                        ]);
+                    } elseif ($received > 0) {
                         MaterialStockMovement::create($base + [
                             'movement_type' => 'RECEIVE_PURCHASE',
                             'direction' => 'in',
                             'quantity' => $received,
-                            'batch_number' => $batchNumber !== '' ? $batchNumber : null,
-                            'mfg_date' => $isAccessory ? null : ($data['mfg_date'] ?? null),
-                            'exp_date' => $isAccessory ? null : ($data['exp_date'] ?? null),
                         ]);
                     }
                     if ($returned > 0) {
@@ -122,6 +119,6 @@ class MaterialReceiptController extends Controller
             return back()->withInput()->with('error', $exception->getMessage());
         }
 
-        return redirect()->route('warehouse.material-stock')->with('success', 'Đã nhập kho nguyên liệu thô/phụ liệu.');
+        return redirect()->route('warehouse.purchase-orders')->with('success', 'Đã nhập kho. Nguyên liệu thô chuyển sang QA cập nhật số lô NCC/COA rồi QC xác nhận mới vào tồn; phụ liệu đã cộng vào tồn.');
     }
 }
