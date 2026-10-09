@@ -12,10 +12,18 @@ class Supplier extends Model
     protected $fillable = [
         'name',
         'code',
+        'is_active',
         'email',
         'phone',
         'address',
         'contact_person',
         'notes',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_active' => 'boolean',
+        ];
+    }
 }

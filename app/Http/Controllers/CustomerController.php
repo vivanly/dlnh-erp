@@ -20,7 +20,12 @@ class CustomerController extends Controller
     // 1. Hiển thị danh sách khách hàng (Tìm kiếm nội bộ trên trang)
     public function index(Request $request)
     {
-        $query = Customer::latest();
+        $query = Customer::query();
+        $status = $request->input('status', 'all');
+        if (in_array($status, ['active', 'inactive'], true)) {
+            $query->where('is_active', $status === 'active');
+        }
+        $query->latest();
 
         // Xử lý tìm kiếm nội bộ theo từ khóa (Mã, Tên, Số điện thoại, Email)
         if ($request->has('search') && !empty($request->search)) {
@@ -42,7 +47,7 @@ class CustomerController extends Controller
 
         $canManageCustomers = $this->canManageCustomers();
 
-        return view('customers.index', compact('customers', 'canManageCustomers'));
+        return view('customers.index', compact('customers', 'canManageCustomers', 'status'));
     }
 
     // 2. Hiển thị form thêm mới
@@ -58,7 +63,7 @@ class CustomerController extends Controller
     {
         abort_unless($this->canManageCustomers(), 403);
 
-        $request->validate([
+        $validated = $request->validate([
             'code' => 'required|unique:customers,code',
             'name' => 'required|string|max:255',
             'type' => 'required|string',
@@ -69,7 +74,7 @@ class CustomerController extends Controller
             'type.required' => 'Vui lòng chọn phân loại.',
         ]);
 
-        Customer::create($request->all());
+        Customer::create($validated + ['is_active' => true]);
 
         return redirect()->route('customers.index')->with('success', 'Thêm khách hàng thành công!');
     }
@@ -87,7 +92,7 @@ class CustomerController extends Controller
     {
         abort_unless($this->canManageCustomers(), 403);
 
-        $request->validate([
+        $validated = $request->validate([
             'code' => 'required|unique:customers,code,' . $customer->id,
             'name' => 'required|string|max:255',
             'type' => 'required|string',
@@ -97,26 +102,28 @@ class CustomerController extends Controller
             'name.required' => 'Vui lòng nhập tên khách hàng.',
         ]);
 
-        $customer->update($request->all());
+        $customer->update($validated);
 
         return redirect()->route('customers.index')->with('success', 'Cập nhật khách hàng thành công!');
     }
 
-    // 6. Xóa khách hàng
-    public function destroy(Customer $customer)
+    public function toggleStatus(Customer $customer)
     {
         abort_unless($this->canManageCustomers(), 403);
 
-        $customer->delete();
+        $customer->update(['is_active' => ! $customer->is_active]);
 
-        return redirect()->route('customers.index')->with('success', 'Xóa khách hàng thành công!');
+        return redirect()->route('customers.index')->with(
+            'success',
+            $customer->is_active ? 'Đã kích hoạt khách hàng.' : 'Đã đánh dấu khách hàng không hoạt động.'
+        );
     }
 
     // 7. Tìm kiếm liên thông (API AJAX trả về JSON cho các form bên ngoài gọi vào)
     public function searchAjax(Request $request)
     {
         $keyword = $request->input('q', '');
-        $query = Customer::query();
+        $query = Customer::where('is_active', true);
 
         if (!empty($keyword)) {
             $query->where(function($q) use ($keyword) {

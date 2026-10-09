@@ -145,7 +145,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/traceability/lots/{type}/{batch}/code', [TraceabilityManagementController::class, 'deleteLotCode'])->name('traceability.management.lot-code.delete');
 
     // Quản lý Nhà cung cấp
-    Route::resource('suppliers', suppliercontroller::class)->except(['show']);
+    Route::patch('/suppliers/{supplier}/status', [suppliercontroller::class, 'toggleStatus'])->name('suppliers.status.toggle');
+    Route::resource('suppliers', suppliercontroller::class)->except(['show', 'destroy']);
 
     // Quản lý Sản phẩm dược liệu (Import & Resource)
     Route::get('/products/export', [ProductController::class, 'export'])->name('products.export');
@@ -241,7 +242,8 @@ Route::middleware('auth')->group(function () {
     // ==========================================
     // MODULE: QUẢN LÝ KHÁCH HÀNG (CUSTOMERS)
     // ==========================================
-    Route::resource('customers', CustomerController::class)->except(['show']);
+    Route::patch('/customers/{customer}/status', [CustomerController::class, 'toggleStatus'])->name('customers.status.toggle');
+    Route::resource('customers', CustomerController::class)->except(['show', 'destroy']);
 
     // ==========================================
     // MODULE: QUẢN LÝ ĐƠN HÀNG (SALES ORDERS) & CHI TIẾT VỊ THUỐC
@@ -253,6 +255,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/production-planning', [OrderController::class, 'productionPlanningIndex'])->name('production-planning.index');
     Route::get('/production-planning/history', [OrderController::class, 'productionPlanningHistory'])->name('production-planning.history');
     Route::post('/production-planning/orders/{order}/plan', [OrderController::class, 'sendToProduction'])->name('production-planning.plan');
+    Route::get('/orders/suggested-code', [OrderController::class, 'suggestedCode'])->name('orders.suggested-code');
     Route::resource('orders', OrderController::class);
     Route::post('/orders/{order}/items', [OrderItemController::class, 'store'])->name('order-items.store');
     Route::patch('/order-items/{item}/qa', [OrderItemController::class, 'updateQa'])->name('order-items.update-qa');

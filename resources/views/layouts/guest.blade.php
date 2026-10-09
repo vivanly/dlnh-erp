@@ -12,7 +12,7 @@
 
         @vite('resources/css/app.css')
     </head>
-    <body class="min-h-screen bg-[#f7f8f5] font-sans text-slate-900 antialiased">
+    <body class="erp-guest-shell min-h-screen bg-[#f7f8f5] font-sans text-slate-900 antialiased">
         <main class="relative min-h-screen lg:grid lg:grid-cols-[1.05fr_0.95fr]">
             <section class="relative hidden min-h-screen overflow-hidden bg-[radial-gradient(ellipse_at_12%_8%,rgba(206,220,185,0.55),transparent_38%),radial-gradient(ellipse_at_88%_86%,rgba(232,218,190,0.55),transparent_34%),linear-gradient(145deg,#f6f7ef_0%,#eef2e7_54%,#f5f1e7_100%)] text-[#244333] lg:flex lg:flex-col lg:justify-between lg:px-12 lg:py-10 xl:px-16 xl:py-11" aria-label="{{ __('Giới thiệu hệ thống') }}">
                 <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">

@@ -66,6 +66,11 @@
                     </div>
                     
                     <div class="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+                        <select name="status" class="text-xs border-slate-300 py-1.5">
+                            <option value="all" @selected($status === 'all')>Tất cả trạng thái</option>
+                            <option value="active" @selected($status === 'active')>Đang hoạt động</option>
+                            <option value="inactive" @selected($status === 'inactive')>Không hoạt động</option>
+                        </select>
                         <button type="submit" class="px-3 py-1.5 bg-slate-800 text-white text-xs uppercase font-bold rounded-none hover:bg-slate-700 transition">
                             Tìm kiếm
                         </button>
@@ -91,6 +96,7 @@
                                 <th class="py-2.5 px-3 border-r border-slate-300">Địa Chỉ</th>
                                 <th class="py-2.5 px-3 border-r border-slate-300">Người Liên Hệ</th>
                                 <th class="py-2.5 px-3 border-r border-slate-300">Ghi Chú</th>
+                                <th class="py-2.5 px-3 border-r border-slate-300 w-32">Trạng thái</th>
                                 <th class="py-2.5 px-3 text-center w-24">Hành động</th>
                             </tr>
                         </thead>
@@ -121,14 +127,19 @@
                                     <td class="py-2 px-3 border-r border-slate-200 text-slate-600 max-w-xs truncate" title="{{ $supplier->notes }}">
                                         {{ $supplier->notes ?? '---' }}
                                     </td>
+                                    <td class="py-2 px-3 border-r border-slate-200 text-center">
+                                        <span class="px-2 py-0.5 text-[10px] font-semibold {{ $supplier->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700' }}">
+                                            {{ $supplier->is_active ? 'Đang hoạt động' : 'Không hoạt động' }}
+                                        </span>
+                                    </td>
                                     <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
                                         {{-- HIỂN THỊ NÚT SỬA VÀ XÓA NẾU CÓ QUYỀN QUẢN LÝ --}}
                                         @if($canManage)
                                             <a href="{{ route('suppliers.edit', $supplier->id) }}" class="text-blue-600 hover:text-blue-900 font-bold">Sửa</a>
-                                            <form action="{{ route('suppliers.destroy', $supplier->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa nhà cung cấp này không?');">
+                                            <form action="{{ route('suppliers.status.toggle', $supplier) }}" method="POST" class="inline-block" onsubmit="return confirm('{{ $supplier->is_active ? 'Đánh dấu nhà cung cấp này không hoạt động?' : 'Kích hoạt lại nhà cung cấp này?' }}');">
                                                 @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
+                                                @method('PATCH')
+                                                <button type="submit" class="font-bold cursor-pointer {{ $supplier->is_active ? 'text-amber-700 hover:text-amber-900' : 'text-emerald-700 hover:text-emerald-900' }}">{{ $supplier->is_active ? 'Ngưng dùng' : 'Kích hoạt' }}</button>
                                             </form>
                                         @else
                                             <span class="text-slate-400 italic">Chỉ xem</span>
@@ -137,7 +148,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="py-6 text-center text-slate-500 text-xs italic bg-slate-50">
+                                    <td colspan="10" class="py-6 text-center text-slate-500 text-xs italic bg-slate-50">
                                         @if(request('search'))
                                             Không tìm thấy nhà cung cấp nào phù hợp với từ khóa "<span class="font-bold text-slate-700">{{ request('search') }}</span>".
                                         @else

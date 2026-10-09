@@ -12,7 +12,7 @@
     @if($method === 'PUT') @method('PUT') @endif
     <div class="mb-4 grid gap-3" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
         <label class="text-xs font-semibold text-slate-700">Tháng kế hoạch
-            <input type="month" name="plan_month" required value="{{ old('plan_month', isset($plan) ? $plan->plan_month->format('Y-m') : now()->format('Y-m')) }}" class="mt-1 w-full border-slate-300 text-xs">
+            <input type="month" name="plan_month" lang="vi" required value="{{ old('plan_month', isset($plan) ? $plan->plan_month->format('Y-m') : now()->format('Y-m')) }}" class="mt-1 w-full border-slate-300 text-xs">
         </label>
         <div class="self-end text-xs text-slate-500">Kế hoạch nhập sản lượng thủ công. Chọn sản phẩm, PPCB, sản lượng và ghi chú; duyệt kế hoạch sẽ tạo lệnh sản xuất độc lập với đơn bán và không phụ thuộc BOM.</div>
     </div>
@@ -34,7 +34,7 @@
                     <select name="lines[{{ $index }}][product_id]" required class="mt-1 w-full border-slate-300 text-xs">
                         <option value="">Chọn sản phẩm</option>
                         @foreach($products as $product)
-                            <option value="{{ $product->id }}" {{ (string) ($line['product_id'] ?? '') === (string) $product->id ? 'selected' : '' }}>{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->unit }}</option>
+                            <option value="{{ $product->id }}" {{ (string) ($line['product_id'] ?? '') === (string) $product->id ? 'selected' : '' }}>{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ?: 'Chưa phân loại' }} · {{ $product->unit }}</option>
                         @endforeach
                     </select>
                 </label>
@@ -62,7 +62,7 @@
                 <select data-name="product_id" required class="mt-1 w-full border-slate-300 text-xs">
                     <option value="">Chọn sản phẩm</option>
                     @foreach($products as $product)
-                        <option value="{{ $product->id }}">{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->unit }}</option>
+                        <option value="{{ $product->id }}">{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ?: 'Chưa phân loại' }} · {{ $product->unit }}</option>
                     @endforeach
                 </select>
             </label>

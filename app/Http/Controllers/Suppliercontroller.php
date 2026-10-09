@@ -37,7 +37,7 @@ class SupplierController extends Controller implements HasMiddleware
                 }
 
                 return $next($request);
-            }, only: ['create', 'store', 'edit', 'update', 'destroy']),
+            }, only: ['create', 'store', 'edit', 'update', 'toggleStatus']),
         ];
     }
 
@@ -48,18 +48,23 @@ class SupplierController extends Controller implements HasMiddleware
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $status = $request->input('status', 'all');
 
-        $suppliers = Supplier::when($search, function ($query, $search) {
-                return $query->where('name', 'like', "%{$search}%")
-                             ->orWhere('code', 'like', "%{$search}%")
-                             ->orWhere('phone', 'like', "%{$search}%")
-                             ->orWhere('email', 'like', "%{$search}%");
+        $suppliers = Supplier::query()
+            ->when(in_array($status, ['active', 'inactive'], true), fn ($query) => $query->where('is_active', $status === 'active'))
+            ->when($search, function ($query, $search) {
+                return $query->where(function ($matches) use ($search) {
+                    $matches->where('name', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
             })
             ->latest()
             ->paginate($this->perPage($request))
             ->withQueryString(); // Giữ lại từ khóa tìm kiếm khi chuyển trang
 
-        return view('suppliers.index', compact('suppliers', 'search'));
+        return view('suppliers.index', compact('suppliers', 'search', 'status'));
     }
 
     /**
@@ -75,14 +80,14 @@ class SupplierController extends Controller implements HasMiddleware
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|unique:suppliers,code|max:50',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
         ]);
 
-        Supplier::create($request->all());
+        Supplier::create($validated + ['is_active' => true]);
 
         return redirect()->route('suppliers.index')->with('success', 'Thêm nhà cung cấp thành công!');
     }
@@ -103,27 +108,26 @@ class SupplierController extends Controller implements HasMiddleware
     {
         $supplier = Supplier::findOrFail($id);
 
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'required|string|max:50|unique:suppliers,code,' . $supplier->id,
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
         ]);
 
-        $supplier->update($request->all());
+        $supplier->update($validated);
 
         return redirect()->route('suppliers.index')->with('success', 'Cập nhật nhà cung cấp thành công!');
     }
 
-    /**
-     * 7. Xóa nhà cung cấp khỏi hệ thống (Được bảo vệ bởi phân quyền)
-     */
-    public function destroy(string $id)
+    public function toggleStatus(Supplier $supplier)
     {
-        $supplier = Supplier::findOrFail($id);
-        $supplier->delete();
+        $supplier->update(['is_active' => ! $supplier->is_active]);
 
-        return redirect()->route('suppliers.index')->with('success', 'Xóa nhà cung cấp thành công!');
+        return redirect()->route('suppliers.index')->with(
+            'success',
+            $supplier->is_active ? 'Đã kích hoạt nhà cung cấp.' : 'Đã đánh dấu nhà cung cấp không hoạt động.'
+        );
     }
 
     /**
@@ -134,10 +138,13 @@ class SupplierController extends Controller implements HasMiddleware
     {
         $keyword = $request->get('q');
 
-        $suppliers = Supplier::when($keyword, function ($query, $keyword) {
-                return $query->where('name', 'like', "%{$keyword}%")
-                             ->orWhere('code', 'like', "%{$keyword}%")
-                             ->orWhere('phone', 'like', "%{$keyword}%");
+        $suppliers = Supplier::where('is_active', true)
+            ->when($keyword, function ($query, $keyword) {
+                return $query->where(function ($matches) use ($keyword) {
+                    $matches->where('name', 'like', "%{$keyword}%")
+                        ->orWhere('code', 'like', "%{$keyword}%")
+                        ->orWhere('phone', 'like', "%{$keyword}%");
+                });
             })
             ->limit(20)
             ->get();

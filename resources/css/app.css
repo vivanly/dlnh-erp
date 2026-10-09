@@ -540,3 +540,282 @@ body.erp-shell {
         display: none;
     }
 }
+
+/* Shared visual language for every authenticated ERP screen. */
+.erp-shell {
+    --erp-ink: #172b4d;
+    --erp-muted: #66758c;
+    --erp-line: #dce3ed;
+    --erp-canvas: #f3f6fa;
+    --erp-primary: #2457a7;
+}
+
+.erp-shell,
+.erp-shell button,
+.erp-shell input,
+.erp-shell select,
+.erp-shell textarea {
+    font-family: Figtree, ui-sans-serif, system-ui, sans-serif;
+}
+
+.erp-shell ::selection { background: #dbeafe; color: #172b4d; }
+
+.erp-main-content {
+    scrollbar-color: #cbd5e1 transparent;
+    scrollbar-width: thin;
+}
+
+.erp-main-content > .py-2,
+.erp-main-content > .py-3,
+.erp-main-content > .py-4,
+.erp-main-content > .py-5,
+.erp-main-content > .py-6,
+.erp-main-content > .py-8,
+.erp-main-content > .py-10,
+.erp-main-content > .py-12 {
+    padding-block: 1.25rem !important;
+    padding-inline: 1.25rem !important;
+}
+
+.erp-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1.25rem;
+}
+
+.erp-page > * { min-width: 0; }
+
+.erp-panel,
+.erp-main-content .bg-white.border,
+.erp-main-content form.bg-white,
+.erp-main-content .bg-white.shadow,
+.erp-main-content .bg-white.shadow-sm {
+    border-color: var(--erp-line) !important;
+    border-radius: 0.65rem !important;
+    background-color: #fff;
+    box-shadow: 0 2px 8px rgb(23 43 77 / 4%);
+}
+
+.erp-main-content .bg-white.rounded-none,
+.erp-main-content .bg-white.rounded-sm,
+.erp-main-content .bg-white.rounded-md,
+.erp-main-content .bg-white.rounded-lg,
+.erp-main-content .bg-white.rounded-xl,
+.erp-main-content .bg-white.rounded-2xl {
+    border-radius: 0.65rem !important;
+}
+
+.erp-main-content [class*="border-l-4"] {
+    border-radius: 0.4rem;
+}
+
+.erp-main-content .bg-slate-100.border-b,
+.erp-main-content .bg-slate-50.border-b,
+.erp-main-content .bg-gray-100.border-b {
+    border-color: var(--erp-line);
+}
+
+.erp-main-content table {
+    width: 100%;
+    border-color: var(--erp-line);
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8125rem;
+}
+
+.erp-main-content .overflow-x-auto {
+    scrollbar-color: #cbd5e1 #f8fafc;
+    scrollbar-width: thin;
+}
+
+.erp-main-content table thead th {
+    border-color: var(--erp-line);
+    background: #f6f8fb;
+    color: #53647d;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.035em;
+    line-height: 1.35;
+    vertical-align: middle;
+}
+
+.erp-main-content table tbody td {
+    border-color: #e9eef5;
+    color: #334155;
+    vertical-align: middle;
+}
+
+.erp-main-content table tbody tr:hover { background-color: #f8fafd; }
+
+.erp-main-content table caption {
+    padding: 0.75rem 1rem;
+    color: #53647d;
+    font-size: 0.75rem;
+    text-align: left;
+}
+
+.erp-main-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.erp-main-content select,
+.erp-main-content textarea {
+    min-height: 2.375rem;
+    border-color: #cbd5e1;
+    border-radius: 0.4rem;
+    color: #1e293b;
+    font-size: 0.8125rem;
+}
+
+.erp-main-content textarea { min-height: 5rem; }
+
+.erp-main-content input[type="checkbox"],
+.erp-main-content input[type="radio"] {
+    accent-color: var(--erp-primary);
+}
+
+.erp-main-content input:not([type="checkbox"]):not([type="radio"]):focus,
+.erp-main-content select:focus,
+.erp-main-content textarea:focus {
+    border-color: #6b93ce;
+    box-shadow: 0 0 0 3px rgb(36 87 167 / 12%);
+    outline: none;
+}
+
+.erp-main-content button,
+.erp-main-content a[class*="bg-"] {
+    border-radius: 0.4rem;
+    transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.erp-main-content button:disabled,
+.erp-main-content [role="button"][aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.erp-main-content button:focus-visible,
+.erp-main-content a:focus-visible,
+.erp-topbar a:focus-visible,
+.erp-topbar button:focus-visible {
+    outline: 2px solid #6b93ce;
+    outline-offset: 2px;
+}
+
+.erp-page-toolbar h1,
+.erp-page-toolbar h2,
+.erp-page-toolbar h3 {
+    color: #172b4d;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.4;
+}
+
+.erp-page-toolbar .uppercase { letter-spacing: 0.025em; }
+
+.erp-page-toolbar {
+    min-height: 3.5rem;
+}
+
+.erp-page-toolbar > div {
+    gap: 0.75rem;
+}
+
+.erp-main-content [role="alert"] {
+    border-radius: 0.45rem;
+}
+
+.erp-main-content .text-slate-400 { color: #718096; }
+
+.erp-main-content a:not([class*="bg-"]) {
+    text-underline-offset: 0.15em;
+}
+
+.erp-main-content a:not([class*="bg-"]):hover {
+    color: #1e4b87;
+}
+
+@media (max-width: 767px) {
+    .erp-main-content > .py-2,
+    .erp-main-content > .py-3,
+    .erp-main-content > .py-4,
+    .erp-main-content > .py-5,
+    .erp-main-content > .py-6,
+    .erp-main-content > .py-8,
+    .erp-main-content > .py-10,
+    .erp-main-content > .py-12 {
+        padding-block: 0.75rem !important;
+        padding-inline: 0.75rem !important;
+    }
+
+    .erp-page { gap: 0.875rem; padding: 0.75rem; }
+    .erp-main-content table { min-width: 42rem; }
+    .erp-page-toolbar { min-height: 3.25rem; }
+}
+
+/* Guest and account access screens share the ERP form and action language. */
+body.erp-guest-shell {
+    --erp-auth-primary: #2457a7;
+    --erp-auth-line: #dce3ed;
+    background: #f3f6fa;
+    color: #172b4d;
+    font-family: Figtree, ui-sans-serif, system-ui, sans-serif;
+}
+
+.erp-guest-shell main > section:last-child {
+    background: linear-gradient(145deg, #f7f9fc 0%, #f3f6fa 58%, #edf2f8 100%);
+}
+
+.erp-guest-shell main > section:last-child > div.flex.flex-1 > div > div.rounded-2xl {
+    border-color: var(--erp-auth-line);
+    background: rgb(255 255 255 / 96%);
+    box-shadow: 0 18px 48px -28px rgb(23 43 77 / 24%);
+}
+
+.erp-guest-shell input:not([type="checkbox"]):not([type="radio"]),
+.erp-guest-shell select,
+.erp-guest-shell textarea {
+    min-height: 2.75rem;
+    border-color: #cbd5e1;
+    border-radius: 0.45rem;
+    font-size: 0.8125rem;
+}
+
+.erp-guest-shell input:focus,
+.erp-guest-shell select:focus,
+.erp-guest-shell textarea:focus {
+    border-color: #6b93ce !important;
+    box-shadow: 0 0 0 3px rgb(36 87 167 / 14%) !important;
+    outline: none;
+}
+
+.erp-guest-shell input[type="checkbox"],
+.erp-guest-shell input[type="radio"] { accent-color: var(--erp-auth-primary); }
+
+.erp-guest-shell button[type="submit"] {
+    min-height: 2.75rem;
+    border: 1px solid #1d4f91;
+    border-radius: 0.45rem;
+    background: var(--erp-auth-primary) !important;
+    box-shadow: 0 3px 8px rgb(36 87 167 / 16%);
+    font-weight: 650;
+    letter-spacing: 0.015em;
+    transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.erp-guest-shell button[type="submit"]:hover { background: #1d4f91 !important; }
+
+.erp-guest-shell a[aria-current="true"] {
+    background: var(--erp-auth-primary) !important;
+    color: #fff !important;
+}
+
+.erp-guest-shell a:focus-visible,
+.erp-guest-shell button:focus-visible {
+    outline: 2px solid #6b93ce;
+    outline-offset: 2px;
+}
+
+.erp-guest-shell [role="alert"] {
+    border-color: var(--erp-auth-line);
+    border-radius: 0.45rem;
+}

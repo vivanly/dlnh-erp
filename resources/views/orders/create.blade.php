@@ -28,7 +28,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                         <div>
                             <label class="block text-xs font-semibold text-slate-800 mb-1">Mã Đơn Hàng <span class="text-rose-500">*</span></label>
-                            <input type="text" name="order_code" value="{{ old('order_code', $suggestedCode ?? '') }}" required class="w-full text-xs border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 font-mono font-bold bg-slate-50 text-slate-900">
+                            <input type="text" id="order_code" name="order_code" value="{{ old('order_code', $suggestedCode ?? '') }}" required class="w-full text-xs border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 font-mono font-bold bg-slate-50 text-slate-900">
                             @error('order_code') <span class="text-rose-500 text-[11px] mt-0.5 block">{{ $message }}</span> @enderror
                         </div>
 
@@ -52,18 +52,18 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-slate-800 mb-1">Loại Đơn Hàng <span class="text-rose-500">*</span></label>
-                            <select name="order_type" required class="w-full text-xs font-medium border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 text-slate-900 bg-white">
+                            <select name="order_type" id="order_type" required class="w-full text-xs font-medium border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 text-slate-900 bg-white">
                                 <option value="">-- Chọn loại đơn hàng --</option>
-                                <option value="DL" {{ old('order_type', 'DL') == 'DL' ? 'selected' : '' }}>Dược Liệu</option>
-                                <option value="VT" {{ old('order_type') == 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
-                                <option value="NL" {{ old('order_type') == 'NL' ? 'selected' : '' }}>Nguyên Liệu Thô</option>
+                                <option value="DL" {{ old('order_type', $orderType ?? 'DL') == 'DL' ? 'selected' : '' }}>Dược Liệu</option>
+                                <option value="VT" {{ old('order_type', $orderType ?? '') == 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
+                                <option value="NL" {{ old('order_type', $orderType ?? '') == 'NL' ? 'selected' : '' }}>Nguyên Liệu Thô</option>
                             </select>
                                 @error('order_type') <span class="text-rose-500 text-[11px] mt-0.5 block">{{ $message }}</span> @enderror
                         </div>
 
                         <div>
                             <label class="block text-xs font-semibold text-slate-800 mb-1">Ngày Nhận Đơn <span class="text-rose-500">*</span></label>
-                            <input type="date" name="order_date" value="{{ old('order_date', date('Y-m-d')) }}" required class="w-full text-xs font-semibold border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 font-mono text-slate-900">
+                            <input type="date" name="order_date" id="order_date" value="{{ old('order_date', $orderDate ?? date('Y-m-d')) }}" required class="w-full text-xs font-semibold border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 font-mono text-slate-900">
                         </div>
 
                         <div>
@@ -166,7 +166,21 @@
 
     @push('scripts')
     <script>
-        $(document).ready(function() {$('#customer_select').autocompleteSelect({
+        $(document).ready(function() {
+            let codeRequest = 0;
+            function refreshSuggestedCode() {
+                const orderType = $('#order_type').val();
+                const orderDate = $('#order_date').val();
+                if (!orderType || !orderDate) return;
+                const requestId = ++codeRequest;
+                $.get('{{ route("orders.suggested-code") }}', { order_type: orderType, order_date: orderDate })
+                    .done(function (response) {
+                        if (requestId === codeRequest) $('#order_code').val(response.code);
+                    });
+            }
+            $('#order_type, #order_date').on('change', refreshSuggestedCode);
+
+            $('#customer_select').autocompleteSelect({
                 theme: 'bootstrap-5',
                 placeholder: '-- Chọn hoặc tìm khách hàng --',
                 allowClear: true,

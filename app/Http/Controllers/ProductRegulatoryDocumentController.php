@@ -45,7 +45,7 @@ class ProductRegulatoryDocumentController extends Controller
     {
         $this->authorizeQa();
 
-        $products = Product::orderBy('name')->get(['id', 'name', 'sku', 'classification']);
+        $products = Product::orderBy('name')->get(['id', 'name', 'sku', 'classification', 'origin']);
         $classifications = $products->pluck('classification')->filter()->unique()->sort()->values();
         $selectedProductId = $request->integer('product_id') ?: null;
 
@@ -67,7 +67,7 @@ class ProductRegulatoryDocumentController extends Controller
     {
         $this->authorizeQa();
 
-        $products = Product::orderBy('name')->get(['id', 'name', 'sku', 'classification']);
+        $products = Product::orderBy('name')->get(['id', 'name', 'sku', 'classification', 'origin']);
         $classifications = $products->pluck('classification')->filter()->unique()->sort()->values();
 
         return view('product-regulatory-documents.edit', compact('productRegulatoryDocument', 'products', 'classifications'));

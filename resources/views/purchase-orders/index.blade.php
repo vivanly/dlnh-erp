@@ -50,13 +50,27 @@
             @endif
 
             <!-- THANH TÌM KIẾM & BỘ LỌC NHANH -->
-            <div class="bg-white border border-slate-300 rounded-none p-3 shadow-none">
-                <form action="{{ route('purchase-orders.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                    <div>
+            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <div class="mb-3">
+                    <h3 class="text-sm font-bold text-slate-800">Tìm kiếm và lọc đơn mua hàng</h3>
+                    <p class="mt-0.5 text-xs text-slate-500">Lọc theo nhóm hàng, trạng thái hoặc thông tin đơn mua.</p>
+                </div>
+                <form action="{{ route('purchase-orders.index') }}" method="GET" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 xl:items-end">
+                    <div class="xl:col-span-2">
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">Từ khóa</label>
                         <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo mã PO, nhà cung cấp..." class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none py-1.5">
                     </div>
                     <div>
-                        <select name="status" class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none py-1.5">
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">Loại đơn mua hàng</label>
+                        <select name="item_type" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                            <option value="">-- Tất cả nhóm hàng --</option>
+                            <option value="raw_material" {{ request('item_type') === 'raw_material' ? 'selected' : '' }}>Nguyên liệu thô</option>
+                            <option value="accessory" {{ request('item_type') === 'accessory' ? 'selected' : '' }}>Phụ liệu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-semibold text-slate-600">Trạng thái</label>
+                        <select name="status" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
                             <option value="">-- Tất cả trạng thái --</option>
                             <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Khởi tạo / Nháp</option>
                             <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Chờ duyệt</option>
@@ -66,13 +80,13 @@
                             <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Bị từ chối</option>
                         </select>
                     </div>
-                    <div class="flex items-center gap-2 sm:col-span-2 justify-end">
-                        <button type="submit" class="px-3 py-1.5 bg-slate-700 text-white text-xs uppercase font-bold rounded-none hover:bg-slate-800 transition">
+                    <div class="flex items-center justify-end gap-2 md:col-span-2 xl:col-span-4">
+                        <a href="{{ route('purchase-orders.index') }}" class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
+                            Xóa bộ lọc
+                        </a>
+                        <button type="submit" class="inline-flex items-center justify-center rounded-md bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                             Lọc dữ liệu
                         </button>
-                        <a href="{{ route('purchase-orders.index') }}" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs uppercase font-bold rounded-none hover:bg-slate-300 transition">
-                            Đặt lại
-                        </a>
                     </div>
                 </form>
             </div>

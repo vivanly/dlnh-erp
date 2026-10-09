@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\Customer;
 use App\Models\Ppcb;
 use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionMonthlyPlan;
@@ -51,6 +52,10 @@ class OrderController extends Controller
         // Lọc theo trạng thái
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));
+        }
+
+        if ($request->filled('order_type') && in_array($request->input('order_type'), ['DL', 'VT', 'NL'], true)) {
+            $query->where('order_type', $request->input('order_type'));
         }
 
         $orders = $query->paginate($this->perPage($request))->withQueryString();
@@ -335,9 +340,33 @@ class OrderController extends Controller
         ), 403);
 
         // Gợi ý mã đơn hàng tự động theo định dạng ĐH-YYYYMMDD-XXXX
-        $suggestedCode = 'DH-'.date('Ymd').'-'.rand(100, 999);
+        $orderType = request('order_type', 'DL');
+        $orderDate = request('order_date', now()->toDateString());
+        $suggestedCode = $this->suggestOrderCode($orderType, $orderDate);
 
-        return view('orders.create', compact('suggestedCode'));
+        return view('orders.create', compact('suggestedCode', 'orderType', 'orderDate'));
+    }
+
+    public function suggestedCode(Request $request)
+    {
+        $validated = $request->validate([
+            'order_type' => ['required', 'in:DL,VT,NL'],
+            'order_date' => ['required', 'date_format:Y-m-d'],
+        ]);
+
+        return response()->json(['code' => $this->suggestOrderCode($validated['order_type'], $validated['order_date'])]);
+    }
+
+    private function suggestOrderCode(string $orderType, string $orderDate): string
+    {
+        abort_unless(in_array($orderType, ['DL', 'VT', 'NL'], true), 422);
+        $prefix = $orderType.'-'.Carbon::parse($orderDate)->format('Ymd').'-';
+        $next = Order::where('order_code', 'like', $prefix.'%')
+            ->pluck('order_code')
+            ->map(fn ($code) => preg_match('/^'.preg_quote($prefix, '/').'([0-9]+)$/', $code, $matches) ? (int) $matches[1] : 0)
+            ->max() + 1;
+
+        return $prefix.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -363,7 +392,15 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'order_code' => 'required|unique:orders,order_code',
-            'customer_id' => 'required|exists:customers,id',
+            'customer_id' => [
+                'required',
+                'exists:customers,id',
+                function ($attribute, $value, $fail) {
+                    if (! Customer::whereKey($value)->where('is_active', true)->exists()) {
+                        $fail('Không thể tạo đơn mới cho khách hàng đang không hoạt động.');
+                    }
+                },
+            ],
             'order_type' => 'required|string',
             'order_date' => 'required|date',
             'delivery_date' => 'required|date',
@@ -666,7 +703,16 @@ class OrderController extends Controller
             // ==========================================
             $validated = $request->validate([
                 'order_code' => 'required|unique:orders,order_code,'.$order->id,
-                'customer_id' => 'required|exists:customers,id',
+                'customer_id' => [
+                    'required',
+                    'exists:customers,id',
+                    function ($attribute, $value, $fail) use ($order) {
+                        $isSameCustomer = (int) $value === (int) $order->customer_id;
+                        if (! $isSameCustomer && ! Customer::whereKey($value)->where('is_active', true)->exists()) {
+                            $fail('Không thể chuyển đơn sang khách hàng đang không hoạt động.');
+                        }
+                    },
+                ],
                 'order_type' => 'required|string',
                 'order_date' => 'required|date',
                 'delivery_date' => 'required|date',

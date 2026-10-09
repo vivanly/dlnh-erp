@@ -70,6 +70,10 @@ class PurchaseOrderController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('item_type') && in_array($request->input('item_type'), ['raw_material', 'accessory'], true)) {
+            $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('material_type', $request->input('item_type')));
+        }
+
         // Giữ nguyên tham số bộ lọc khi phân trang
         $purchaseOrders = $query->paginate($this->perPage($request))->appends($request->query());
             
@@ -117,7 +121,15 @@ class PurchaseOrderController extends Controller
 
         $request->validate([
             'po_number' => 'required|string|max:50|unique:purchase_orders,po_number',
-            'supplier_id' => 'required|exists:suppliers,id',
+            'supplier_id' => [
+                'required',
+                'exists:suppliers,id',
+                function ($attribute, $value, $fail) {
+                    if (! Supplier::whereKey($value)->where('is_active', true)->exists()) {
+                        $fail('Không thể tạo đơn mua mới cho nhà cung cấp đang không hoạt động.');
+                    }
+                },
+            ],
             'order_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
@@ -207,11 +219,21 @@ class PurchaseOrderController extends Controller
             return redirect()->route('purchase-orders.index')->with('error', 'Chỉ bộ phận Kinh doanh hoặc IT mới có quyền chỉnh sửa đơn mua hàng.');
         }
         
+        $purchaseOrder = PurchaseOrder::findOrFail($id);
         $this->normalizeItems($request);
 
         $request->validate([
             'po_number' => 'required|string|max:50|unique:purchase_orders,po_number,' . $id,
-            'supplier_id' => 'required|exists:suppliers,id',
+            'supplier_id' => [
+                'required',
+                'exists:suppliers,id',
+                function ($attribute, $value, $fail) use ($purchaseOrder) {
+                    $isSameSupplier = (int) $value === (int) $purchaseOrder->supplier_id;
+                    if (! $isSameSupplier && ! Supplier::whereKey($value)->where('is_active', true)->exists()) {
+                        $fail('Không thể đổi đơn sang nhà cung cấp đang không hoạt động.');
+                    }
+                },
+            ],
             'order_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
@@ -229,8 +251,6 @@ class PurchaseOrderController extends Controller
 
         try {
             DB::beginTransaction();
-
-            $purchaseOrder = PurchaseOrder::findOrFail($id);
 
             if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true) && !$this->isItOrAdminPermission()) {
                 DB::rollBack();
