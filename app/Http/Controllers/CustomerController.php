@@ -64,9 +64,14 @@ class CustomerController extends Controller
         abort_unless($this->canManageCustomers(), 403);
 
         $validated = $request->validate([
-            'code' => 'required|unique:customers,code',
+            'code' => 'required|string|max:255|unique:customers,code',
             'name' => 'required|string|max:255',
-            'type' => 'required|string',
+            'type' => 'required|string|max:255',
+            'license_number' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string|max:5000',
+            'note' => 'nullable|string|max:5000',
         ], [
             'code.required' => 'Vui lòng nhập mã khách hàng.',
             'code.unique' => 'Mã khách hàng này đã tồn tại.',
@@ -93,13 +98,19 @@ class CustomerController extends Controller
         abort_unless($this->canManageCustomers(), 403);
 
         $validated = $request->validate([
-            'code' => 'required|unique:customers,code,' . $customer->id,
+            'code' => 'required|string|max:255|unique:customers,code,' . $customer->id,
             'name' => 'required|string|max:255',
-            'type' => 'required|string',
+            'type' => 'required|string|max:255',
+            'license_number' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'address' => 'nullable|string',
+            'note' => 'nullable|string',
         ], [
             'code.required' => 'Vui lòng nhập mã khách hàng.',
             'code.unique' => 'Mã khách hàng này đã tồn tại.',
             'name.required' => 'Vui lòng nhập tên khách hàng.',
+            'email.email' => 'Vui lòng nhập địa chỉ email hợp lệ.',
         ]);
 
         $customer->update($validated);

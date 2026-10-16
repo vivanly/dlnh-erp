@@ -23,8 +23,7 @@
                     <tbody class="divide-y divide-slate-200">
                         @forelse($batches as $batch)
                             @php
-                                $usesAllocationCapacity = $batch->order_allocations_count > 0
-                                    || ($batch->production_order_id && ! $batch->productionOrder?->monthlyPlanLine);
+                                $usesAllocationCapacity = $batch->production_order_id && $batch->orderAllocations->contains(fn ($allocation) => ! $allocation->productionOrder?->monthlyPlanLine && ! $allocation->is_receipt_linked && (float) $allocation->quantity > (float) $allocation->received_quantity + 0.000001);
                                 $authorizedQuantity = $usesAllocationCapacity
                                     ? min((float) $batch->planned_quantity, (float) $batch->initial_quantity)
                                     : (float) $batch->planned_quantity;
@@ -35,43 +34,33 @@
                             @endphp
                             <tr>
                                 <td class="p-2.5"><strong class="font-mono">{{ $batch->batch_number }}</strong><span class="block">{{ $batch->product->name }}</span><span class="block text-[10px] text-slate-500">{{ str_contains(strtoupper((string) $batch->product->classification), 'VT') ? 'Thành phẩm · vị thuốc' : 'Bán thành phẩm · dược liệu đã sơ chế' }}</span></td>
-                                <td class="p-2.5 font-mono">@if($batch->orderAllocations->isNotEmpty()) @foreach($batch->orderAllocations as $allocation)<span class="block">{{ $allocation->productionOrder?->production_code }} · {{ number_format((float) $allocation->quantity, 4) }} {{ $batch->unit }}</span>@endforeach @elseif($batch->productionOrder) {{ $batch->productionOrder->production_code }} @else QA-created independent lot @endif</td>
-                                <td class="p-2.5 text-right font-mono">{{ number_format($maxReceivableQuantity, 4) }} {{ $batch->unit }}<span class="block text-[10px] text-slate-500">Cỡ lô {{ number_format((float) $batch->planned_quantity, 4) }} · đã nhập {{ number_format((float) $batch->current_quantity, 4) }}</span></td>
+                                <td class="p-2.5 font-mono">@if($batch->orderAllocations->isNotEmpty()) @foreach($batch->orderAllocations as $allocation)<span class="block">{{ $allocation->productionOrder?->production_code }} · {{ number_format((float) $allocation->received_quantity, 4) }} / {{ number_format((float) $allocation->quantity, 4) }} {{ $batch->unit }} đã nhập / phân bổ</span>@endforeach @elseif($batch->productionOrder) {{ $batch->productionOrder->production_code }} @else QA-created independent lot @endif</td>
+                                <td class="p-2.5 text-right font-mono">{{ number_format($maxReceivableQuantity, 4) }} {{ $batch->unit }}<span class="block text-[10px] text-slate-500">Cỡ lô {{ number_format((float) $batch->planned_quantity, 4) }} · đã nhập {{ number_format((float) $batch->received_quantity, 4) }}</span></td>
                                 <td class="p-2.5">
                                     <span class="block {{ $batch->qc_result === 'passed' ? 'text-emerald-700' : ($batch->qc_result === 'failed' ? 'text-rose-700' : 'text-slate-500') }}">{{ $batch->qc_result === 'passed' ? 'PKN Đạt' : ($batch->qc_result === 'failed' ? 'PKN Không đạt' : 'Chờ QC · không chặn nhập kho') }}</span>
                                 </td>
                                 <td class="p-2.5">
                                     @if($canManageWarehouse)
                                         @php
-                                            $eligibleMonthlyOrders = $monthlyProductionOrders->filter(fn ($order) => (int) $order->product_id === (int) $batch->product_id);
-                                            $linkedMonthlyOrder = $batch->productionOrder?->monthlyPlanLine ? $batch->productionOrder : null;
-                                            $canLinkMonthlyOrder = $batch->production_order_id === null
-                                                && (float) $batch->initial_quantity <= 0.000001
-                                                && ! $batch->warehouse_received_at
-                                                && $batch->sales_order_allocations_count === 0
-                                                && $batch->inputs_count === 0
-                                                && $batch->inventory_movements_count === 0
-                                                && $batch->order_allocations_count === 0;
+                                            $eligibleProductionOrders = $productionOrders->filter(fn ($order) => (int) $order->product_id === (int) $batch->product_id && (float) $order->warehouse_remaining_quantity > 0);
                                         @endphp
                                         <form method="POST" action="{{ route('warehouse.production-batches.receive', $batch) }}" class="flex min-w-56 flex-col items-start gap-2" onsubmit="return confirm('Xác nhận nhập số lượng thực tế đã khai báo?');">
                                             @csrf
-                                            @if($canLinkMonthlyOrder || $linkedMonthlyOrder)
-                                                @if($eligibleMonthlyOrders->isNotEmpty() || $linkedMonthlyOrder)
-                                                    <label class="w-full text-[10px] font-semibold text-slate-600">Lệnh kế hoạch tháng (nếu có)
-                                                        <select name="production_order_id" class="mt-1 w-full border-slate-300 py-1 text-[10px]">
-                                                            <option value="">Không gắn kế hoạch tháng</option>
-                                                            @foreach($eligibleMonthlyOrders as $order)
-                                                                <option value="{{ $order->id }}" @selected((int) $batch->production_order_id === (int) $order->id)>{{ $order->production_code }} · {{ $order->monthlyPlanLine->plan->plan_month->format('m/Y') }} · Còn {{ number_format((float) $order->pending_finished_quantity, 4) }} {{ $order->unit }}</option>
+                                                    <label class="w-full text-[10px] font-semibold text-slate-600">Lệnh sản xuất (ngày / tháng)
+                                                        <select name="production_order_id" required class="mt-1 w-full border-slate-300 py-1 text-[10px]">
+                                                            <option value="">Chọn lệnh sản xuất</option>
+                                                            @foreach($eligibleProductionOrders as $order)
+                                                                @php
+                                                                    $batchOrderAllocation = $batch->orderAllocations->firstWhere('production_order_id', $order->id);
+                                                                    $orderRemainingForBatch = $batchOrderAllocation && ! $batchOrderAllocation->is_receipt_linked ? max(0, (float) $batchOrderAllocation->quantity - (float) $batchOrderAllocation->received_quantity) : (float) $order->warehouse_remaining_quantity;
+                                                                    $choiceRemaining = min((float) $order->warehouse_remaining_quantity, $orderRemainingForBatch);
+                                                                @endphp
+                                                                <option value="{{ $order->id }}" data-remaining="{{ $choiceRemaining }}" @selected((int) $batch->production_order_id === (int) $order->id || ($batch->orderAllocations->count() === 1 && (int) $batch->orderAllocations->first()->production_order_id === (int) $order->id))>{{ $order->production_code }} · {{ $order->monthlyPlanLine?->plan?->plan_month?->format('m/Y') ?? optional($order->completed_at)->format('d/m/Y') }} · Còn {{ number_format($choiceRemaining, 4) }} {{ $order->unit }}</option>
                                                             @endforeach
-                                                            @if($linkedMonthlyOrder && !$eligibleMonthlyOrders->contains('id', $linkedMonthlyOrder->id))
-                                                                <option value="{{ $linkedMonthlyOrder->id }}" selected>{{ $linkedMonthlyOrder->production_code }} · {{ $linkedMonthlyOrder->monthlyPlanLine->plan->plan_month->format('m/Y') }} · Đã liên kết</option>
-                                                            @endif
                                                         </select>
                                                     </label>
-                                                @endif
-                                            @endif
                                             <div class="flex items-center gap-2">
-                                                <input type="number" name="received_quantity" min="0.0001" max="{{ $maxReceivableQuantity }}" step="0.0001" placeholder="Tối đa {{ number_format($maxReceivableQuantity, 4) }}" required @disabled($maxReceivableQuantity <= 0) class="w-32 border-slate-300 text-right font-mono text-xs">
+                                                <input type="number" name="received_quantity" min="0.0001" max="{{ $maxReceivableQuantity }}" data-batch-max="{{ $maxReceivableQuantity }}" step="0.0001" placeholder="Tối đa {{ number_format($maxReceivableQuantity, 4) }}" required @disabled($maxReceivableQuantity <= 0) class="w-32 border-slate-300 text-right font-mono text-xs">
                                                 <button class="whitespace-nowrap bg-emerald-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white">Nhập kho</button>
                                             </div>
                                         </form>
@@ -92,4 +81,19 @@
             </div>
         </div>
     </div>
+    <script>
+        document.querySelectorAll('select[name="production_order_id"]').forEach((select) => {
+            const form = select.closest('form');
+            const quantity = form?.querySelector('input[name="received_quantity"]');
+            const updateMaximum = () => {
+                if (!quantity) return;
+                const batchMaximum = Number(quantity.dataset.batchMax || 0);
+                const orderMaximum = Number(select.selectedOptions[0]?.dataset.remaining || batchMaximum);
+                quantity.max = Math.min(batchMaximum, orderMaximum).toFixed(4);
+                quantity.placeholder = `Tối đa ${quantity.max}`;
+            };
+            select.addEventListener('change', updateMaximum);
+            updateMaximum();
+        });
+    </script>
 </x-app-layout>

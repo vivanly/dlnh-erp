@@ -273,7 +273,7 @@ class ProductionWarehouseFlowTest extends TestCase
             $pendingQuantity = (float) $batch->pending_warehouse_quantity;
             $firstReceipt = $pendingQuantity / 2;
             $this->actingAs($warehouseUser)
-                ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => $firstReceipt])
+                ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => $firstReceipt, 'production_order_id' => $productionOrder->id])
                 ->assertRedirect()
                 ->assertSessionHas('success');
             $this->assertEquals($firstReceipt, $batch->fresh()->current_quantity);
@@ -281,14 +281,14 @@ class ProductionWarehouseFlowTest extends TestCase
             $remainingQuantity = $pendingQuantity - $firstReceipt;
 
             $this->actingAs($warehouseUser)
-                ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => $remainingQuantity + 0.0001])
+                ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => $remainingQuantity + 0.0001, 'production_order_id' => $productionOrder->id])
                 ->assertRedirect()
                 ->assertSessionHas('error');
             $this->assertEquals($firstReceipt, $batch->fresh()->current_quantity);
             $this->assertEquals($remainingQuantity, $batch->fresh()->pending_warehouse_quantity);
 
             $this->actingAs($warehouseUser)
-                ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => $remainingQuantity])
+                ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => $remainingQuantity, 'production_order_id' => $productionOrder->id])
                 ->assertRedirect()
                 ->assertSessionHas('success');
         }

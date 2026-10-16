@@ -53,6 +53,9 @@
         .slot { width: 141.5mm; height: 97.5mm; }
         .label { position: relative; width: 141.5mm; height: 97.5mm; display: grid; border: 1mm double #000; line-height: 1.12; overflow: hidden; }
         .label > div { min-width: 0; min-height: 0; overflow: hidden; padding: .25mm .7mm; }
+        .watermark { position: absolute; inset: 0; z-index: 0; display: flex; align-items: center; justify-content: center; padding: 0 !important; pointer-events: none; }
+        .watermark img { width: 100%; height: 100%; object-fit: fill; opacity: .30; }
+        .label > div:not(.watermark) { position: relative; z-index: 1; }
         .box-top { border-top: .25mm solid #000; }
         .box-v { border-left: .25mm solid #000; }
         .b { font-weight: bold; }
@@ -81,6 +84,7 @@
             @endphp
             <div class="slot">
                 <div class="label" style="grid-template-columns: {{ $gridColumns }}; grid-template-rows: {{ $gridRows }}; font-family: {{ $t['font'] }}; font-size: {{ $t['size'] }}pt;">
+                    @if(!empty($watermark))<div class="watermark"><img src="{{ asset('images/nhan.svg') }}" alt=""></div>@endif
                     {{-- Đường kẻ và khung --}}
                     <div class="box-top box-v" style="grid-column: 14 / 21; grid-row: 4 / 11; padding: 0;"></div>
                     <div class="box-top box-v" style="grid-column: 14 / 21; grid-row: 11 / 14; padding: 0;"></div>

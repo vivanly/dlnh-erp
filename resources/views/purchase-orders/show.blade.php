@@ -24,7 +24,7 @@
                     Quay lại
                 </a>
                 <!-- Cho phép chỉnh sửa khi ở trạng thái Nháp hoặc Bị từ chối -->
-                @if(in_array($purchaseOrder->status, ['draft', 'rejected'], true) || $canManageLockedPurchaseOrders)
+                @if(in_array($purchaseOrder->status, ['draft', 'rejected'], true))
                     <a href="{{ route('purchase-orders.edit', $purchaseOrder->id) }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 border border-amber-600 rounded-none font-bold text-xs text-white uppercase hover:bg-amber-600 transition">
                         Chỉnh sửa đơn
                     </a>

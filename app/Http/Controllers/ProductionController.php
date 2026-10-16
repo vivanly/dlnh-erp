@@ -112,7 +112,6 @@ class ProductionController extends Controller
         $batches = ProductionFinishedBatch::with(['product', 'productionOrder.order', 'orderAllocations.productionOrder', 'ppcb'])
             ->where('status', 'active')
             ->whereNotNull('warehouse_received_at')
-            ->where('pending_warehouse_quantity', '<=', 0.000001)
             ->where(function ($query) {
                 $query->whereNull('qc_test_report_file')->orWhere('qc_result', 'failed');
             })
@@ -186,6 +185,7 @@ class ProductionController extends Controller
 
         $batches = ProductionFinishedBatch::with(['product', 'productionOrder', 'orderAllocations.productionOrder', 'ppcb'])
             ->withCount(['salesOrderAllocations', 'inventoryMovements', 'inputs', 'codeHistories'])
+            ->withSum(['inventoryMovements as received_quantity' => fn ($query) => $query->where('direction', 'in')], 'quantity')
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
                 $query->where(function ($subQuery) use ($search) {
@@ -207,6 +207,16 @@ class ProductionController extends Controller
 
         foreach ($batches as $batch) {
             $batch->setAttribute('can_delete', $this->canDeleteInternalLot($batch));
+            if (! $batch->production_order_id) {
+                $receivedQuantity = (float) $batch->received_quantity;
+                if ($receivedQuantity <= 0.000001 && $batch->warehouse_received_at) {
+                    $receivedQuantity = (float) $batch->initial_quantity;
+                }
+                $batch->setAttribute('pending_warehouse_quantity', max(
+                    0,
+                    (float) $batch->planned_quantity - $receivedQuantity,
+                ));
+            }
         }
 
         $availableProductionOrders = ProductionOrder::with('product')
@@ -424,7 +434,7 @@ class ProductionController extends Controller
         $batch->update([
             'production_order_id' => $newAllocations->count() === 1 ? $newAllocations->keys()->first() : null,
             'initial_quantity' => $newTotal,
-            'pending_warehouse_quantity' => $newTotal > 0 ? $newTotal : $batch->planned_quantity,
+            'pending_warehouse_quantity' => $batch->planned_quantity,
         ]);
     }
 
@@ -508,7 +518,7 @@ class ProductionController extends Controller
 
                 $batch->update([
                     'initial_quantity' => $allocationTotal,
-                    'pending_warehouse_quantity' => $allocationTotal > 0 ? $allocationTotal : $capacity,
+                    'pending_warehouse_quantity' => $capacity,
                 ]);
             });
         } catch (DomainException $exception) {
@@ -560,7 +570,11 @@ class ProductionController extends Controller
                 );
                 $batch->update([
                     'initial_quantity' => (float) $batch->initial_quantity + $quantity,
-                    'pending_warehouse_quantity' => (float) $batch->pending_warehouse_quantity + $quantity,
+                    'pending_warehouse_quantity' => max(
+                        0,
+                        (float) $batch->planned_quantity
+                            - (float) $batch->inventoryMovements()->where('direction', 'in')->sum('quantity'),
+                    ),
                     'status' => $batch->warehouse_received_at ? 'active' : 'pending_qa',
                 ]);
                 $order->decrement('pending_finished_quantity', $quantity);
@@ -661,9 +675,6 @@ class ProductionController extends Controller
                 $batch = ProductionFinishedBatch::whereKey($productionFinishedBatch->id)->lockForUpdate()->firstOrFail();
                 if ($batch->status !== 'active' || ! $batch->warehouse_received_at) {
                     throw new DomainException('QC chỉ kiểm nghiệm lô sau khi Kho đã nhập thành phẩm.');
-                }
-                if ((float) $batch->pending_warehouse_quantity > 0.000001) {
-                    throw new DomainException('QC chỉ được duyệt sau khi Kho nhập đủ sản lượng đã phân bổ cho lô.');
                 }
 
                 $reportPath = $request->file('qc_test_report_file')->store('qc-reports', 'local');

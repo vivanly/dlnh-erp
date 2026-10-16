@@ -180,6 +180,7 @@
             }
             $('#order_type, #order_date').on('change', refreshSuggestedCode);
 
+            const customerDetails = new Map();
             $('#customer_select').autocompleteSelect({
                 theme: 'bootstrap-5',
                 placeholder: '-- Chọn hoặc tìm khách hàng --',
@@ -192,20 +193,24 @@
                     processResults: function (data) {
                         let resultsArray = Array.isArray(data) ? data : [data];
                         return {
-                            results: resultsArray.map(item => ({
-                                id: item.id,
-                                text: item.text,
-                                code: item.code,
-                                address: item.address
-                            }))
+                            results: resultsArray.map(item => {
+                                const customer = {
+                                    id: item.id,
+                                    text: item.text,
+                                    code: item.code,
+                                    address: item.address
+                                };
+                                customerDetails.set(String(customer.id), customer);
+                                return customer;
+                            })
                         };
                     },
                     cache: true
                 }
-            }).on('autocomplete:select', function(e) {
-                let data = e.params.data;
-                $('#customer_code').val(data.code ? data.code : '');
-                $('#customer_address').val(data.address ? data.address : '');
+            }).on('change', function() {
+                const data = customerDetails.get(String(this.value));
+                $('#customer_code').val(data?.code || '');
+                $('#customer_address').val(data?.address || '');
             }).on('autocomplete:clear', function() {
                 $('#customer_code').val('');
                 $('#customer_address').val('');

@@ -33,8 +33,12 @@
                                     @if($canManage && $item->returnable > 0)
                                         <form method="POST" action="{{ route('supplier-returns.store', $item) }}" class="grid grid-cols-2 gap-1 min-w-[320px]">
                                             @csrf
-                                            @if($item->material_type === 'accessory')<input type="hidden" name="batch_number" value="">@else<select name="batch_number" required class="col-span-2 text-[10px] border-slate-300 py-1">@foreach($item->lots->where('returnable', '>', 0) as $lot)<option value="{{ $lot->batch }}">Lô {{ $lot->batch ?: '---' }} · trả được {{ number_format($lot->returnable, 2) }}</option>@endforeach</select>@endif
-                                            <input type="number" step="0.0001" min="0.0001" max="{{ $item->returnable }}" name="quantity" required placeholder="Số lượng trả" class="text-[10px] border-slate-300 py-1">
+                                            <select name="material_lot_id" required class="col-span-2 text-[10px] border-slate-300 py-1">
+    @foreach($item->lots->where('returnable', '>', 0) as $lot)
+        <option value="{{ $lot->id }}" data-returnable="{{ $lot->returnable }}">{{ $lot->batch }} - returnable {{ number_format($lot->returnable, 2) }} - {{ $lot->qc_note }}</option>
+    @endforeach
+</select>
+                                            <input type="number" step="0.0001" min="0.0001" max="{{ $item->lots->where('returnable', '>', 0)->first()->returnable }}" name="quantity" data-return-quantity required placeholder="Số lượng trả" class="text-[10px] border-slate-300 py-1">
                                             <input type="date" name="qc_date" required value="{{ today()->toDateString() }}" class="text-[10px] border-slate-300 py-1">
                                             <input name="qc_test_report" required maxlength="255" placeholder="Số phiếu kiểm nghiệm" class="text-[10px] border-slate-300 py-1">
                                             <input name="reason" required maxlength="1000" placeholder="Lý do trả" class="text-[10px] border-slate-300 py-1">
@@ -86,4 +90,15 @@
             </section>
         </div>
     </div>
+<script>
+document.querySelectorAll('select[name="material_lot_id"]').forEach((select) => {
+    const quantity = select.closest('form')?.querySelector('input[data-return-quantity]');
+    const updateMaximum = () => {
+        const maximum = Number(select.selectedOptions[0]?.dataset.returnable || 0);
+        if (quantity) quantity.max = maximum.toFixed(4);
+    };
+    select.addEventListener('change', updateMaximum);
+    updateMaximum();
+});
+</script>
 </x-app-layout>

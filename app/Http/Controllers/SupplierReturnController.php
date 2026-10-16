@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\MaterialStockMovement;
+use App\Models\MaterialLot;
 use App\Models\PurchaseOrderItem;
 use App\Models\SupplierReturnOrder;
 use DomainException;
@@ -18,49 +18,54 @@ class SupplierReturnController extends Controller
         return $user && ($user->isQCDepartment() || $user->isQADepartment() || $user->isWarehouseDepartment() || $user->isWarehouseManager() || $user->isITDepartment());
     }
 
-    private function returnedQuantity(int $itemId): float
+    private function failedLots(PurchaseOrderItem $item)
     {
-        return (float) SupplierReturnOrder::where('purchase_order_item_id', $itemId)->sum('quantity');
+        return MaterialLot::query()
+            ->where('purchase_order_item_id', $item->id)
+            ->where('status', 'rejected')
+            ->orderBy('id')
+            ->get()
+            ->map(function (MaterialLot $lot) {
+                $returned = (float) SupplierReturnOrder::where('material_lot_id', $lot->id)->sum('quantity');
+
+                return (object) [
+                    'id' => $lot->id,
+                    'batch' => $lot->batch_number ?: 'Lô nhập #' . $lot->id,
+                    'received' => (float) $lot->quantity,
+                    'returned' => $returned,
+                    'returnable' => max(0, (float) $lot->quantity - $returned),
+                    'qc_note' => $lot->qc_note,
+                ];
+            });
     }
 
-    private function itemLots(PurchaseOrderItem $item)
-    {
-        $movements = $item->materialMovements()->whereIn('movement_type', ['RECEIVE_PURCHASE', 'RETURN_SUPPLIER'])->get()->groupBy(fn ($m) => (string) $m->batch_number);
-
-        return $movements->map(function ($group, $batch) use ($item) {
-            $received = (float) $group->where('movement_type', 'RECEIVE_PURCHASE')->sum('quantity');
-            $returned = (float) $group->where('movement_type', 'RETURN_SUPPLIER')->sum('quantity');
-            $balance = MaterialStockMovement::lotBalance($item->material_type, (int) $item->material_id, $batch);
-
-            return (object) ['batch' => $batch, 'received' => $received, 'returned' => $returned, 'returnable' => max(0, min($received - $returned, $balance))];
-        })->filter(fn ($lot) => $lot->received > 0)->values();
-    }
     public function index(Request $request)
     {
         abort_unless(auth()->check(), 403);
 
         $items = PurchaseOrderItem::with(['purchaseOrder.supplier', 'rawMaterial', 'accessory'])
             ->whereNotNull('material_type')
-            ->whereHas('materialMovements', fn ($q) => $q->where('movement_type', 'RECEIVE_PURCHASE'))
+            ->whereHas('materialLots', fn ($query) => $query->where('status', 'rejected'))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
-                $query->where(fn ($q) => $q->whereHas('purchaseOrder', fn ($po) => $po->where('po_number', 'like', "%{$search}%"))
-                    ->orWhereHas('rawMaterial', fn ($m) => $m->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
-                    ->orWhereHas('accessory', fn ($m) => $m->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")));
+                $query->where(fn ($subQuery) => $subQuery
+                    ->whereHas('purchaseOrder', fn ($po) => $po->where('po_number', 'like', "%{$search}%"))
+                    ->orWhereHas('rawMaterial', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
+                    ->orWhereHas('accessory', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")));
             })
             ->latest()
             ->paginate($this->perPage($request))
             ->withQueryString();
 
         $items->getCollection()->each(function (PurchaseOrderItem $item) {
-            $lots = $this->itemLots($item);
+            $lots = $this->failedLots($item);
             $item->setAttribute('lots', $lots);
             $item->setAttribute('received_total', $lots->sum('received'));
             $item->setAttribute('returned_total', $lots->sum('returned'));
             $item->setAttribute('returnable', $lots->sum('returnable'));
         });
 
-        $returnOrders = SupplierReturnOrder::with(['supplier', 'purchaseOrder'])
+        $returnOrders = SupplierReturnOrder::with(['supplier', 'purchaseOrder', 'materialLot'])
             ->latest()
             ->paginate($this->perPage($request), ['*'], 'returns_page')
             ->withQueryString();
@@ -75,7 +80,7 @@ class SupplierReturnController extends Controller
         abort_unless($this->canManage(), 403, 'Bạn không có quyền lập đơn trả nhà cung cấp.');
 
         $validated = $request->validate([
-            'batch_number' => ['nullable', 'string', 'max:255'],
+            'material_lot_id' => ['required', 'integer', 'exists:material_lots,id'],
             'quantity' => ['required', 'numeric', 'min:0.0001'],
             'reason' => ['required', 'string', 'max:1000'],
             'qc_test_report' => ['required', 'string', 'max:255'],
@@ -89,21 +94,26 @@ class SupplierReturnController extends Controller
                     throw new DomainException('Chỉ lập đơn trả cho nguyên liệu thô hoặc phụ liệu.');
                 }
 
-                $batch = (string) ($validated['batch_number'] ?? '');
-                $lot = $this->itemLots($item)->firstWhere('batch', $batch);
-                if (!$lot) {
-                    throw new DomainException('Lô/đợt nhập không thuộc dòng đơn mua này.');
+                $lot = MaterialLot::whereKey($validated['material_lot_id'])
+                    ->where('purchase_order_item_id', $item->id)
+                    ->lockForUpdate()
+                    ->first();
+                if (!$lot || $lot->status !== 'rejected') {
+                    throw new DomainException('Chỉ được trả lô đã được QC kết luận không đạt.');
                 }
-                $returnable = $lot->returnable;
+
+                $returned = (float) SupplierReturnOrder::where('material_lot_id', $lot->id)->sum('quantity');
+                $returnable = max(0, (float) $lot->quantity - $returned);
                 $quantity = (float) $validated['quantity'];
                 if ($quantity > $returnable + 0.0001) {
-                    throw new DomainException('Số lượng trả vượt quá lượng còn trả được của lô/đợt ' . ($batch ?: '---') . ' hoặc vượt tồn lô (' . number_format(max(0, $returnable), 4) . ').');
+                    throw new DomainException('Số lượng trả vượt quá lượng còn lại của lô QC không đạt (' . number_format($returnable, 4) . ').');
                 }
 
                 $returnOrder = SupplierReturnOrder::create([
                     'supplier_id' => $item->purchaseOrder->supplier_id,
                     'purchase_order_id' => $item->purchase_order_id,
                     'purchase_order_item_id' => $item->id,
+                    'material_lot_id' => $lot->id,
                     'material_type' => $item->material_type,
                     'material_id' => $item->material_id,
                     'quantity' => $quantity,
@@ -116,26 +126,13 @@ class SupplierReturnController extends Controller
                 ]);
                 $returnOrder->update(['return_code' => 'RTN-' . now()->format('Ymd') . '-' . str_pad((string) $returnOrder->id, 6, '0', STR_PAD_LEFT)]);
 
-                MaterialStockMovement::create([
-                    'material_type' => $item->material_type,
-                    'material_id' => $item->material_id,
-                    'movement_type' => 'RETURN_SUPPLIER',
-                    'direction' => 'out',
-                    'quantity' => $quantity,
-                    'unit' => $returnOrder->unit,
-                    'purchase_order_item_id' => $item->id,
-                    'batch_number' => $batch !== '' ? $batch : null,
-                    'user_id' => auth()->id(),
-                    'note' => $returnOrder->reason,
-                ]);
-
                 return $returnOrder;
             });
         } catch (DomainException $exception) {
             return back()->withInput()->with('error', $exception->getMessage());
         }
 
-        return back()->with('success', "Đã lập đơn trả {$returnOrder->return_code}; tồn kho đã được trừ.");
+        return back()->with('success', "Đã lập đơn trả {$returnOrder->return_code} cho lô QC không đạt.");
     }
 
     public function dispatch(SupplierReturnOrder $supplierReturnOrder)

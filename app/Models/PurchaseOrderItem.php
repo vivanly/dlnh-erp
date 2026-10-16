@@ -44,6 +44,11 @@ class PurchaseOrderItem extends Model
         return $this->belongsTo(Accessory::class, 'material_id');
     }
 
+    public function materialLots()
+    {
+        return $this->hasMany(MaterialLot::class, 'purchase_order_item_id');
+    }
+
     public static function catalogExists(string $type, int $id): bool
     {
         return match ($type) {

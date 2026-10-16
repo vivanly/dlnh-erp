@@ -46,8 +46,11 @@ class TraceabilityController extends Controller
                     'finishedBatches.inputs.materialLot.supplierBatch.goodsReceiptItem.purchaseOrderItem.purchaseOrder',
                     'finishedBatches.inputs.materialLot.material.product',
                     'finishedBatches.salesOrderAllocations.orderItem.order.customer',
+                    'allocatedFinishedBatches.inputs.materialLot.supplierBatch.product',
+                    'allocatedFinishedBatches.inputs.materialLot.material.product',
+                    'allocatedFinishedBatches.salesOrderAllocations.orderItem.order.customer',
                 ])->whereHas('materials.lots', fn ($query) => $query->where('supplier_batch_id', $traceBatch->id))->get();
-                $finishedBatches = $productionOrders->flatMap(fn ($order) => $order->finishedBatches)->unique('id')->values();
+                $finishedBatches = $productionOrders->flatMap(fn ($order) => $order->finishedBatches->merge($order->allocatedFinishedBatches))->unique('id')->values();
                 $materialInputs = $finishedBatches->flatMap(fn ($batch) => $batch->inputs)->unique('id')->values();
                 $salesAllocations = $traceBatch->salesOrderAllocations
                     ->merge($finishedBatches->flatMap(fn ($batch) => $batch->salesOrderAllocations))
@@ -64,11 +67,13 @@ class TraceabilityController extends Controller
                     'order.customer',
                     'finishedBatches.inputs.materialLot.material',
                     'finishedBatches.salesOrderAllocations.orderItem.order.customer',
+                    'allocatedFinishedBatches.inputs.materialLot.material',
+                    'allocatedFinishedBatches.salesOrderAllocations.orderItem.order.customer',
                 ])->whereHas('materials', fn ($material) => $material
                     ->where('material_type', $traceBatch->material_type)
                     ->where('material_id', $traceBatch->material_id)
                     ->whereHas('lots', fn ($lot) => $lot->where('batch_number', $traceBatch->batch_number)))->get();
-                $finishedBatches = $productionOrders->flatMap(fn ($order) => $order->finishedBatches)->unique('id')->values();
+                $finishedBatches = $productionOrders->flatMap(fn ($order) => $order->finishedBatches->merge($order->allocatedFinishedBatches))->unique('id')->values();
                 $salesAllocations = $finishedBatches->flatMap(fn ($batch) => $batch->salesOrderAllocations)->unique('id')->values();
             } else {
                 $traceBatch = ProductionFinishedBatch::with([
@@ -76,6 +81,8 @@ class TraceabilityController extends Controller
                     'codeHistories.changedBy',
                     'productionOrder.product',
                     'productionOrder.order.customer',
+                    'allocatedProductionOrders.product',
+                    'allocatedProductionOrders.order.customer',
                     'inputs.materialLot.supplierBatch.product',
                     'inputs.materialLot.supplierBatch.goodsReceiptItem.goodsReceipt.purchaseOrder.supplier',
                     'inputs.materialLot.supplierBatch.goodsReceiptItem.purchaseOrderItem.purchaseOrder',
@@ -95,7 +102,11 @@ class TraceabilityController extends Controller
 
                 if ($traceBatch) {
                     $traceabilityType = 'finished';
-                    $productionOrders = collect([$traceBatch->productionOrder])->filter()->values();
+                    $productionOrders = collect([$traceBatch->productionOrder])
+                        ->merge($traceBatch->allocatedProductionOrders)
+                        ->filter()
+                        ->unique('id')
+                        ->values();
                     $finishedBatches = collect([$traceBatch]);
                     $materialInputs = $traceBatch->inputs;
                     $salesAllocations = $traceBatch->salesOrderAllocations;

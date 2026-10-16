@@ -150,6 +150,7 @@ class LabelController extends Controller
             'storage' => 'nullable|array',
             'storage.*' => 'nullable|string|max:255',
             'preview' => 'nullable|boolean',
+            'watermark' => 'nullable|boolean',
         ]);
         $preview = $html && (bool) ($validated['preview'] ?? false);
 
@@ -326,7 +327,11 @@ class LabelController extends Controller
         }
 
         if ($html) {
-            return response()->view('labels.print', ['order' => $order, 'labels' => $printLabels]);
+            return response()->view('labels.print', [
+                'order' => $order,
+                'labels' => $printLabels,
+                'watermark' => (bool) ($validated['watermark'] ?? false),
+            ]);
         }
 
         $safeOrderCode = preg_replace('/[^A-Za-z0-9_-]+/', '-', $order->order_code);

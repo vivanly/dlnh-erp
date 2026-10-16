@@ -175,7 +175,7 @@ class OrderController extends Controller
         return view('qa.order-batches', compact('orders', 'canManageQaLots'));
     }
 
-    public function productionPlanningIndex(Request $request)
+    public function productionPlanningIndex(Request $request, SalesOrderPlanner $planner)
     {
         $user = auth()->user();
         $canPlan = $user && (
@@ -198,11 +198,9 @@ class OrderController extends Controller
             ->paginate($this->perPage($request))
             ->withQueryString();
 
-        $orders->getCollection()->each(function (Order $order) {
+        $orders->getCollection()->each(function (Order $order) use ($planner) {
             foreach ($order->items as $item) {
-                $selectedQuantity = (float) $item->lotAllocations
-                    ->where('status', 'reserved')
-                    ->sum(fn ($allocation) => max(0, (float) $allocation->reserved_quantity - (float) $allocation->shipped_quantity));
+                $selectedQuantity = $planner->availableCoverage($item);
                 $item->setAttribute('qa_selected_quantity', $selectedQuantity);
                 $item->setAttribute('production_shortage', max(0, (float) $item->quantity - $selectedQuantity));
             }

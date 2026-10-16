@@ -19,8 +19,25 @@
 
             @forelse($batches as $batch)
                 @if($canManageQuality)
-                <form method="POST" enctype="multipart/form-data" action="{{ route('qa.production-batches.approve', $batch) }}" class="bg-white border border-slate-300 p-3">
+                <form method="POST" enctype="multipart/form-data" action="{{ route('qa.production-batches.approve', $batch) }}" class="{{ $batch->qc_result === 'failed' ? 'bg-rose-50 border-2 border-rose-400' : 'bg-white border border-slate-300' }} p-3">
                     @csrf
+                    @if($batch->qc_result === 'failed')
+                        <div class="mb-3 flex items-center gap-2 border-b border-rose-200 pb-3 text-sm font-bold text-rose-800">
+                            <span class="rounded bg-rose-700 px-2 py-1 text-xs uppercase text-white">QC KHÔNG ĐẠT</span>
+                            <span>Lô bị chặn xuất. Cần cập nhật lại PKN sau khi xử lý.</span>
+                        </div>
+                        <div class="mb-3 grid grid-cols-2 gap-3 text-xs text-slate-700 md:grid-cols-4">
+                            <div>Sản phẩm: <strong>{{ $batch->product->name }}</strong></div>
+                            <div>Mã lô: <strong class="font-mono">{{ $batch->batch_number }}</strong></div>
+                            <div>Tồn kho: <strong>{{ number_format((float) $batch->current_quantity, 4) }} {{ $batch->unit }}</strong></div>
+                            <div>Chờ nhập: <strong>{{ number_format((float) $batch->pending_warehouse_quantity, 4) }} {{ $batch->unit }}</strong></div>
+                            <div>Kết quả PKN: <strong class="text-rose-700">Không đạt</strong></div>
+                            @if($batch->qc_test_report)<div>Số PKN: <strong>{{ $batch->qc_test_report }}</strong></div>@endif
+                            @if($batch->qc_test_report_file)<div><a href="{{ route('private-documents.production-qc-report', $batch) }}" target="_blank" rel="noopener" class="font-semibold text-blue-700 underline">Xem file PKN hiện tại</a></div>@endif
+                        </div>
+                        <details class="mb-3">
+                            <summary class="inline-flex cursor-pointer list-none rounded bg-rose-700 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-rose-800">Cập nhật lại PKN</summary>
+                    @endif
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6 items-end">
                         <div class="xl:col-span-2">
                             <span class="block text-[10px] uppercase text-slate-500">Sản phẩm</span>
@@ -57,9 +74,13 @@
                         <button name="qc_result" value="failed" class="border border-rose-300 px-3 py-2 text-xs font-bold uppercase text-rose-700 hover:bg-rose-50">Ghi nhận PKN không đạt</button>
                         <button name="qc_result" value="passed" class="bg-emerald-700 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Ghi nhận PKN đạt</button>
                     </div>
+                    @if($batch->qc_result === 'failed')
+                        </details>
+                    @endif
                 </form>
                 @else
-                    <section class="bg-white border border-slate-300 p-3 text-xs">
+                    <section class="{{ $batch->qc_result === 'failed' ? 'bg-rose-50 border-2 border-rose-400 text-rose-900' : 'bg-white border border-slate-300' }} p-3 text-xs">
+                        @if($batch->qc_result === 'failed')<span class="mb-2 inline-block rounded bg-rose-700 px-2 py-1 text-[10px] font-bold uppercase text-white">QC KHÔNG ĐẠT</span>@endif
                         <strong>{{ $batch->product->name }}</strong>
                         <p class="mt-1 font-mono text-slate-600">{{ $batch->batch_number }} · {{ $batch->unit }}</p>
                         <p class="mt-1 text-slate-600">PKN: {{ $batch->qc_test_report ?: 'Chưa có' }} · Kết quả: {{ $batch->qc_result ?: 'Chưa có kết quả' }}</p>

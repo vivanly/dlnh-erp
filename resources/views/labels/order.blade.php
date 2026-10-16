@@ -66,6 +66,7 @@
             <div class="flex flex-col gap-3 border border-slate-300 bg-white p-3 sm:flex-row sm:items-end sm:justify-between">
                 <label class="w-full text-xs font-semibold text-slate-700 sm:max-w-xl">Lý do in bổ sung<input name="additional_reason" value="{{ old('additional_reason') }}" maxlength="255" placeholder="Bắt buộc nếu số tem in vượt phần còn phải in" class="mt-1 w-full border-slate-300 text-xs"></label>
                 <div class="flex flex-col gap-2 text-right sm:items-end">
+                    <label class="inline-flex items-center justify-end gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" name="watermark" value="1" class="border-slate-300"> Thêm watermark bản vẽ SVG</label>
                     <p class="text-[11px] text-slate-500">"In trực tiếp" mở bản xem trước nhãn (khổ A4 ngang, tối đa 4 nhãn mỗi trang); chỉ khi bấm "In" trong bản xem trước mới mở hộp thoại máy in và ghi nhận lượt in.</p>
                     <p id="label-print-error" class="hidden text-[11px] font-semibold text-rose-700"></p>
                     <div class="flex flex-wrap justify-end gap-2">

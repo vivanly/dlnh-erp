@@ -22,6 +22,15 @@
                 <form action="{{ route('suppliers.store') }}" method="POST" class="p-4 space-y-3">
                     @csrf
 
+                    @if($errors->any())
+                        <div class="border-l-4 border-rose-600 bg-rose-50 p-3 text-xs text-rose-800">
+                            <p class="font-bold">Không thể lưu nhà cung cấp. Vui lòng kiểm tra:</p>
+                            <ul class="mt-1 list-disc pl-5">
+                                @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     <div>
                         <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Mã NCC <span class="text-rose-600">*</span></label>
                         <input type="text" name="code" value="{{ old('code') }}" required class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none py-1.5 px-2.5">

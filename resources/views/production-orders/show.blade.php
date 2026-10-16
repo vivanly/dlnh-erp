@@ -93,38 +93,38 @@
             @endif
 
             @if($canWorkInProduction && $productionOrder->status === 'materials_issued')
-                <form method="POST" action="{{ route('production-orders.report-output', $productionOrder) }}" class="space-y-3 border border-slate-300 bg-white p-4" onsubmit="return confirm('Xac nhan san luong thuc te va nguyen lieu du kien tra kho?');">
+                <form method="POST" action="{{ route('production-orders.report-output', $productionOrder) }}" class="space-y-3 border border-slate-300 bg-white p-4" onsubmit="return confirm('Xác nhận sản lượng thực tế và nguyên liệu dự kiến trả kho?');">
                     @csrf
                     <div class="border-b border-slate-200 bg-emerald-50 p-3">
-                        <h3 class="text-xs font-bold uppercase text-emerald-900">San xuat xac nhan san luong hoan thanh</h3>
-                        <p class="mt-1 text-xs text-emerald-800">Nhap san luong thuc te va luong nguyen lieu chua su dung du kien tra kho. Kho se kiem tra luong tra thuc te truoc khi hoan tat lenh.</p>
+                        <h3 class="text-xs font-bold uppercase text-emerald-900">Sản xuất xác nhận sản lượng hoàn thành</h3>
+                        <p class="mt-1 text-xs text-emerald-800">Nhập sản lượng thực tế và lượng nguyên liệu chưa sử dụng dự kiến trả kho. Kho sẽ kiểm tra lượng trả thực tế trước khi hoàn tất lệnh.</p>
                     </div>
                     <div class="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2">
-                        <label class="text-xs font-semibold">San luong thuc te <span class="text-rose-600">*</span>
+                        <label class="text-xs font-semibold">Sản lượng thực tế <span class="text-rose-600">*</span>
                             <input type="number" name="actual_quantity" min="0.0001" step="0.0001" value="{{ old('actual_quantity', $productionOrder->planned_quantity) }}" required class="mt-1 w-full border-slate-300 text-right font-mono text-sm">
                         </label>
-                        <label class="text-xs font-semibold">Ngay san xuat
+                        <label class="text-xs font-semibold">Ngày sản xuất
                             <input type="date" name="mfg_date" value="{{ date('Y-m-d') }}" class="mt-1 w-full border-slate-300 text-sm">
                         </label>
                     </div>
                     <div class="border-t border-slate-200 pt-3">
-                        <h3 class="text-xs font-bold uppercase text-slate-700">Nguyen lieu chua su dung, du kien tra kho</h3>
-                        <p class="mt-1 text-[11px] text-slate-500">Nhap luong du kien tra theo tung lo. Luong tieu hao bang luong da xuat tru luong kho xac nhan tra.</p>
+                        <h3 class="text-xs font-bold uppercase text-slate-700">Nguyên liệu chưa sử dụng, dự kiến trả kho</h3>
+                        <p class="mt-1 text-[11px] text-slate-500">Nhập lượng dự kiến trả theo từng lô. Lượng tiêu hao bằng lượng đã xuất trừ lượng kho xác nhận trả.</p>
                         <div class="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                             @foreach($productionOrder->materials as $material)
                                 @foreach($material->lots as $allocation)
                                     @if((float) $allocation->issued_quantity > 0)
-                                        @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lo nha cung cap'; @endphp
+                                        @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô nhà cung cấp'; @endphp
                                         <label class="flex items-center justify-between gap-3 border border-slate-200 p-2 text-xs">
-                                            <span>{{ $material->display_name }} - {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Da xuat {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
-                                            <input type="number" name="reported_returned_materials[{{ $allocation->id }}]" value="{{ old('reported_returned_materials.'.$allocation->id, 0) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 border-slate-300 text-right font-mono text-xs" aria-label="Luong du kien tra cua lo {{ $sourceLotCode }}">
+                                            <span>{{ $material->display_name }} - {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
+                                            <input type="number" name="reported_returned_materials[{{ $allocation->id }}]" value="{{ old('reported_returned_materials.'.$allocation->id, 0) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 border-slate-300 text-right font-mono text-xs" aria-label="Lượng dự kiến trả của lô {{ $sourceLotCode }}">
                                         </label>
                                     @endif
                                 @endforeach
                             @endforeach
                         </div>
                     </div>
-                    <div class="flex justify-end border-t border-slate-200 pt-3"><button class="bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Gui xac nhan san luong</button></div>
+                    <div class="flex justify-end border-t border-slate-200 pt-3"><button class="bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Gửi xác nhận sản lượng</button></div>
                 </form>
             @endif
             @if($canIssueMaterials && $productionOrder->status === 'production_reported')
@@ -140,8 +140,8 @@
                                 @if((float) $allocation->issued_quantity > 0)
                                     @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô nhà cung cấp'; @endphp
                                     <label class="flex items-center justify-between gap-3 border border-slate-200 p-2 text-xs">
-                                            <span>{{ $material->display_name }} · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">SX du kien tra {{ number_format((float) $allocation->reported_returned_quantity, 4) }} / da xuat {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
-                                            <input type="number" name="returned_materials[{{ $allocation->id }}]" value="{{ old('returned_materials.'.$allocation->id, $allocation->reported_returned_quantity) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 text-right font-mono text-xs border-slate-300 rounded-none" aria-label="Kho xac nhan luong tra cua lo {{ $sourceLotCode }}">
+                                            <span>{{ $material->display_name }} · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">SX dự kiến trả {{ number_format((float) $allocation->reported_returned_quantity, 4) }} / đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
+                                            <input type="number" name="returned_materials[{{ $allocation->id }}]" value="{{ old('returned_materials.'.$allocation->id, $allocation->reported_returned_quantity) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 text-right font-mono text-xs border-slate-300 rounded-none" aria-label="Kho xác nhận lượng trả của lô {{ $sourceLotCode }}">
                                     </label>
                                 @endif
                             @endforeach

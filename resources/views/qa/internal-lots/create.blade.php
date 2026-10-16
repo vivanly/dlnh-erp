@@ -86,7 +86,7 @@
                                     @endforeach
                                 </select>
                             </label>
-                            <label class="text-xs font-semibold text-slate-700">Số lượng dự kiến phân bổ / nhập kho <span class="text-rose-600">*</span>
+                            <label class="text-xs font-semibold text-slate-700">Số lượng dự kiến có thể phân bổ / nhập kho <span class="text-rose-600">*</span>
                                 <div class="mt-1.5 flex">
                                     <input type="number" name="planned_quantity" value="{{ old('planned_quantity', $sourceProductionOrder?->pending_finished_quantity) }}" min="0.0001" step="0.0001" required class="w-full min-w-0 border-slate-300 text-right font-mono text-sm focus:border-blue-500 focus:ring-blue-500">
                                     <span id="internal-lot-unit" class="inline-flex items-center border border-l-0 border-slate-300 bg-slate-50 px-3 text-xs text-slate-600">{{ $selectedProduct?->unit ?? 'Đơn vị' }}</span>

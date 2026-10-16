@@ -85,6 +85,9 @@ class SupplierController extends Controller implements HasMiddleware
             'code' => 'required|string|unique:suppliers,code|max:50',
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:2000',
+            'contact_person' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:5000',
         ]);
 
         Supplier::create($validated + ['is_active' => true]);
@@ -113,6 +116,9 @@ class SupplierController extends Controller implements HasMiddleware
             'code' => 'required|string|max:50|unique:suppliers,code,' . $supplier->id,
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string|max:2000',
+            'contact_person' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:5000',
         ]);
 
         $supplier->update($validated);

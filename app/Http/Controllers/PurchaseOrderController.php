@@ -204,7 +204,7 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrder = PurchaseOrder::with(['supplier', 'items.product', 'items.rawMaterial', 'items.accessory'])->findOrFail($id);
         
-        if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true) && !$this->isItOrAdminPermission()) {
+        if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true)) {
             return redirect()->route('purchase-orders.index')->with('error', 'Chỉ được chỉnh sửa đơn hàng đang ở trạng thái Nháp hoặc Bị từ chối.');
         }
 
@@ -220,6 +220,9 @@ class PurchaseOrderController extends Controller
         }
         
         $purchaseOrder = PurchaseOrder::findOrFail($id);
+        if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true)) {
+            return redirect()->route('purchase-orders.index')->with('error', 'Purchase order has been submitted or approved and can no longer be edited.');
+        }
         $this->normalizeItems($request);
 
         $request->validate([
@@ -252,7 +255,8 @@ class PurchaseOrderController extends Controller
         try {
             DB::beginTransaction();
 
-            if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true) && !$this->isItOrAdminPermission()) {
+            $purchaseOrder = PurchaseOrder::whereKey($id)->lockForUpdate()->firstOrFail();
+            if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true)) {
                 DB::rollBack();
                 return redirect()->route('purchase-orders.index')->with('error', 'Đơn hàng này đã được gửi duyệt hoặc xử lý, không thể chỉnh sửa.');
             }

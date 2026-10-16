@@ -10,10 +10,14 @@ class ProductionOrderBatchAllocation extends Model
         'production_order_id',
         'production_finished_batch_id',
         'quantity',
+        'received_quantity',
+        'is_receipt_linked',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:4',
+        'received_quantity' => 'decimal:4',
+        'is_receipt_linked' => 'boolean',
     ];
 
     public function productionOrder()

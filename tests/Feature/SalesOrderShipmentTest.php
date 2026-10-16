@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\ProductBom;
 use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionOrder;
+use App\Models\ProductionOrderBatchAllocation;
 use App\Models\SalesOrderLotAllocation;
 use App\Models\SupplierBatch;
 use App\Models\User;
@@ -301,6 +302,100 @@ class SalesOrderShipmentTest extends TestCase
             ->assertDontSee(route('orders.edit', $order));
     }
 
+    public function test_lot_capacity_remains_receivable_after_partial_receipt_and_shipment(): void
+    {
+        $warehouseUser = User::factory()->create(['role' => 'warehouse']);
+        $customer = Customer::create(['code' => 'LOT-CAPACITY-FLOW-CUSTOMER', 'name' => 'Lot Capacity Flow Customer', 'type' => 'Retail']);
+        $product = Product::create([
+            'name' => 'Lot capacity flow product',
+            'slug' => 'lot-capacity-flow-product',
+            'sku' => 'LOT-CAPACITY-FLOW',
+            'unit' => 'kg',
+            'classification' => 'VT',
+        ]);
+        $order = Order::create([
+            'order_code' => 'SO-LOT-CAPACITY-FLOW',
+            'customer_id' => $customer->id,
+            'order_type' => 'VT',
+            'order_date' => today(),
+            'delivery_date' => today()->addDays(2),
+            'province_city' => 'Hà Nội',
+            'status' => 'ready_to_ship',
+            'qa_confirmed_at' => now(),
+            'warehouse_packed_at' => now(),
+        ]);
+        $item = $order->items()->create([
+            'product_id' => $product->id,
+            'quantity' => 100,
+            'packed_quantity' => 100,
+            'packaging_spec' => '1',
+        ]);
+        $bom = ProductBom::create([
+            'product_id' => $product->id,
+            'version' => 1,
+            'output_quantity' => 1,
+            'output_unit' => 'kg',
+            'yield_rate' => 1,
+            'is_active' => true,
+        ]);
+        $productionOrder = ProductionOrder::create([
+            'production_code' => 'MO-LOT-CAPACITY-FLOW',
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'product_bom_id' => $bom->id,
+            'product_id' => $product->id,
+            'planned_quantity' => 100,
+            'actual_quantity' => 100,
+            'pending_finished_quantity' => 0,
+            'unit' => 'kg',
+            'yield_rate' => 1,
+            'status' => 'completed',
+        ]);
+        $batch = ProductionFinishedBatch::create([
+            'product_id' => $product->id,
+            'batch_number' => 'LOT-CAPACITY-FLOW-1',
+            'planned_quantity' => 200,
+            'initial_quantity' => 100,
+            'current_quantity' => 0,
+            'pending_warehouse_quantity' => 200,
+            'unit' => 'kg',
+            'status' => 'active',
+            'qc_test_report_file' => 'qc-reports/lot-capacity-flow.pdf',
+            'qc_result' => 'passed',
+        ]);
+        ProductionOrderBatchAllocation::create([
+            'production_order_id' => $productionOrder->id,
+            'production_finished_batch_id' => $batch->id,
+            'quantity' => 100,
+        ]);
+        SalesOrderLotAllocation::create([
+            'order_item_id' => $item->id,
+            'production_finished_batch_id' => $batch->id,
+            'reserved_quantity' => 100,
+            'status' => 'reserved',
+        ]);
+
+        $this->actingAs($warehouseUser)
+            ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => 100])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertEquals(100, $batch->fresh()->current_quantity);
+        $this->assertEquals(100, $batch->fresh()->pending_warehouse_quantity);
+
+        $this->actingAs($warehouseUser)
+            ->post(route('warehouse.sales-orders.ship', $order))
+            ->assertRedirect(route('warehouse.sales-orders'))
+            ->assertSessionHas('success');
+
+        $this->assertEquals(0, $batch->fresh()->current_quantity);
+        $this->assertEquals(100, $batch->fresh()->pending_warehouse_quantity);
+        $this->assertEquals(100, $batch->fresh()->inventoryMovements()->where('direction', 'in')->sum('quantity'));
+        $this->assertEquals(100, $batch->fresh()->inventoryMovements()->where('direction', 'out')->sum('quantity'));
+        $this->assertSame('shipped', SalesOrderLotAllocation::sole()->status);
+        $this->assertEquals(100, SalesOrderLotAllocation::sole()->shipped_quantity);
+    }
+
     public function test_qa_can_create_and_assign_a_standalone_lot_before_warehouse_receipt(): void
     {
         $qaUser = User::factory()->create(['role' => 'qa']);
@@ -327,6 +422,27 @@ class SalesOrderShipmentTest extends TestCase
             'quantity' => 4,
             'packaging_spec' => '1',
             'finished_quantity' => 4,
+        ]);
+        $bom = ProductBom::create([
+            'product_id' => $product->id,
+            'version' => 1,
+            'output_quantity' => 1,
+            'output_unit' => 'kg',
+            'yield_rate' => 1,
+            'is_active' => true,
+        ]);
+        $productionOrder = ProductionOrder::create([
+            'production_code' => 'MO-QA-CAPACITY-RECEIPT',
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'product_bom_id' => $bom->id,
+            'product_id' => $product->id,
+            'planned_quantity' => 4,
+            'actual_quantity' => 4,
+            'pending_finished_quantity' => 4,
+            'unit' => 'kg',
+            'yield_rate' => 1,
+            'status' => 'completed',
         ]);
 
         $this->actingAs($qaUser)
@@ -374,12 +490,12 @@ class SalesOrderShipmentTest extends TestCase
 
         $warehouseUser = User::factory()->create(['role' => 'warehouse']);
         $this->actingAs($warehouseUser)
-            ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => 2])
+            ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => 2, 'production_order_id' => $productionOrder->id])
             ->assertRedirect()
             ->assertSessionHas('success');
         $this->assertSame('waiting_finished_goods_receipt', $order->fresh()->status);
         $this->actingAs($warehouseUser)
-            ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => 2])
+            ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => 2, 'production_order_id' => $productionOrder->id])
             ->assertRedirect()
             ->assertSessionHas('success');
         $this->assertSame('ready_to_ship', $order->fresh()->status);

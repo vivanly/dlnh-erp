@@ -14,6 +14,7 @@ class SupplierReturnOrder extends Model
         'material_type',
         'material_id',
         'purchase_order_item_id',
+        'material_lot_id',
         'quantity',
         'unit',
         'reason',
@@ -50,5 +51,10 @@ class SupplierReturnOrder extends Model
     public function supplierBatch()
     {
         return $this->belongsTo(SupplierBatch::class);
+    }
+
+    public function materialLot()
+    {
+        return $this->belongsTo(MaterialLot::class);
     }
 }

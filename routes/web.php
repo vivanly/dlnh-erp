@@ -9,7 +9,7 @@ use App\Http\Controllers\ProductRegulatoryDocumentController;
 use App\Http\Controllers\ProductQualityStandardController;
 use App\Http\Controllers\ProductStorageMethodController;
 use App\Http\Controllers\PpcbController;
-use App\Http\Controllers\suppliercontroller; 
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\PurchaseOrderController; 
 use App\Http\Controllers\GoodsReceiptController; 
 use App\Http\Controllers\SupplierBatchController;
@@ -145,8 +145,8 @@ Route::middleware('auth')->group(function () {
     Route::delete('/traceability/lots/{type}/{batch}/code', [TraceabilityManagementController::class, 'deleteLotCode'])->name('traceability.management.lot-code.delete');
 
     // Quản lý Nhà cung cấp
-    Route::patch('/suppliers/{supplier}/status', [suppliercontroller::class, 'toggleStatus'])->name('suppliers.status.toggle');
-    Route::resource('suppliers', suppliercontroller::class)->except(['show', 'destroy']);
+    Route::patch('/suppliers/{supplier}/status', [SupplierController::class, 'toggleStatus'])->name('suppliers.status.toggle');
+    Route::resource('suppliers', SupplierController::class)->except(['show', 'destroy']);
 
     // Quản lý Sản phẩm dược liệu (Import & Resource)
     Route::get('/products/export', [ProductController::class, 'export'])->name('products.export');
