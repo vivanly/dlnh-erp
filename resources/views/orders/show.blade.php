@@ -74,6 +74,41 @@
                 </div>
             @endif
 
+            <section class="border border-slate-300 bg-white p-4">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                    <h3 class="font-bold text-xs uppercase tracking-wider text-slate-700">Tiến độ xử lý đơn hàng</h3>
+                    <span class="text-[10px] text-slate-500">Cập nhật theo dữ liệu từng công đoạn</span>
+                </div>
+                <ol class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    @foreach($orderProgress as $stage)
+                        @php
+                            [$stageLabel, $stageClasses] = match($stage['state']) {
+                                'completed' => ['Hoàn tất', 'border-emerald-500 bg-emerald-50 text-emerald-800'],
+                                'active' => ['Đang xử lý', 'border-blue-500 bg-blue-50 text-blue-800'],
+                                'rejected' => ['Bị từ chối', 'border-rose-500 bg-rose-50 text-rose-800'],
+                                'skipped' => ['Không áp dụng', 'border-slate-300 bg-slate-50 text-slate-500'],
+                                default => ['Đang chờ', 'border-slate-300 bg-white text-slate-500'],
+                            };
+                        @endphp
+                        <li class="min-h-20 border-l-4 {{ $stageClasses }} p-2.5">
+                            <div class="flex items-start justify-between gap-2">
+                                <h4 class="text-xs font-bold text-slate-800">{{ $stage['title'] }}</h4>
+                                <span class="shrink-0 text-[9px] font-bold uppercase">{{ $stageLabel }}</span>
+                            </div>
+                            @if($stage['at'])
+                                <p class="mt-1 text-[10px] text-slate-600">{{ $stage['at']->format('d/m/Y H:i') }}</p>
+                            @endif
+                            @if($stage['by'])
+                                <p class="mt-1 text-[10px] text-slate-600">Người thực hiện: {{ $stage['by'] }}</p>
+                            @endif
+                            @if($stage['detail'])
+                                <p class="mt-1 text-[10px] text-slate-600">{{ $stage['detail'] }}</p>
+                            @endif
+                        </li>
+                    @endforeach
+                </ol>
+            </section>
+
             <!-- 1. THÔNG TIN TỔNG QUAN ĐƠN HÀNG -->
             <div class="bg-white border border-slate-300 rounded-none p-4 shadow-none">
                 <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200">

@@ -133,6 +133,7 @@
                         previewError.classList.add('hidden');
                         overlay.classList.remove('hidden');
                         overlay.classList.add('flex');
+                        requestAnimationFrame(() => frame.contentWindow.fitLabelText?.());
                     } catch (e) {
                         error.textContent = e.message;
                         error.classList.remove('hidden');
@@ -155,6 +156,7 @@
                             throw new Error('Không tải được chức năng tạo mã QR. Hãy tải lại trang rồi thử lại.');
                         }
                         await frame.contentWindow.labelQrReady;
+                        frame.contentWindow.fitLabelText?.();
                         frame.contentWindow.focus();
                         frame.contentWindow.print();
                         setTimeout(() => window.location.reload(), 1500);

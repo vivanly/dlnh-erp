@@ -465,14 +465,28 @@ class OrderController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show($id)
+    public function show($id, \App\Services\OrderProgressTimeline $progressTimeline)
     {
-        $order = Order::with(['items.product', 'items.rawMaterial', 'items.ppcb', 'items.lotAllocations.supplierBatch', 'items.lotAllocations.finishedBatch', 'customer', 'warehouseStockCheckedBy'])->findOrFail($id);
+        $order = Order::with([
+            'items.product',
+            'items.rawMaterial',
+            'items.ppcb',
+            'items.labelPrints.printedBy',
+            'items.lotAllocations.supplierBatch',
+            'items.lotAllocations.finishedBatch',
+            'customer',
+            'salesApprovedBy',
+            'productionPlanApprovedBy',
+            'productionPackagedBy',
+            'warehouseStockCheckedBy',
+            'productionOrders.finishedBatches',
+        ])->findOrFail($id);
         $canManageLockedOrders = $this->isItOrAdmin(auth()->user());
         $user = auth()->user();
         $canManageOrderLots = $user && method_exists($user, 'isQADepartment') && $user->isQADepartment();
+        $orderProgress = $progressTimeline->build($order);
 
-        return view('orders.show', compact('order', 'canManageLockedOrders', 'canManageOrderLots'));
+        return view('orders.show', compact('order', 'canManageLockedOrders', 'canManageOrderLots', 'orderProgress'));
     }
 
     public function sendToProduction(Request $request, Order $order, SalesOrderPlanner $planner)
