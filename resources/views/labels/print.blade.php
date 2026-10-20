@@ -70,6 +70,9 @@
         .batch-value { display: block; min-width: 0; white-space: nowrap; overflow: hidden; }
         .fit-one-line { white-space: nowrap; }
         .fit-wrap { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+        .packaging-control-block { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: .7mm !important; }
+        .packaging-control-values { display: flex; align-items: center; justify-content: center; gap: 2mm; width: 100%; white-space: nowrap; }
+        .packaging-control-title { display: flex; align-items: center; justify-content: center; gap: 2mm; width: 100%; white-space: nowrap; }
         .scientific-name { overflow-wrap: anywhere; word-break: normal; line-height: 1.05; }
         .field-label-nowrap { white-space: nowrap; font-size: .9em; }
         .b { font-weight: bold; }
@@ -132,8 +135,20 @@
                     <div class="b fit-one-line" style="grid-column: 3 / 6; grid-row: 9 / 10;">Nguồn gốc:</div>
                     <div class="fit-wrap" style="grid-column: 6 / 14; grid-row: 9 / 11;">{{ $label['origin'] }}</div>
 
-                    <div class="b fit-wrap" style="grid-column: 3 / {{ $registrationValueStart }}; grid-row: 11 / 13;">{{ $t['registration'] }}</div>
-                    <div class="fit-wrap" style="grid-column: {{ $registrationValueStart }} / 14; grid-row: 11 / 13;">{{ $label['registration'] }}</div>
+                    <div class="b fit-one-line" style="grid-column: 3 / {{ $registrationValueStart }}; grid-row: 11 / 12;">{{ $t['registration'] }}</div>
+                    <div class="fit-one-line" style="grid-column: {{ $registrationValueStart }} / 14; grid-row: 11 / 12;">{{ $label['registration'] }}</div>
+                    @if(!empty($label['include_packaging_control']))
+                        <div class="packaging-control-block" style="grid-column: 1 / 14; grid-row: 12 / 14; font-size: {{ $t['size'] - .4 }}pt;">
+                            <div class="packaging-control-title fit-one-line">
+                                <span>Kiểm soát đóng gói:</span>
+                                <span class="b">IPC: {{ $label['packaging_controller'] }}</span>
+                            </div>
+                            <div class="packaging-control-values fit-one-line">
+                                <span class="i">Người thực hiện: {{ $label['packaging_performer'] }}</span>
+                            </div>
+                        </div>
+                    @endif
+                    @endif
                     <div class="quality-block fit-wrap" style="grid-column: 14 / 21; grid-row: 11 / 14;">
                         <div class="b">Tiêu chuẩn chất lượng:</div>
                         <div>{{ $label['standard'] }}</div>

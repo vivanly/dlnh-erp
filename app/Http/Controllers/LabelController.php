@@ -149,6 +149,9 @@ class LabelController extends Controller
             'standard.*' => 'nullable|string|max:255',
             'storage' => 'nullable|array',
             'storage.*' => 'nullable|string|max:255',
+            'include_packaging_control' => 'nullable|boolean',
+            'packaging_controller' => 'required_if:include_packaging_control,1|nullable|string|max:60',
+            'packaging_performer' => 'required_if:include_packaging_control,1|nullable|string|max:60',
             'preview' => 'nullable|boolean',
             'watermark' => 'nullable|boolean',
         ]);
@@ -258,6 +261,9 @@ class LabelController extends Controller
                             'registration' => $registrationDocument?->document_number ?? '',
                             'standard' => trim((string) ($validated['standard'][$allocation->id] ?? '')),
                             'storage' => trim((string) ($validated['storage'][$allocation->id] ?? '')),
+                            'include_packaging_control' => (bool) ($validated['include_packaging_control'] ?? false),
+                            'packaging_controller' => trim((string) ($validated['packaging_controller'] ?? '')),
+                            'packaging_performer' => trim((string) ($validated['packaging_performer'] ?? '')),
                             'qr_url' => $baseUrl && $traceabilityCode?->trace_code
                                 ? $baseUrl . $traceabilityCode->trace_code
                                 : null,

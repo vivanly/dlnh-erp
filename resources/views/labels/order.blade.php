@@ -61,6 +61,21 @@
                             </div>
                         @endforeach
                     </div>
+                    <div class="mt-3 border border-slate-200 p-3">
+                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                            <input id="include-packaging-control" type="checkbox" name="include_packaging_control" value="1" @checked(old('include_packaging_control')) class="border-slate-300">
+                            In thông tin kiểm soát đóng gói trên nhãn
+                        </label>
+                        <p class="mt-1 text-[11px] text-slate-500">Mặc định tắt. Khi bật, thông tin IPC và người thực hiện sẽ được thêm vào dải dưới cùng khi bấm In trực tiếp.</p>
+                        <div id="packaging-control-fields" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 {{ old('include_packaging_control') ? '' : 'hidden' }}">
+                            <label class="text-xs font-semibold text-slate-700">Người kiểm soát (IPC)
+                                <input type="text" name="packaging_controller" value="{{ old('packaging_controller', 'Nga') }}" maxlength="60" placeholder="Nam" class="mt-1 w-full border-slate-300 text-xs">
+                            </label>
+                            <label class="text-xs font-semibold text-slate-700">Người thực hiện
+                                <input type="text" name="packaging_performer" value="{{ old('packaging_performer', 'Tổ Đóng Gói') }}" maxlength="60" placeholder="Tổ Đóng Gói" class="mt-1 w-full border-slate-300 text-xs">
+                            </label>
+                        </div>
+                    </div>
                 </section>
             @endif
             <div class="flex flex-col gap-3 border border-slate-300 bg-white p-3 sm:flex-row sm:items-end sm:justify-between">
@@ -101,6 +116,12 @@
                 const frame = document.getElementById('label-print-frame');
                 const printButton = document.getElementById('label-preview-print');
                 const previewError = document.getElementById('label-preview-error');
+                const packagingToggle = document.getElementById('include-packaging-control');
+                const packagingFields = document.getElementById('packaging-control-fields');
+
+                packagingToggle?.addEventListener('change', () => {
+                    packagingFields?.classList.toggle('hidden', !packagingToggle.checked);
+                });
 
                 const request = async (preview) => {
                     const data = new FormData(form);
