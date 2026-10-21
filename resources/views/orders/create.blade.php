@@ -56,7 +56,7 @@
                                 <option value="">-- Chọn loại đơn hàng --</option>
                                 <option value="DL" {{ old('order_type', $orderType ?? 'DL') == 'DL' ? 'selected' : '' }}>Dược Liệu</option>
                                 <option value="VT" {{ old('order_type', $orderType ?? '') == 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
-                                <option value="NL" {{ old('order_type', $orderType ?? '') == 'NL' ? 'selected' : '' }}>Nguyên Liệu Thô</option>
+                                <option value="NL" {{ old('order_type', $orderType ?? '') == 'NL' ? 'selected' : '' }}>Dược Liệu Thô</option>
                             </select>
                                 @error('order_type') <span class="text-rose-500 text-[11px] mt-0.5 block">{{ $message }}</span> @enderror
                         </div>

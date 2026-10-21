@@ -703,7 +703,7 @@ class WarehouseController extends Controller
             DB::transaction(function () use ($order, $picked) {
                 $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
                 if ($locked->order_type !== 'NL' || $locked->status !== 'pending_material_issue') {
-                    throw new DomainException('Đơn không còn chờ xuất nguyên liệu thô.');
+                    throw new DomainException('Đơn không còn chờ xuất dược liệu thô.');
                 }
 
                 foreach ($locked->items()->with('rawMaterial')->get() as $item) {
@@ -761,7 +761,7 @@ class WarehouseController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        return redirect()->route('warehouse.material-issues')->with('success', 'Đã xuất kho nguyên liệu thô và hoàn tất đơn.');
+        return redirect()->route('warehouse.material-issues')->with('success', 'Đã xuất kho dược liệu thô và hoàn tất đơn.');
     }
     public function stockOverview(Request $request)
     {

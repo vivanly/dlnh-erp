@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">
-                Nhập kho nguyên liệu thô / phụ liệu (PO: <span class="text-blue-600 font-mono">{{ $purchaseOrder->po_number }}</span>)
+                Nhập kho dược liệu thô / phụ liệu (PO: <span class="text-blue-600 font-mono">{{ $purchaseOrder->po_number }}</span>)
             </h2>
             <a href="{{ route('warehouse.purchase-orders') }}" class="px-3 py-1.5 bg-slate-200 border border-slate-300 font-bold text-xs text-slate-700 uppercase hover:bg-slate-300 transition">Quay lại</a>
         </div>
@@ -15,7 +15,7 @@
                 @csrf
                 <div class="bg-white border border-slate-300 overflow-x-auto">
                     <div class="p-3 bg-slate-100 border-b border-slate-300">
-                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Hàng chờ QC xác nhận đạt mới được cộng vào tồn (nguyên liệu thô cần QA cập nhật số lô NCC/COA trước)</h3>
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Hàng chờ QC xác nhận đạt mới được cộng vào tồn (dược liệu thô cần QA cập nhật số lô NCC/COA trước)</h3>
                     </div>
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>

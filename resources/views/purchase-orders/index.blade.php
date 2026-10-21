@@ -64,7 +64,7 @@
                         <label class="mb-1 block text-xs font-semibold text-slate-600">Loại đơn mua hàng</label>
                         <select name="item_type" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
                             <option value="">-- Tất cả nhóm hàng --</option>
-                            <option value="raw_material" {{ request('item_type') === 'raw_material' ? 'selected' : '' }}>Nguyên liệu thô</option>
+                            <option value="raw_material" {{ request('item_type') === 'raw_material' ? 'selected' : '' }}>Dược liệu thô</option>
                             <option value="accessory" {{ request('item_type') === 'accessory' ? 'selected' : '' }}>Phụ liệu</option>
                         </select>
                     </div>

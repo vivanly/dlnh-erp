@@ -46,8 +46,8 @@
                         <div>
                             <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Loại hàng đặt mua <span class="text-rose-600">*</span></label>
                             <select name="item_type" id="po-item-type" class="w-full text-xs border-slate-300 rounded-none py-1.5">
-                                <option value="raw_material" @selected(old('item_type', $poType) === 'raw_material')>Nguyên liệu thô</option>
-                                <option value="accessory" @selected(old('item_type', $poType) === 'accessory')>Phụ liệu</option>
+                                <option value="raw_material" @selected(old('item_type', $poType) === 'raw_material')>Dược Liệu Thô</option>
+                                <option value="accessory" @selected(old('item_type', $poType) === 'accessory')>Phụ Liệu</option>
                             </select>
                         </div>
                         <div>
@@ -77,7 +77,7 @@
                     <div class="p-3 border-b border-slate-300 bg-slate-100 flex items-center justify-between">
                         <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-2">
                             <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                            Danh mục nguyên liệu thô / phụ liệu đặt mua
+                            Danh mục dược liệu thô / phụ liệu đặt mua
                         </h3>
                         <button type="button" id="add-item-btn" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600 border border-emerald-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-emerald-700 transition shadow-none">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>

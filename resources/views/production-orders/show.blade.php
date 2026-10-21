@@ -55,14 +55,22 @@
                     @csrf
                     <div class="p-3 bg-amber-50 border-b border-amber-200">
                         <h3 class="text-xs font-bold uppercase text-amber-900">Kho xác nhận phiếu xuất nguyên liệu sản xuất</h3>
-                        <p class="mt-1 text-xs text-amber-800">Chọn lô NCC của nguyên liệu thô hoặc đợt mua của phụ liệu (tồn lấy từ kho nguyên liệu) và nhập số lượng thực xuất cho từng lô (không phụ thuộc BOM). Số lượng khả dụng đã trừ các phần đang được giữ cho đơn khác.</p>
+                        <p class="mt-1 text-xs text-amber-800">Chọn lô NCC của dược liệu thô hoặc đợt mua của phụ liệu (tồn lấy từ kho nguyên liệu) và nhập số lượng thực xuất cho từng lô (không phụ thuộc BOM). Số lượng khả dụng đã trừ các phần đang được giữ cho đơn khác.</p>
                     </div>
                     <div class="divide-y divide-slate-200">
                         <div class="p-3">
-                            <h4 class="mb-2 text-xs font-bold uppercase text-slate-700">Nguyên liệu thô (chọn lô NCC) &amp; phụ liệu (chọn loại, trừ theo tổng)</h4>
+                            <h4 class="mb-2 text-xs font-bold uppercase text-slate-700">Dược liệu thô (chọn lô NCC) &amp; phụ liệu (chọn loại, trừ theo tổng)</h4>
                             @forelse($materialLots->groupBy(fn ($l) => $l->type . '|' . $l->id) as $group)
-                                @php $first = $group->first(); @endphp
-                                <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="text-slate-500">· {{ $first->type === 'accessory' ? 'Phụ liệu' : 'Nguyên liệu thô' }}</span>
+                                @php
+                                    $first = $group->first();
+                                    $origin = trim((string) ($first->item->origin ?? ''));
+                                    $originKey = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::ascii($origin));
+                                    $isDomestic = in_array($originKey, ['VN', 'VIET NAM', 'VIETNAM', 'TRONG NUOC'], true);
+                                @endphp
+                                <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="text-slate-500">· {{ $first->type === 'accessory' ? 'Phụ liệu' : 'Dược liệu thô' }}</span>
+                                    <span class="ml-1 inline-flex items-center border px-1.5 py-0.5 text-[10px] font-bold {{ $origin === '' ? 'border-slate-300 bg-slate-100 text-slate-600' : ($isDomestic ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800') }}">
+                                        {{ $origin === '' ? 'Chưa khai báo xuất xứ' : ($isDomestic ? 'Trong nước' : 'Nhập khẩu') }}{{ $origin !== '' ? ' · '.$origin : '' }}
+                                    </span>
                                     <table class="mt-1 w-full border border-slate-200 text-[11px]">
                                         <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'accessory' ? 'Tồn tổng' : 'Lô NCC' }}</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 w-40 text-right">Số lượng xuất</th></tr></thead>
                                         <tbody class="divide-y divide-slate-200">
@@ -82,7 +90,7 @@
                                     </table>
                                 </div>
                             @empty
-                                <div class="text-xs text-slate-500">Chưa có nguyên liệu thô/phụ liệu còn tồn.</div>
+                                <div class="text-xs text-slate-500">Chưa có dược liệu thô/phụ liệu còn tồn.</div>
                             @endforelse
                         </div>
                     </div>

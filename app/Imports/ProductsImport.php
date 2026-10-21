@@ -50,7 +50,7 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
             '*.ten_hang_hoa' => 'required|string|max:255',
             '*.gtin' => 'nullable|string|max:255|unique:products,gtin',
             '*.ma_ppcb' => 'nullable|string|exists:ppcb,ma',
-            '*.phan_loai' => 'nullable|string|max:255',
+            '*.phan_loai' => 'required|in:Dược Liệu,Dược Liệu Sơ Chế,Vị Thuốc Cổ Truyền,Thuốc Cổ Truyền,Thực Phẩm Chức Năng',
             '*.ten_khoa_hoc' => 'nullable|string|max:255',
             '*.nguon_goc' => 'nullable|string|max:255',
             '*.bo_phan_dung' => 'nullable|string|max:255',

@@ -29,7 +29,8 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block font-medium text-sm text-gray-700">Phân loại</label>
-                            <input type="text" name="classification" value="{{ $field('classification') }}" class="{{ $input }}">
+                            <input type="text" value="{{ $classification }}" readonly class="{{ $input }} bg-gray-100 text-gray-600">
+                            <input type="hidden" name="classification" value="{{ $classification }}">
                         </div>
                         <div>
                             <label class="block font-medium text-sm text-gray-700">Mã hàng (SKU) <span class="text-red-500">*</span></label>

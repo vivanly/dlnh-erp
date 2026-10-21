@@ -54,7 +54,7 @@
         .label { position: relative; width: 144.5mm; height: 101mm; display: grid; border: 1mm double #000; line-height: 1.12; overflow: hidden; }
         .label > div { min-width: 0; min-height: 0; overflow: hidden; padding: .25mm .7mm; }
         .watermark { position: absolute; inset: 0; z-index: 0; display: flex; align-items: center; justify-content: center; padding: 0 !important; pointer-events: none; }
-        .watermark img { width: 100%; height: 100%; object-fit: fill; opacity: .30; }
+        .watermark img { width: 100%; height: 100%; object-fit: fill; opacity: .12; transform: translateY(-1mm); }
         .label > div:not(.watermark) { position: relative; z-index: 1; }
         .box-top { border-top: .25mm solid #000; }
         .box-v { border-left: .25mm solid #000; }
@@ -71,8 +71,8 @@
         .fit-one-line { white-space: nowrap; }
         .fit-wrap { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
         .packaging-control-block { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: .7mm !important; }
-        .packaging-control-values { display: flex; align-items: center; justify-content: center; gap: 2mm; width: 100%; white-space: nowrap; }
-        .packaging-control-title { display: flex; align-items: center; justify-content: center; gap: 2mm; width: 100%; white-space: nowrap; }
+        .packaging-control-line { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 2mm; width: 100%; white-space: nowrap !important; }
+        .packaging-control-line > span { flex: 0 0 auto; white-space: nowrap !important; }
         .scientific-name { overflow-wrap: anywhere; word-break: normal; line-height: 1.05; }
         .field-label-nowrap { white-space: nowrap; font-size: .9em; }
         .b { font-weight: bold; }
@@ -83,6 +83,7 @@
         .logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
         .qr-box { grid-column: 14 / 21; grid-row: 16 / 20; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0 !important; }
         .qr-box canvas { display: block; width: 18mm !important; height: 18mm !important; max-width: 100%; max-height: 100%; }
+        .qr-heading { padding-top: 1.2mm !important; line-height: 1 !important; }
         .rule-bottom { border-bottom: .25mm solid #000; }
     </style>
 </head>
@@ -104,7 +105,10 @@
             @endphp
             <div class="slot">
                 <div class="label" style="grid-template-columns: {{ $gridColumns }}; grid-template-rows: {{ $gridRows }}; font-family: {{ $t['font'] }}; font-size: {{ $t['size'] }}pt;">
-                    @if(!empty($watermark))<div class="watermark"><img src="{{ asset('images/nhan.svg') }}" alt=""></div>@endif
+                    @if(!empty($watermark))
+                        @php $watermarkPath = $type === 'vt' ? 'images/watermark-vt.svg' : 'images/watermark-herb.svg'; @endphp
+                        <div class="watermark"><img src="{{ asset($watermarkPath) }}?v={{ filemtime(public_path($watermarkPath)) }}" alt=""></div>
+                    @endif
                     {{-- Đường kẻ và khung --}}
                     <div class="lot-divider" style="grid-column: 14 / 21; grid-row: 4 / 20; padding: 0;"></div>
                     <div class="lot-top-rule" style="grid-column: 14 / 21; grid-row: 4 / 5; padding: 0;"></div>
@@ -139,15 +143,12 @@
                     <div class="fit-one-line" style="grid-column: {{ $registrationValueStart }} / 14; grid-row: 11 / 12;">{{ $label['registration'] }}</div>
                     @if(!empty($label['include_packaging_control']))
                         <div class="packaging-control-block" style="grid-column: 1 / 14; grid-row: 12 / 14; font-size: {{ $t['size'] - .4 }}pt;">
-                            <div class="packaging-control-title fit-one-line">
+                            <div class="packaging-control-line fit-one-line">
                                 <span>Kiểm soát đóng gói:</span>
                                 <span class="b">IPC: {{ $label['packaging_controller'] }}</span>
-                            </div>
-                            <div class="packaging-control-values fit-one-line">
                                 <span class="i">Người thực hiện: {{ $label['packaging_performer'] }}</span>
                             </div>
                         </div>
-                    @endif
                     @endif
                     <div class="quality-block fit-wrap" style="grid-column: 14 / 21; grid-row: 11 / 14;">
                         <div class="b">Tiêu chuẩn chất lượng:</div>
@@ -155,8 +156,8 @@
                     </div>
 
                     <div class="b center mid" style="grid-column: 1 / 14; grid-row: 14 / 15;">Sản xuất tại:</div>
-                    <div class="b center mid" style="grid-column: 14 / 21; grid-row: 14 / 15;">QUÉT QR TRUY XUẤT</div>
-                    <div class="b center mid" style="grid-column: 14 / 21; grid-row: 15 / 16;">HỒ SƠ</div>
+                    <div class="b center mid qr-heading" style="grid-column: 14 / 21; grid-row: 14 / 15;">QUÉT QR TRUY XUẤT</div>
+                    <div class="b center mid qr-heading" style="grid-column: 14 / 21; grid-row: 15 / 16;">HỒ SƠ</div>
                     @if(!empty($label['qr_url']))
                         <div class="qr-box"><canvas data-qr-value="{{ $label['qr_url'] }}" aria-label="Mã QR truy xuất {{ $label['batch'] }}"></canvas></div>
                     @endif
@@ -194,7 +195,8 @@
 
                 // Keep unusually long values visible too; only relax the one-line
                 // rule when they cannot fit even at the smallest print size.
-                if (!isWrapped && !element.classList.contains('product-name') && overflows()) {
+                const keepOneLine = element.classList.contains('packaging-control-line');
+                if (!isWrapped && !element.classList.contains('product-name') && !keepOneLine && overflows()) {
                     element.style.whiteSpace = 'normal';
                     element.style.overflowWrap = 'anywhere';
                     while (element.scrollHeight > element.clientHeight + 1 && size > 0.1) {

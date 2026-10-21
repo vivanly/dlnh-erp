@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Trả hàng nhà cung cấp · nguyên liệu thô &amp; phụ liệu</h2>
+        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Trả hàng nhà cung cấp · dược liệu thô &amp; phụ liệu</h2>
     </x-slot>
 
     <div class="py-2">
@@ -50,7 +50,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="p-5 text-center text-slate-500">Chưa có nguyên liệu thô/phụ liệu nào được nhập kho.</td></tr>
+                            <tr><td colspan="6" class="p-5 text-center text-slate-500">Chưa có dược liệu thô/phụ liệu nào được nhập kho.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

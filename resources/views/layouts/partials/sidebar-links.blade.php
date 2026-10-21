@@ -72,7 +72,7 @@
         </summary>
         <div class="px-2 pb-2 pt-1 space-y-1 border-t border-slate-200 bg-white rounded-b-md">
             <div class="mt-3 first:mt-1 mb-0.5 flex items-center gap-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 after:content-[''] after:h-px after:flex-1 after:bg-slate-200">Danh mục</div>
-            <a href="{{ route('raw-materials.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('raw-materials*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Nguyên liệu thô</a>
+            <a href="{{ route('raw-materials.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('raw-materials*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Dược liệu thô</a>
             <a href="{{ route('accessories.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('accessories*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Phụ liệu</a>
             <a href="{{ route('ppcb.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('ppcb*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Phương pháp chế biến (PPCB)</a>
             <a href="{{ route('products.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('products*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Sản phẩm</a>
@@ -131,11 +131,11 @@
     @endif
 
     @if($currentUser)
-        <details class="group/menu rounded-md border {{ request()->routeIs(['warehouse.*', 'production-orders*']) ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs(['warehouse.*', 'production-orders*']) ? 'open' : '' }}>
+        <details class="group/menu rounded-md border {{ request()->routeIs(['warehouse.*', 'production-orders*', 'supplier-returns*']) ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs(['warehouse.*', 'production-orders*', 'supplier-returns*']) ? 'open' : '' }}>
             <summary class="list-none cursor-pointer flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
                 <div class="flex items-center gap-2.5">
-                    <svg class="w-4 h-4 text-slate-500 {{ request()->routeIs(['warehouse.*', 'production-orders*']) ? 'text-blue-600' : '' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18v13H3zM3 7l2-4h14l2 4M8 11v5m4-5v5m4-5v5"></path></svg>
-                    <span class="{{ request()->routeIs(['warehouse.*', 'production-orders*']) ? 'text-blue-700 font-semibold' : '' }}">Kho</span>
+                    <svg class="w-4 h-4 text-slate-500 {{ request()->routeIs(['warehouse.*', 'production-orders*', 'supplier-returns*']) ? 'text-blue-600' : '' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18v13H3zM3 7l2-4h14l2 4M8 11v5m4-5v5m4-5v5"></path></svg>
+                    <span class="{{ request()->routeIs(['warehouse.*', 'production-orders*', 'supplier-returns*']) ? 'text-blue-700 font-semibold' : '' }}">Kho</span>
                 </div>
                 <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-open/menu:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
             </summary>
@@ -146,12 +146,12 @@
                 <a href="{{ route('supplier-returns.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('supplier-returns*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Trả hàng nhà cung cấp</a>
                 <div class="mt-3 first:mt-1 mb-0.5 flex items-center gap-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 after:content-[''] after:h-px after:flex-1 after:bg-slate-200">Xuất kho</div>
                 <a href="{{ route('warehouse.production-issues') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.production-issues*', 'production-orders*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Xuất NL cho lệnh sản xuất</a>
-                <a href="{{ route('warehouse.material-issues') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.material-issues*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Xuất đơn bán nguyên liệu thô</a>
+                <a href="{{ route('warehouse.material-issues') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.material-issues*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Xuất đơn bán dược liệu thô</a>
                 <a href="{{ route('warehouse.sales-orders') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.sales-orders*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Đóng gói và xuất hàng</a>
                 <a href="{{ route('warehouse.delivered-sales-orders') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.delivered-sales-orders*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Đơn đã giao</a>
                 <div class="mt-3 first:mt-1 mb-0.5 flex items-center gap-2 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400 after:content-[''] after:h-px after:flex-1 after:bg-slate-200">Tồn kho</div>
                 <a href="{{ route('warehouse.stock') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.stock*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Tồn kho dược liệu / thành phẩm</a>
-                <a href="{{ route('warehouse.material-stock') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.material-stock*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Tồn nguyên liệu thô / phụ liệu</a>
+                <a href="{{ route('warehouse.material-stock') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.material-stock*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Tồn dược liệu thô / phụ liệu</a>
                 <a href="{{ route('warehouse.sales-order-stock-checks') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('warehouse.sales-order-stock-checks*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Kiểm tra tồn đơn bán</a>
             </div>
         </details>

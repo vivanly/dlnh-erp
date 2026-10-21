@@ -61,7 +61,7 @@
                             <option value="">-- Tất cả loại đơn --</option>
                             <option value="DL" {{ request('order_type') === 'DL' ? 'selected' : '' }}>Dược Liệu</option>
                             <option value="VT" {{ request('order_type') === 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
-                            <option value="NL" {{ request('order_type') === 'NL' ? 'selected' : '' }}>Nguyên Liệu Thô</option>
+                            <option value="NL" {{ request('order_type') === 'NL' ? 'selected' : '' }}>Dược Liệu Thô</option>
                         </select>
                     </div>
                     <div>

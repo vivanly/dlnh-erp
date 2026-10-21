@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">{{ $type === 'accessory' ? 'Kiểm tra phụ liệu (QC xác nhận mới vào tồn)' : 'Kiểm tra lô NCC - nguyên liệu thô (QA cập nhật lô/COA → QC xác nhận)' }}</h2>
+        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">{{ $type === 'accessory' ? 'Kiểm tra phụ liệu (QC xác nhận mới vào tồn)' : 'Kiểm tra lô NCC - dược liệu thô (QA cập nhật lô/COA → QC xác nhận)' }}</h2>
     </x-slot>
 
     <div class="py-2">
@@ -25,7 +25,7 @@
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
                         <tr class="bg-slate-200/80 font-bold uppercase text-[11px] text-slate-700 border-b border-slate-300">
-                            <th class="p-2.5 border-r">Nguyên liệu thô</th>
+                            <th class="p-2.5 border-r">Dược liệu thô</th>
                             <th class="p-2.5 border-r">Đơn mua / NCC</th>
                             <th class="p-2.5 border-r text-center">SL nhập</th>
                             <th class="p-2.5 border-r">Số lô NCC / NSX / HSD / COA</th>
@@ -37,7 +37,7 @@
                         @forelse($lots as $lot)
                             @php $pending = $lot->status === 'pending_qa'; $isRaw = $lot->material_type === 'raw_material'; @endphp
                             <tr class="align-top">
-                                <td class="p-2.5 border-r font-medium"><span class="block text-[10px] font-bold uppercase {{ $isRaw ? 'text-emerald-700' : 'text-violet-700' }}">{{ $isRaw ? 'Nguyên liệu thô' : 'Phụ liệu' }}</span>{{ $lot->catalog_item->name ?? '---' }} <span class="font-mono text-slate-500">({{ $lot->catalog_item->sku ?? '' }})</span></td>
+                                <td class="p-2.5 border-r font-medium"><span class="block text-[10px] font-bold uppercase {{ $isRaw ? 'text-emerald-700' : 'text-violet-700' }}">{{ $isRaw ? 'Dược liệu thô' : 'Phụ liệu' }}</span>{{ $lot->catalog_item->name ?? '---' }} <span class="font-mono text-slate-500">({{ $lot->catalog_item->sku ?? '' }})</span></td>
                                 <td class="p-2.5 border-r">
                                     <div class="font-mono font-semibold">{{ $lot->purchaseOrderItem->purchaseOrder->po_number ?? '---' }}</div>
                                     <div class="text-[10px] text-slate-500">{{ $lot->purchaseOrderItem->purchaseOrder->supplier->name ?? '' }}</div>
@@ -83,7 +83,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="p-6 text-center text-slate-500">{{ $type === 'accessory' ? 'Chưa có phụ liệu nào chờ kiểm.' : 'Chưa có lô nguyên liệu thô nào.' }}</td></tr>
+                            <tr><td colspan="6" class="p-6 text-center text-slate-500">{{ $type === 'accessory' ? 'Chưa có phụ liệu nào chờ kiểm.' : 'Chưa có lô dược liệu thô nào.' }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

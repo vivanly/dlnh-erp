@@ -26,7 +26,12 @@
                         <!-- Phân loại -->
                         <div>
                             <label class="block font-medium text-sm text-gray-700">Phân loại</label>
-                            <input type="text" name="classification" value="{{ old('classification') }}" placeholder="Ví dụ: DL / Sơ chế..." class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            <select name="classification" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option value="">-- Chọn phân loại --</option>
+                                @foreach(['Dược Liệu', 'Dược Liệu Sơ Chế', 'Vị Thuốc Cổ Truyền', 'Thuốc Cổ Truyền', 'Thực Phẩm Chức Năng'] as $classification)
+                                    <option value="{{ $classification }}" @selected(old('classification') === $classification)>{{ $classification }}</option>
+                                @endforeach
+                            </select>
                         </div>
 
                         <!-- Mã hàng SKU -->
@@ -53,9 +58,9 @@
                             <input type="text" name="origin" value="{{ old('origin') }}" placeholder="Ví dụ: VN" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                         </div>
 
-                        <!-- Nguyên liệu thô nguồn -->
+                        <!-- Dược liệu thô nguồn -->
                         <div>
-                            <label class="block font-medium text-sm text-gray-700">Nguyên liệu thô nguồn (nếu có)</label>
+                            <label class="block font-medium text-sm text-gray-700">Dược liệu thô nguồn (nếu có)</label>
                             <select name="raw_material_id" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">-- Không gắn --</option>
                                 @foreach(\App\Models\RawMaterial::orderBy('name')->get(['id', 'sku', 'name']) as $rawMaterial)

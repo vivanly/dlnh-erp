@@ -15,7 +15,7 @@ class MaterialReceiptController extends Controller
     private function authorizeWarehouse(): void
     {
         $user = auth()->user();
-        abort_unless($user && ($user->isWarehouseDepartment() || $user->isWarehouseManager() || $user->isITDepartment()), 403, 'Chỉ bộ phận Kho hoặc IT mới có quyền nhập kho nguyên liệu thô/phụ liệu.');
+        abort_unless($user && ($user->isWarehouseDepartment() || $user->isWarehouseManager() || $user->isITDepartment()), 403, 'Chỉ bộ phận Kho hoặc IT mới có quyền nhập kho dược liệu thô/phụ liệu.');
     }
 
     private function materialItems(PurchaseOrder $purchaseOrder)
@@ -38,7 +38,7 @@ class MaterialReceiptController extends Controller
 
         $items = $this->materialItems($purchaseOrder);
         if ($items->isEmpty()) {
-            return redirect()->route('warehouse.purchase-orders')->with('error', 'Đơn mua không có nguyên liệu thô/phụ liệu.');
+            return redirect()->route('warehouse.purchase-orders')->with('error', 'Đơn mua không có dược liệu thô/phụ liệu.');
         }
 
         return view('material-receipts.create', compact('purchaseOrder', 'items'));
@@ -113,6 +113,6 @@ class MaterialReceiptController extends Controller
             return back()->withInput()->with('error', $exception->getMessage());
         }
 
-        return redirect()->route('warehouse.purchase-orders')->with('success', 'Đã nhập kho. Hàng chờ QC xác nhận mới vào tồn (nguyên liệu thô cần QA cập nhật số lô NCC/COA trước).');
+        return redirect()->route('warehouse.purchase-orders')->with('success', 'Đã nhập kho. Hàng chờ QC xác nhận mới vào tồn (dược liệu thô cần QA cập nhật số lô NCC/COA trước).');
     }
 }

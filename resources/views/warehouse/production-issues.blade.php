@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Xuất nguyên liệu thô / phụ liệu cho lệnh sản xuất</h2>
+        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Xuất dược liệu thô / phụ liệu cho lệnh sản xuất</h2>
     </x-slot>
 
     <div class="py-2">

@@ -123,7 +123,7 @@ class OrderController extends Controller
         }
 
         return back()->with('success', $order->order_type === 'NL'
-            ? 'Đã duyệt đơn nguyên liệu thô; đơn được chuyển sang Kho xuất hàng.'
+            ? 'Đã duyệt đơn dược liệu thô; đơn được chuyển sang Kho xuất hàng.'
             : 'Đã duyệt đơn bán; đơn được chuyển sang Kho xác nhận tồn.');
     }
 
@@ -527,7 +527,7 @@ class OrderController extends Controller
     {
         $order = Order::with('items.product', 'customer', 'items.ppcb', 'items.lotAllocations')->findOrFail($id);
         if ($order->order_type === 'NL') {
-            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn nguyên liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
+            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn dược liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
         }
         if ($order->isEditLockedAfterQa()) {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã được QA chốt số lô, không thể chỉnh sửa.');
@@ -634,7 +634,7 @@ class OrderController extends Controller
     {
         $order = Order::findOrFail($id);
         if ($order->order_type === 'NL') {
-            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn nguyên liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
+            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn dược liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
         }
         if ($order->isEditLockedAfterQa()) {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã được QA chốt số lô, không thể chỉnh sửa.');

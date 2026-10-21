@@ -91,7 +91,7 @@ class SupplierReturnController extends Controller
             $returnOrder = DB::transaction(function () use ($purchaseOrderItem, $validated) {
                 $item = PurchaseOrderItem::with('purchaseOrder')->whereKey($purchaseOrderItem->id)->lockForUpdate()->firstOrFail();
                 if (!$item->material_type) {
-                    throw new DomainException('Chỉ lập đơn trả cho nguyên liệu thô hoặc phụ liệu.');
+                    throw new DomainException('Chỉ lập đơn trả cho dược liệu thô hoặc phụ liệu.');
                 }
 
                 $lot = MaterialLot::whereKey($validated['material_lot_id'])

@@ -66,7 +66,7 @@ class PurchaseOrderItem extends Model
             : ['product_id' => null, 'material_type' => $type, 'material_id' => $id];
     }
 
-    // Hàng hóa của dòng đơn mua: sản phẩm, nguyên liệu thô hoặc phụ liệu
+    // Hàng hóa của dòng đơn mua: sản phẩm, dược liệu thô hoặc phụ liệu
     public function getCatalogItemAttribute()
     {
         return match ($this->material_type) {
@@ -84,13 +84,13 @@ class PurchaseOrderItem extends Model
     public function getItemTypeLabelAttribute(): string
     {
         return match ($this->item_type) {
-            'raw_material' => 'Nguyên liệu thô',
-            'accessory' => 'Phụ liệu',
+            'raw_material' => 'Dược Liệu Thô',
+            'accessory' => 'Phụ Liệu',
             default => 'Dược liệu / Sản phẩm',
         };
     }
 
-    // Lượng đã xử lý (đạt + trả) của dòng hàng, kể cả nguyên liệu thô/phụ liệu
+    // Lượng đã xử lý (đạt + trả) của dòng hàng, kể cả dược liệu thô/phụ liệu
     public function processedQuantity(): float
     {
         if ($this->material_type) {

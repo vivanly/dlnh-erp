@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Xuất kho đơn nguyên liệu thô</h2>
+        <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Xuất kho đơn dược liệu thô</h2>
     </x-slot>
 
     <div class="py-2">
@@ -10,7 +10,7 @@
 
             @forelse($orders as $order)
                 @php($enough = $order->items->every(fn ($i) => (float) $i->quantity <= $i->stock_balance + 0.0001))
-                <form id="issue-form-{{ $order->id }}" method="POST" action="{{ route('warehouse.material-issues.issue', $order) }}" onsubmit="return confirm('Xác nhận xuất kho nguyên liệu thô theo các lô đã chọn?');">@csrf</form>
+                <form id="issue-form-{{ $order->id }}" method="POST" action="{{ route('warehouse.material-issues.issue', $order) }}" onsubmit="return confirm('Xác nhận xuất kho dược liệu thô theo các lô đã chọn?');">@csrf</form>
                 <div class="bg-white border border-slate-300">
                     <div class="p-3 bg-slate-100 border-b border-slate-300 flex items-center justify-between text-xs">
                         <div><span class="font-mono font-bold text-blue-700">{{ $order->order_code }}</span> · {{ $order->customer->name ?? '---' }} · giao dự kiến {{ optional($order->delivery_date)->format('d/m/Y') }}</div>
@@ -20,7 +20,7 @@
                     </div>
                     <table class="w-full text-left border-collapse text-xs">
                         <thead><tr class="bg-slate-200/80 font-bold uppercase text-[11px] text-slate-700 border-b border-slate-300">
-                            <th class="p-2 border-r">Nguyên liệu thô</th><th class="p-2 border-r text-right">Cần xuất</th><th class="p-2 border-r text-right">Tồn kho</th><th class="p-2">Chọn lô NCC xuất</th>
+                            <th class="p-2 border-r">Dược liệu thô</th><th class="p-2 border-r text-right">Cần xuất</th><th class="p-2 border-r text-right">Tồn kho</th><th class="p-2">Chọn lô NCC xuất</th>
                         </tr></thead>
                         <tbody class="divide-y divide-slate-200">
                             @foreach($order->items as $item)
@@ -43,7 +43,7 @@
                     </table>
                 </div>
             @empty
-                <div class="bg-white border border-slate-300 p-6 text-center text-xs text-slate-500">Không có đơn nguyên liệu thô nào chờ xuất kho.</div>
+                <div class="bg-white border border-slate-300 p-6 text-center text-xs text-slate-500">Không có đơn dược liệu thô nào chờ xuất kho.</div>
             @endforelse
 
             {{ $orders->links() }}

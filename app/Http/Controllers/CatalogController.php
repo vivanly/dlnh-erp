@@ -127,6 +127,7 @@ abstract class CatalogController extends Controller
             'item' => null,
             'prefix' => $this->routePrefix(),
             'labels' => $this->labels(),
+            'classification' => $this->classificationLabel(),
         ]);
     }
 
@@ -135,6 +136,7 @@ abstract class CatalogController extends Controller
         $this->authorizeManage();
 
         $validated = $this->validated($request);
+        $validated['classification'] = $this->classificationLabel();
         $model = $this->modelClass();
         $validated['slug'] = $model::uniqueSlug($validated['name'], $validated['sku']);
         $model::create($validated);
@@ -152,6 +154,7 @@ abstract class CatalogController extends Controller
             'item' => $model::findOrFail($id),
             'prefix' => $this->routePrefix(),
             'labels' => $this->labels(),
+            'classification' => $this->classificationLabel(),
         ]);
     }
 
@@ -162,6 +165,7 @@ abstract class CatalogController extends Controller
         $model = $this->modelClass();
         $item = $model::findOrFail($id);
         $validated = $this->validated($request, $item->id);
+        $validated['classification'] = $this->classificationLabel();
         $validated['slug'] = $model::uniqueSlug($validated['name'], $validated['sku'], $item->id);
         $item->update($validated);
 
@@ -213,6 +217,14 @@ abstract class CatalogController extends Controller
 
     abstract protected function materialType(): string;
 
+    protected function classificationLabel(): string
+    {
+        return match ($this->materialType()) {
+            'raw_material' => 'Dược Liệu Thô',
+            'accessory' => 'Phụ Liệu',
+        };
+    }
+
     private function validated(Request $request, ?int $ignoreId = null): array
     {
         return $request->validate([
@@ -221,7 +233,6 @@ abstract class CatalogController extends Controller
             'part_used' => 'nullable|string|max:255',
             'origin' => 'nullable|string|max:255',
             'unit' => 'nullable|string|max:50',
-            'classification' => 'nullable|string|max:255',
             'scientific_name' => 'nullable|string|max:255',
             'scientific_name_reference' => 'nullable|string|max:255',
             'note' => 'nullable|string',

@@ -24,12 +24,12 @@ class RawMaterialController extends CatalogController
     protected function labels(): array
     {
         return [
-            'title' => 'Danh mục Nguyên liệu thô',
-            'singular' => 'nguyên liệu thô',
-            'add' => 'Thêm nguyên liệu thô',
-            'created' => 'Thêm nguyên liệu thô thành công!',
-            'updated' => 'Cập nhật nguyên liệu thô thành công!',
-            'deleted' => 'Xóa nguyên liệu thô thành công!',
+            'title' => 'Danh mục Dược liệu thô',
+            'singular' => 'dược liệu thô',
+            'add' => 'Thêm dược liệu thô',
+            'created' => 'Thêm dược liệu thô thành công!',
+            'updated' => 'Cập nhật dược liệu thô thành công!',
+            'deleted' => 'Xóa dược liệu thô thành công!',
         ];
     }
 }
