@@ -185,6 +185,13 @@ abstract class CatalogController extends Controller
             return redirect()->route($this->routePrefix() . '.index')->with('error', 'Mục này đã được dùng trong đơn mua hàng nên không thể xóa.');
         }
 
+        $inBom = \App\Models\ProductBomItem::where('component_type', $model)
+            ->where('component_id', $item->id)
+            ->exists();
+        if ($inBom) {
+            return redirect()->route($this->routePrefix() . '.index')->with('error', 'Mục này đã được dùng trong BOM nên không thể xóa.');
+        }
+
         $item->delete();
 
         return redirect()->route($this->routePrefix() . '.index')->with('success', $this->labels()['deleted']);
@@ -223,6 +230,8 @@ abstract class CatalogController extends Controller
         return match ($this->materialType()) {
             'raw_material' => 'Dược Liệu Thô',
             'accessory' => 'Phụ Liệu',
+            'excipient' => 'Tá Dược',
+            'packaging' => 'Bao Bì',
         };
     }
 

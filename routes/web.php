@@ -226,15 +226,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/products/import', [ProductController::class, 'importForm'])->name('products.import.form');
     Route::post('/products/import', [ProductController::class, 'import'])->name('products.import');
     Route::resource('products', ProductController::class)->except(['show']);
-    foreach (['raw-materials' => \App\Http\Controllers\RawMaterialController::class, 'accessories' => \App\Http\Controllers\AccessoryController::class] as $catalogPrefix => $catalogController) {
+    foreach ([
+        'raw-materials' => \App\Http\Controllers\RawMaterialController::class,
+        'accessories' => \App\Http\Controllers\AccessoryController::class,
+        'excipients' => \App\Http\Controllers\ExcipientController::class,
+        'packaging' => \App\Http\Controllers\PackagingMaterialController::class,
+    ] as $catalogPrefix => $catalogController) {
         Route::get("/{$catalogPrefix}/export", [$catalogController, 'export'])->name("{$catalogPrefix}.export");
         Route::get("/{$catalogPrefix}/import", [$catalogController, 'importForm'])->name("{$catalogPrefix}.import.form");
         Route::post("/{$catalogPrefix}/import", [$catalogController, 'import'])->name("{$catalogPrefix}.import");
     }
     Route::resource('raw-materials', \App\Http\Controllers\RawMaterialController::class)->except(['show']);
     Route::resource('accessories', \App\Http\Controllers\AccessoryController::class)->except(['show']);
+    Route::resource('excipients', \App\Http\Controllers\ExcipientController::class)->except(['show']);
+    Route::resource('packaging', \App\Http\Controllers\PackagingMaterialController::class)->except(['show']);
     Route::get('/api/raw-materials/search', [\App\Http\Controllers\RawMaterialController::class, 'searchAjax'])->name('api.raw-materials.search');
     Route::get('/api/accessories/search', [\App\Http\Controllers\AccessoryController::class, 'searchAjax'])->name('api.accessories.search');
+    Route::get('/api/excipients/search', [\App\Http\Controllers\ExcipientController::class, 'searchAjax'])->name('api.excipients.search');
+    Route::get('/api/packaging/search', [\App\Http\Controllers\PackagingMaterialController::class, 'searchAjax'])->name('api.packaging.search');
     Route::resource('product-regulatory-documents', ProductRegulatoryDocumentController::class)->except(['show']);
     Route::resource('product-quality-standards', ProductQualityStandardController::class)->except(['show']);
     Route::resource('product-storage-methods', ProductStorageMethodController::class)->except(['show']);

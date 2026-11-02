@@ -48,7 +48,7 @@
                                 <td class="p-2.5 border-r">
                                     @foreach($bom->items as $item)
                                         <div class="{{ !$loop->first ? 'mt-1 pt-1 border-t border-slate-100' : '' }}">
-                                            {{ $item->componentProduct->name ?? 'Nguyên liệu' }}:
+                                            {{ $item->component_type_label }} · {{ $item->component->name ?? 'Nguyên liệu' }}:
                                             <span class="font-mono font-semibold">{{ number_format($item->quantity, 4) }} {{ $item->unit }}</span>
                                         </div>
                                     @endforeach

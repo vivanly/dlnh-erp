@@ -37,7 +37,7 @@ class ProductBom extends Model
 
     public function items()
     {
-        return $this->hasMany(ProductBomItem::class)->with('componentProduct');
+        return $this->hasMany(ProductBomItem::class)->with('component');
     }
 
     public function submittedBy()

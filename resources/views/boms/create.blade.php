@@ -20,10 +20,10 @@
                     <h3 class="mb-3 border-b border-slate-200 pb-2 text-xs font-bold uppercase text-slate-700">Thành phẩm và sản lượng đầu ra</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                         <label class="block font-semibold text-slate-700">Thành phẩm
-                            <select name="product_id" required class="mt-1 w-full text-xs border-slate-300 rounded-none">
+                            <select name="product_id" id="bom-product" required class="mt-1 w-full text-xs border-slate-300 rounded-none">
                                 <option value="">Chọn sản phẩm</option>
                                 @foreach($products as $product)
-                                    <option value="{{ $product->id }}" data-unit="{{ $product->unit }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>{{ $product->name }} · {{ $product->sku }}</option>
+                                    <option value="{{ $product->id }}" data-unit="{{ $product->unit }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>{{ $product->classification ?: 'Chưa phân loại' }} · {{ $product->name }} · {{ $product->sku }}</option>
                                 @endforeach
                             </select>
                         </label>
@@ -34,7 +34,7 @@
                             <input type="text" name="output_unit" value="{{ old('output_unit') }}" placeholder="Ví dụ: kg" required class="mt-1 w-full text-xs border-slate-300 rounded-none">
                         </label>
                         <label class="block font-semibold text-slate-700">ĐVT gốc trên mỗi ĐVT nhập
-                            <input type="number" name="output_to_base_factor" value="{{ old('output_to_base_factor', 1) }}" min="0.0000000001" step="any" class="mt-1 w-full text-xs border-slate-300 rounded-none">
+                            <input type="number" name="output_to_base_factor" value="{{ old('output_to_base_factor') }}" min="0.0000000001" step="any" placeholder="Chỉ nhập khi đơn vị khác đơn vị gốc" class="mt-1 w-full text-xs border-slate-300 rounded-none">
                         </label>
                         <label class="block font-semibold text-slate-700">Tỷ lệ thu hồi (%)
                             <input type="number" name="yield_percent" value="{{ old('yield_percent', 100) }}" min="0.00001" max="100" step="0.001" required class="mt-1 w-full text-xs border-slate-300 rounded-none">
@@ -47,19 +47,23 @@
 
                 <section class="bg-white border border-slate-300">
                     <div class="flex items-center justify-between gap-2 border-b border-slate-300 bg-slate-100 p-3">
-                        <h3 class="text-xs font-bold uppercase text-slate-700">Nguyên liệu tiêu hao cho sản lượng định mức</h3>
-                        <button type="button" id="add-bom-item" class="px-3 py-1.5 bg-blue-600 text-xs font-bold uppercase text-white hover:bg-blue-700">Thêm nguyên liệu</button>
+                        <div>
+                            <h3 class="text-xs font-bold uppercase text-slate-700">Thành phần cho sản lượng định mức</h3>
+                            <p class="mt-1 text-[11px] text-slate-600">Thành phần gồm Dược liệu thô, Phụ liệu, Tá dược và Bao bì. Hãy tạo danh mục trước khi thêm vào BOM.</p>
+                        </div>
+                        <button type="button" id="add-bom-item" class="shrink-0 px-3 py-1.5 bg-blue-600 text-xs font-bold uppercase text-white hover:bg-blue-700">Thêm thành phần</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full min-w-[760px] text-left text-xs">
-                            <thead><tr class="border-b border-slate-200 text-[10px] uppercase text-slate-600"><th class="p-2">Nguyên liệu</th><th class="p-2 w-36">Lượng</th><th class="p-2 w-32">Đơn vị</th><th class="p-2 w-40">ĐVT gốc / ĐVT nhập</th><th class="p-2 w-20"></th></tr></thead>
+                            <thead><tr class="border-b border-slate-200 text-[10px] uppercase text-slate-600"><th class="p-2 w-40">Phân loại</th><th class="p-2">Tên thành phần</th><th class="p-2 w-36">Định lượng</th><th class="p-2 w-32">Đơn vị tính</th><th class="p-2 w-40">Hệ số quy đổi</th><th class="p-2 w-20"></th></tr></thead>
                             <tbody id="bom-items">
                                 <tr class="bom-item-row border-b border-slate-100">
-                                    <td class="p-2"><select name="items[0][component_product_id]" required class="w-full text-xs border-slate-300 rounded-none"><option value="">Chọn nguyên liệu</option>@foreach($products as $product)<option value="{{ $product->id }}" data-unit="{{ $product->unit }}">{{ $product->name }} · {{ $product->sku }}</option>@endforeach</select></td>
+                                    <td class="p-2"><select name="items[0][category]" required class="w-full text-xs border-slate-300 rounded-none"><option value="">Chọn phân loại</option>@foreach($componentGroups as $type => $group)<option value="{{ $type }}">{{ $group['label'] }}</option>@endforeach</select></td>
+                                    <td class="p-2"><select name="items[0][component]" required disabled class="w-full text-xs border-slate-300 rounded-none"><option value="">Chọn phân loại trước</option>@foreach($componentGroups as $group)@foreach($group['items'] as $component)<option value="{{ $component['key'] }}" data-unit="{{ $component['unit'] }}" data-type="{{ $component['type'] }}">{{ $component['name'] }} · {{ $component['sku'] }}</option>@endforeach @endforeach</select></td>
                                     <td class="p-2"><input type="number" name="items[0][quantity]" min="0.0001" step="0.0001" required class="w-full text-xs border-slate-300 rounded-none"></td>
-                                    <td class="p-2"><input type="text" name="items[0][unit]" placeholder="kg" required class="w-full text-xs border-slate-300 rounded-none"></td>
-                                    <td class="p-2"><input type="number" name="items[0][to_base_factor]" min="0.0000000001" step="any" placeholder="1 nếu cùng ĐVT gốc" class="w-full text-xs border-slate-300 rounded-none"></td>
-                                    <td class="p-2 text-center"><button type="button" class="remove-bom-item text-rose-600" aria-label="Xóa nguyên liệu">Xóa</button></td>
+                                    <td class="p-2"><input type="text" name="items[0][unit]" placeholder="Tự điền theo danh mục" required class="w-full text-xs border-slate-300 rounded-none"></td>
+                                    <td class="conversion-cell p-2"><span class="conversion-not-needed text-slate-400">—</span><input type="number" name="items[0][to_base_factor]" min="0.0000000001" step="any" placeholder="Chỉ cần khi khác ĐVT gốc" class="hidden w-full text-xs border-slate-300 rounded-none"></td>
+                                    <td class="p-2 text-center"><button type="button" class="remove-bom-item text-rose-600" aria-label="Xóa thành phần">Xóa</button></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -77,6 +81,84 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const tbody = document.getElementById('bom-items');
+            const outputProduct = document.getElementById('bom-product');
+            const outputUnit = document.querySelector('[name="output_unit"]');
+            const outputFactor = document.querySelector('[name="output_to_base_factor"]');
+
+            function filterComponents(row, reset = true) {
+                const category = row.querySelector('select[name$="[category]"]');
+                const component = row.querySelector('select[name$="[component]"]');
+                const type = category.value;
+                let availableCount = 0;
+
+                component.disabled = !type;
+                component.querySelectorAll('option[data-type]').forEach(function (option) {
+                    option.hidden = option.dataset.type !== type;
+                    option.disabled = option.dataset.type !== type;
+                    if (option.dataset.type === type) availableCount++;
+                });
+                if (reset) component.value = '';
+                component.disabled = !type || availableCount === 0;
+                component.options[0].textContent = !type
+                    ? 'Chọn phân loại trước'
+                    : (availableCount ? 'Chọn tên thành phần' : 'Chưa có dữ liệu trong danh mục');
+            }
+
+            function syncComponentRow(row) {
+                const select = row.querySelector('select[name$="[component]"]');
+                const selected = select.selectedOptions[0];
+                const unitInput = row.querySelector('input[name$="[unit]"]');
+                const factorCell = row.querySelector('.conversion-cell');
+                const factorInput = factorCell.querySelector('input');
+                const unit = selected.dataset.unit || '';
+                const hasSelection = select.value !== '';
+                const isProduct = selected.dataset.type === 'product';
+
+                unitInput.value = unit;
+                unitInput.readOnly = hasSelection && !isProduct;
+                unitInput.classList.toggle('bg-slate-100', hasSelection && !isProduct);
+                factorInput.classList.toggle('hidden', !isProduct);
+                factorCell.querySelector('.conversion-not-needed').classList.toggle('hidden', isProduct);
+                factorInput.value = isProduct ? '1' : '';
+            }
+
+            function syncOutputUnitFactor() {
+                const baseUnit = outputProduct.selectedOptions[0].dataset.unit || '';
+                if (!baseUnit) return;
+
+                if (outputUnit.value.trim().toLowerCase() === baseUnit.trim().toLowerCase()) {
+                    outputFactor.value = '1';
+                } else {
+                    outputFactor.value = '';
+                }
+            }
+
+            outputProduct.addEventListener('change', function () {
+                outputUnit.value = outputProduct.selectedOptions[0].dataset.unit || '';
+                syncOutputUnitFactor();
+            });
+            outputUnit.addEventListener('input', syncOutputUnitFactor);
+
+            tbody.addEventListener('change', function (event) {
+                if (event.target.matches('select[name$="[category]"]')) {
+                    const row = event.target.closest('.bom-item-row');
+                    filterComponents(row);
+                    syncComponentRow(row);
+                }
+                if (event.target.matches('select[name$="[component]"]')) {
+                    syncComponentRow(event.target.closest('.bom-item-row'));
+                }
+                if (event.target.matches('input[name$="[unit]"]')) {
+                    const row = event.target.closest('.bom-item-row');
+                    const select = row.querySelector('select[name$="[component]"]');
+                    if (select.selectedOptions[0].dataset.type === 'product') {
+                        row.querySelector('.conversion-cell input').value =
+                            event.target.value.trim().toLowerCase() === select.selectedOptions[0].dataset.unit.trim().toLowerCase()
+                                ? '1'
+                                : '';
+                    }
+                }
+            });
             document.getElementById('add-bom-item').addEventListener('click', function () {
                 const index = tbody.querySelectorAll('.bom-item-row').length;
                 const row = tbody.querySelector('.bom-item-row').cloneNode(true);
@@ -85,6 +167,9 @@
                     if (field.tagName === 'SELECT') field.selectedIndex = 0;
                     else field.value = '';
                 });
+                filterComponents(row);
+                syncComponentRow(row);
+                syncComponentRow(row);
                 tbody.append(row);
             });
             tbody.addEventListener('click', function (event) {

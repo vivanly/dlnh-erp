@@ -5,6 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\ProductBom;
 use App\Models\ProductUnitConversion;
+use App\Models\Accessory;
+use App\Models\CatalogItem;
+use App\Models\Excipient;
+use App\Models\PackagingMaterial;
+use App\Models\RawMaterial;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\BomMaterialCalculator;
@@ -12,6 +18,17 @@ use DomainException;
 
 class BomController extends Controller
 {
+    private function componentTypes(): array
+    {
+        return [
+            'product' => ['model' => Product::class, 'label' => 'Sản phẩm'],
+            'raw_material' => ['model' => RawMaterial::class, 'label' => 'Dược liệu thô'],
+            'accessory' => ['model' => Accessory::class, 'label' => 'Phụ liệu'],
+            'excipient' => ['model' => Excipient::class, 'label' => 'Tá dược'],
+            'packaging' => ['model' => PackagingMaterial::class, 'label' => 'Bao bì'],
+        ];
+    }
+
     private function ensureBomAccess(): void
     {
         $user = auth()->user();
@@ -48,7 +65,7 @@ class BomController extends Controller
         $canApproveBoms = $this->canApproveBom($user);
         $this->ensureBomViewAccess();
 
-        $boms = ProductBom::with(['product', 'items.componentProduct', 'submittedBy', 'approvedBy'])
+        $boms = ProductBom::with(['product', 'items.component', 'submittedBy', 'approvedBy'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
                 $query->whereHas('product', function ($productQuery) use ($search) {
@@ -69,8 +86,24 @@ class BomController extends Controller
         $this->ensureBomAccess();
 
         $products = Product::orderBy('name')->get(['id', 'name', 'sku', 'unit', 'classification']);
+        $componentGroups = collect($this->componentTypes())
+            ->except('product')
+            ->map(function (array $type, string $key) {
+            $model = $type['model'];
 
-        return view('boms.create', compact('products'));
+            return [
+                'label' => $type['label'],
+                'items' => $model::orderBy('name')->get(['id', 'name', 'sku', 'unit'])->map(fn ($item) => [
+                    'key' => $key . ':' . $item->id,
+                    'name' => $item->name,
+                    'sku' => $item->sku,
+                    'unit' => $item->unit,
+                    'type' => $key,
+                ]),
+            ];
+        });
+
+        return view('boms.create', compact('products', 'componentGroups'));
     }
 
     public function plan(Request $request, BomMaterialCalculator $calculator)
@@ -87,7 +120,7 @@ class BomController extends Controller
                 'quantity' => 'required|numeric|min:0.0001',
             ]);
 
-            $bom = ProductBom::with(['product.unitConversions', 'items.componentProduct.unitConversions'])
+            $bom = ProductBom::with(['product.unitConversions', 'items.component'])
                 ->where('product_id', $validated['product_id'])
                 ->where('status', 'approved')
                 ->where('is_active', true)
@@ -115,7 +148,9 @@ class BomController extends Controller
             'yield_percent' => 'required|numeric|gt:0|lte:100',
             'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1',
-            'items.*.component_product_id' => 'required|distinct|exists:products,id',
+            'items.*.category' => ['nullable', 'in:raw_material,accessory,excipient,packaging'],
+            'items.*.component' => ['nullable', 'string', 'regex:/^(product|raw_material|accessory|excipient|packaging):[1-9][0-9]*$/'],
+            'items.*.component_product_id' => ['nullable', 'integer', 'exists:products,id'],
             'items.*.quantity' => 'required|numeric|min:0.0001',
             'items.*.unit' => 'required|string|max:32',
             'items.*.to_base_factor' => 'nullable|numeric|gt:0',
@@ -133,30 +168,70 @@ class BomController extends Controller
             return back()->withErrors(['output_unit' => 'Khai báo hệ số quy đổi sản lượng về đơn vị gốc của thành phẩm.'])->withInput();
         }
 
-        $componentProducts = Product::whereIn(
-            'id',
-            collect($validated['items'])->pluck('component_product_id')->unique()
-        )->get()->keyBy('id');
+        $types = $this->componentTypes();
+        $componentKeys = [];
+        $componentIds = [];
+        foreach ($validated['items'] as $index => &$item) {
+            $hasComponent = !empty($item['component']);
+            $hasLegacyProduct = !empty($item['component_product_id']);
+            if ($hasComponent === $hasLegacyProduct) {
+                return back()->withErrors(["items.{$index}.component" => 'Chọn đúng một nguyên liệu cho dòng này.'])->withInput();
+            }
+
+            if (!empty($item['component'])) {
+                [$type, $id] = explode(':', $item['component'], 2);
+                $id = (int) $id;
+                if (($item['category'] ?? null) !== $type) {
+                    return back()->withErrors(["items.{$index}.category" => 'Loại thành phần không khớp với phân loại đã chọn.'])->withInput();
+                }
+            } else {
+                $type = 'product';
+                $id = (int) $item['component_product_id'];
+            }
+
+            $key = $type . ':' . $id;
+            if (isset($componentKeys[$key])) {
+                return back()->withErrors(["items.{$index}.component" => 'Không thể thêm trùng một nguyên liệu vào BOM.'])->withInput();
+            }
+            $componentKeys[$key] = true;
+            $item['component_type'] = $type;
+            $item['component_id'] = $id;
+            $componentIds[$type][] = $id;
+        }
+        unset($item);
+
+        $componentsByKey = collect();
+        foreach ($componentIds as $type => $ids) {
+            $model = $types[$type]['model'];
+            $componentsByKey = $componentsByKey->union(
+                $model::whereIn('id', array_unique($ids))
+                    ->get()
+                    ->keyBy(fn ($component) => $type . ':' . $component->id)
+            );
+        }
 
         foreach ($validated['items'] as $index => $item) {
-            $component = $componentProducts->get($item['component_product_id']);
-            if ($component->id === $outputProduct->id) {
-                return back()->withErrors(["items.{$index}.component_product_id" => 'Thành phẩm không thể được khai báo là nguyên liệu của chính BOM này.'])->withInput();
+            $component = $componentsByKey->get($item['component_type'] . ':' . $item['component_id']);
+            if (!$component) {
+                return back()->withErrors(["items.{$index}.component" => 'Nguyên liệu được chọn không còn tồn tại.'])->withInput();
+            }
+            if ($component instanceof Product && $component->id === $outputProduct->id) {
+                return back()->withErrors(["items.{$index}.component" => 'Thành phẩm không thể được khai báo là nguyên liệu của chính BOM này.'])->withInput();
             }
             if (blank($component->unit)) {
-                return back()->withErrors(["items.{$index}.component_product_id" => "Khai báo đơn vị gốc cho {$component->name} trước khi thêm vào BOM."])->withInput();
+                return back()->withErrors(["items.{$index}.component" => "Khai báo đơn vị gốc cho {$component->name} trước khi thêm vào BOM."])->withInput();
             }
-            if (
-                strcasecmp($component->unit, $item['unit']) !== 0 &&
-                empty($item['to_base_factor'])
-            ) {
+            if ($component instanceof Product && strcasecmp($component->unit, $item['unit']) !== 0 && empty($item['to_base_factor'])) {
                 return back()->withErrors([
                     "items.{$index}.unit" => "Khai báo hệ số quy đổi {$item['unit']} về {$component->unit} cho {$component->name}.",
                 ])->withInput();
             }
+            if ($component instanceof CatalogItem && strcasecmp($component->unit, $item['unit']) !== 0) {
+                return back()->withErrors(["items.{$index}.unit" => "Đơn vị của {$component->name} phải trùng đơn vị gốc {$component->unit}."])->withInput();
+            }
         }
 
-        $bom = DB::transaction(function () use ($validated, $outputProduct, $componentProducts) {
+        $bom = DB::transaction(function () use ($validated, $outputProduct, $componentsByKey) {
             Product::whereKey($outputProduct->id)->lockForUpdate()->firstOrFail();
             $version = ((int) ProductBom::where('product_id', $outputProduct->id)->max('version')) + 1;
 
@@ -181,8 +256,8 @@ class BomController extends Controller
             ]);
 
             foreach ($validated['items'] as $item) {
-                $component = $componentProducts->get($item['component_product_id']);
-                if (strcasecmp($component->unit, $item['unit']) !== 0) {
+                $component = $componentsByKey->get($item['component_type'] . ':' . $item['component_id']);
+                if ($component instanceof Product && strcasecmp($component->unit, $item['unit']) !== 0) {
                     ProductUnitConversion::updateOrCreate(
                         ['product_id' => $component->id, 'unit' => $item['unit']],
                         ['to_base_factor' => $item['to_base_factor']]
@@ -190,7 +265,9 @@ class BomController extends Controller
                 }
 
                 $bom->items()->create([
-                    'component_product_id' => $component->id,
+                    'component_product_id' => $component instanceof Product ? $component->id : null,
+                    'component_type' => $component::class,
+                    'component_id' => $component->id,
                     'quantity' => $item['quantity'],
                     'unit' => $item['unit'],
                 ]);

@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\ProductBom;
+use App\Models\Excipient;
+use App\Models\PackagingMaterial;
+use App\Models\Department;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -151,5 +154,84 @@ class BomApprovalTest extends TestCase
             ->get(route('boms.plan', ['product_id' => $finishedProduct->id, 'quantity' => 10]))
             ->assertOk()
             ->assertSee('chưa có BOM đang áp dụng');
+    }
+
+    public function test_bom_can_use_excipients_and_packaging_in_mrp(): void
+    {
+        $planningUser = User::factory()->create(['role' => 'production_planner']);
+        $directorUser = User::factory()->create(['role' => 'general_director']);
+        $finishedProduct = Product::create([
+            'name' => 'BOM catalog finished product',
+            'slug' => 'bom-catalog-finished-product',
+            'sku' => 'BOM-CATALOG-FIN',
+            'unit' => 'kg',
+            'classification' => 'VT',
+        ]);
+        $excipient = Excipient::create([
+            'name' => 'Tá dược kiểm thử',
+            'slug' => 'ta-duoc-kiem-thu',
+            'sku' => 'BOM-EXC-1',
+            'unit' => 'kg',
+        ]);
+        $packaging = PackagingMaterial::create([
+            'name' => 'Bao bì kiểm thử',
+            'slug' => 'bao-bi-kiem-thu',
+            'sku' => 'BOM-PKG-1',
+            'unit' => 'cái',
+        ]);
+
+        $this->actingAs($planningUser)
+            ->get(route('boms.create'))
+            ->assertOk()
+            ->assertSee('Tá dược kiểm thử')
+            ->assertSee('Bao bì kiểm thử')
+            ->assertSee('VT · BOM catalog finished product · BOM-CATALOG-FIN')
+            ->assertSee('<option value="raw_material">Dược liệu thô</option>', false)
+            ->assertSee('<option value="accessory">Phụ liệu</option>', false)
+            ->assertSee('<option value="excipient">Tá dược</option>', false)
+            ->assertSee('<option value="packaging">Bao bì</option>', false)
+            ->assertSee('Chọn phân loại')
+            ->assertSee('Tên thành phần')
+            ->assertSee('Hệ số quy đổi')
+            ->assertSee('ĐVT gốc trên mỗi ĐVT nhập');
+
+        $this->actingAs($planningUser)->post(route('boms.store'), [
+            'product_id' => $finishedProduct->id,
+            'output_quantity' => 10,
+            'output_unit' => 'kg',
+            'yield_percent' => 100,
+            'items' => [
+                ['category' => 'excipient', 'component' => 'excipient:' . $excipient->id, 'quantity' => 2, 'unit' => 'kg'],
+                ['category' => 'packaging', 'component' => 'packaging:' . $packaging->id, 'quantity' => 5, 'unit' => 'cái'],
+            ],
+        ])->assertRedirect(route('boms.index'))->assertSessionHasNoErrors();
+
+        $bom = ProductBom::with('items')->sole();
+        $this->assertSame(2, $bom->items->count());
+        $this->assertSame(Excipient::class, $bom->items[0]->component_type);
+        $this->assertSame($excipient->id, $bom->items[0]->component_id);
+        $this->assertNull($bom->items[0]->component_product_id);
+        $this->assertSame(PackagingMaterial::class, $bom->items[1]->component_type);
+
+        $this->actingAs($directorUser)->post(route('boms.approve', $bom))->assertRedirect();
+        $this->actingAs($planningUser)
+            ->get(route('boms.plan', ['product_id' => $finishedProduct->id, 'quantity' => 20]))
+            ->assertOk()
+            ->assertSee('Tá dược kiểm thử')
+            ->assertSee('Bao bì kiểm thử')
+            ->assertSee('4.0000')
+            ->assertSee('10.0000');
+
+        $this->actingAs($planningUser)->get(route('boms.index'))
+            ->assertOk()
+            ->assertSee('Tá dược kiểm thử')
+            ->assertSee('Bao bì kiểm thử');
+
+        $itDepartment = Department::firstOrCreate(['code' => 'IT'], ['name' => 'IT']);
+        $itUser = User::factory()->create(['department_id' => $itDepartment->id, 'role' => 'it']);
+        $this->actingAs($itUser)
+            ->delete(route('excipients.destroy', $excipient))
+            ->assertSessionHas('error');
+        $this->assertDatabaseHas('excipients', ['id' => $excipient->id]);
     }
 }

@@ -87,12 +87,12 @@ Chỉ người được giao quản lý dữ liệu chuẩn mới nên tạo ho�
 
 PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đơn bán. Người có quyền quản trị danh mục có thể mở **PPCB** để tạo/sửa hoặc import/export theo menu. Chỉ chọn mã PPCB đã được xác nhận; không tự suy đoán quy trình bào chế từ tên gần giống.
 
-### 3.5. Dược liệu thô và phụ liệu
+### 3.5. Dược liệu thô, phụ liệu, tá dược và bao bì
 
-1. Mở **QA → Dược liệu thô** hoặc **QA → Phụ liệu**, chọn tạo mới hoặc import theo mẫu do màn hình cung cấp.
-2. Kiểm tra mã SKU, tên, đơn vị tính và các thuộc tính danh mục trước khi lưu. Chọn đúng loại danh mục: đơn mua và đơn bán lọc hàng theo loại đã chọn.
-3. Sau khi có giao dịch nhập/xuất, xem số tồn tại **Kho → Tồn dược liệu thô / phụ liệu**. Không chỉnh số tồn bằng cách sửa danh mục; tồn phát sinh từ các giao dịch và kết luận QC.
-4. Phụ liệu hiện được theo dõi tồn tổng, không quản lý số lô NCC/COA như dược liệu thô. Dược liệu thô cần có số lô, ngày sản xuất, hạn dùng và COA trước khi QC duyệt nhập tồn.
+1. Mở **QA → Dược liệu thô**, **Phụ liệu**, **Tá dược** hoặc **Bao bì**, chọn tạo mới hoặc import theo mẫu do màn hình cung cấp.
+2. Các danh mục dùng chung trường SKU, tên, đơn vị tính, nguồn gốc, bộ phận dùng, tên khoa học, tài liệu tham khảo và ghi chú; có thể lọc, sửa, xóa, import và export như Phụ liệu.
+3. Tá dược và bao bì có thể được chọn làm thành phần khi tạo BOM. Đơn vị thành phần phải trùng đơn vị gốc đã khai báo trên danh mục.
+4. Theo dõi nhập/xuất và tồn kho hiện áp dụng cho dược liệu thô và phụ liệu; không chỉnh số tồn bằng cách sửa danh mục. Phụ liệu hiện được theo dõi tồn tổng, không quản lý số lô NCC/COA như dược liệu thô. Dược liệu thô cần có số lô, ngày sản xuất, hạn dùng và COA trước khi QC duyệt nhập tồn.
 
 ### 3.6. Hồ sơ, tiêu chuẩn và bảo quản sản phẩm
 
@@ -214,7 +214,7 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 
 1. Mở **Kế hoạch → Định mức sản xuất (BOM)** (mục có thể bị ẩn khỏi sidebar tùy tài khoản), chọn **Tạo phiên bản BOM**.
 2. Chọn **Thành phẩm**, nhập **Sản lượng định mức**, **Đơn vị đầu ra**, hệ số đổi về đơn vị gốc và **Tỷ lệ thu hồi (%)**. Ghi chú nếu cần.
-3. Trong bảng nguyên liệu, giữ ít nhất một dòng; chọn nguyên liệu, nhập lượng tiêu hao theo sản lượng định mức, đơn vị và hệ số quy đổi về đơn vị gốc. Bấm **Thêm nguyên liệu** để thêm dòng, **Xóa** để bỏ dòng không dùng.
+3. Trong bảng thành phần, giữ ít nhất một dòng; chọn **Dược liệu thô**, **Phụ liệu**, **Tá dược** hoặc **Bao bì**, rồi nhập lượng tiêu hao theo sản lượng định mức. Đơn vị phải trùng đơn vị gốc trong danh mục. Bấm **Thêm thành phần** để thêm dòng, **Xóa** để bỏ dòng không dùng.
 4. Kiểm tra thành phẩm/nguyên liệu không bị chọn nhầm và các đơn vị/quy đổi nhất quán; chọn **Lưu phiên bản BOM**.
 5. BOM mới ở trạng thái chờ duyệt; chưa được xem là định mức đang áp dụng cho đến khi người có quyền duyệt xác nhận. Tạo BOM cần quyền Kế hoạch hoặc IT; duyệt dùng quyền duyệt BOM riêng.
 

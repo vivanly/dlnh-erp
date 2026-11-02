@@ -10,8 +10,8 @@ Tài liệu định hướng khi chỉnh sửa hệ thống DLNH ERP. Được t
 | Nhân viên | `users.*` / `UserController` / `users` | `users`, `departments`; `users` còn giữ chức vụ, địa chỉ, trạng thái, locale, avatar |
 | PPCB | `ppcb.*` / `PpcbController` / `ppcb` | `ppcb`; được tham chiếu bởi `products`, `order_items`, lô thành phẩm và kế hoạch sản xuất |
 | Sản phẩm | `products.*` / `ProductController` / `products` | `products`, `ppcb`; hồ sơ liên quan ở `product_regulatory_documents`, `product_quality_standards`, `product_storage_methods`, `product_unit_conversions` |
-| Nguyên liệu/phụ liệu | `raw-materials.*`, `accessories.*` / `RawMaterialController`, `AccessoryController` | `raw_materials`, `accessories`; mua hàng dùng `purchase_order_items`, tồn kho dùng `material_stock_movements`, kiểm soát lô dùng `material_lots` |
-| BOM/định mức | `boms.*` / `BomController` / `boms` | `product_boms` → `product_bom_items`; quy đổi ở `product_unit_conversions`; workflow duyệt lưu ngay trên `product_boms` |
+| Nguyên liệu/phụ liệu/tá dược/bao bì | `raw-materials.*`, `accessories.*`, `excipients.*`, `packaging.*` / các `CatalogController` tương ứng | `raw_materials`, `accessories`, `excipients`, `packaging_materials`; mua hàng/tồn kho hiện dùng `raw_materials`, `accessories` |
+| BOM/định mức | `boms.*` / `BomController` / `boms` | `product_boms` → `product_bom_items`; thành phần tham chiếu đa hình qua `component_type`/`component_id`, quy đổi sản phẩm ở `product_unit_conversions`; workflow duyệt lưu ngay trên `product_boms` |
 | Nhà cung cấp | `suppliers.*` / `suppliercontroller` / `suppliers` | `suppliers`; được PO tham chiếu |
 | Đơn mua | `purchase-orders.*` / `PurchaseOrderController` / `purchase-orders` | `purchase_orders` → `purchase_order_items`; liên quan `suppliers`, `users`, `goods_receipts`, `supplier_return_orders`, `material_lots` |
 | Nhận hàng | `goods-receipts.*` / `GoodsReceiptController` / `goods-receipts` | `goods_receipts` → `goods_receipt_items` → `purchase_order_items`; tồn dược liệu còn ghi `inventory_movements` |
@@ -71,4 +71,3 @@ Tài liệu định hướng khi chỉnh sửa hệ thống DLNH ERP. Được t
 - Giao diện: `resources/views/`
 - Quyền theo phòng ban: `app/Models/User.php` và các kiểm tra trong controllers/views
 - Dịch vụ nghiệp vụ: `app/Services/` (nếu có; tìm tên ledger, availability, allocation khi thay đổi tồn/lô)
-

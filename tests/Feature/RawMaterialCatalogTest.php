@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Accessory;
 use App\Models\Department;
+use App\Models\Excipient;
+use App\Models\PackagingMaterial;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\RawMaterial;
@@ -33,11 +35,21 @@ class RawMaterialCatalogTest extends TestCase
         $this->actingAs($user)->post(route('accessories.store'), [
             'sku' => 'PL001', 'name' => 'Phụ liệu A', 'unit' => 'Cái',
         ])->assertSessionHasNoErrors();
+        $this->actingAs($user)->post(route('excipients.store'), [
+            'sku' => 'TD001', 'name' => 'Tá dược A', 'unit' => 'Kg',
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($user)->post(route('packaging.store'), [
+            'sku' => 'BB001', 'name' => 'Bao bì A', 'unit' => 'Cái',
+        ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('raw_materials', ['sku' => 'NL001']);
         $this->assertDatabaseHas('accessories', ['sku' => 'PL001']);
+        $this->assertDatabaseHas('excipients', ['sku' => 'TD001']);
+        $this->assertDatabaseHas('packaging_materials', ['sku' => 'BB001']);
         $this->actingAs($user)->get(route('raw-materials.index'))->assertOk();
         $this->actingAs($user)->get(route('accessories.index'))->assertOk();
+        $this->actingAs($user)->get(route('excipients.index'))->assertOk();
+        $this->actingAs($user)->get(route('packaging.index'))->assertOk();
     }
 
     public function test_non_qa_user_cannot_manage_catalog(): void
@@ -91,7 +103,12 @@ class RawMaterialCatalogTest extends TestCase
     public function test_catalogs_can_export_and_import_excel(): void
     {
         $user = $this->itUser();
-        foreach (['raw-materials' => \App\Models\RawMaterial::class, 'accessories' => \App\Models\Accessory::class] as $prefix => $model) {
+        foreach ([
+            'raw-materials' => \App\Models\RawMaterial::class,
+            'accessories' => \App\Models\Accessory::class,
+            'excipients' => Excipient::class,
+            'packaging' => PackagingMaterial::class,
+        ] as $prefix => $model) {
             $this->actingAs($user)->get(route($prefix . '.import.form'))->assertOk();
             $this->actingAs($user)->get(route($prefix . '.export'))->assertOk();
 
