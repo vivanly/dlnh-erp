@@ -2,12 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+.erp-form-modal {
+    border: 1px solid #cbd5e1;
+    border-radius: 0;
+    color: #172b4d;
+    overflow-y: auto;
+    box-shadow: 0 18px 55px rgb(15 23 42 / 24%);
+}
+
+.erp-form-modal::backdrop {
+    background: rgb(15 23 42 / 48%);
+}
+
 :root {
     color-scheme: light;
     --erp-ink: #172b4d;
     --erp-muted: #66758c;
     --erp-line: #dce3ed;
-    --erp-canvas: #f3f6fa;
+    --erp-canvas: #e1edfb;
     --erp-primary: #2457a7;
 }
 
@@ -49,12 +61,160 @@ body.erp-shell {
     position: sticky;
     top: 0;
     z-index: 10;
-    height: 4.25rem;
+    min-height: 4.75rem;
+    padding: 0 1rem;
+    border-color: #d7e3f3;
+    background: linear-gradient(110deg, #f7faff 0%, #eaf2fc 100%);
+}
+
+.erp-brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.erp-brand-mark {
+    display: flex;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #c5d7ef;
     background: #fff;
+    box-shadow: 0 2px 5px rgb(23 43 77 / 8%);
+    transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.erp-brand-mark img {
+    width: 1.9rem;
+    height: 1.9rem;
+    transition: transform 160ms ease;
+}
+
+.erp-brand-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.erp-brand-name {
+    color: #132b4b;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.15;
+    white-space: nowrap;
+    transition: color 160ms ease;
+}
+
+.erp-brand-tagline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #607b9e;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.erp-brand-dot {
+    width: 0.3rem;
+    height: 0.3rem;
+    flex: 0 0 0.3rem;
+    background: #3474c5;
+}
+
+.erp-brand-link:hover .erp-brand-name {
+    color: #1d4ed8;
+}
+
+.erp-brand-link:hover .erp-brand-mark {
+    border-color: #8db6e8;
+    box-shadow: 0 3px 8px rgb(23 43 77 / 12%);
 }
 
 .erp-sidebar-navigation {
     padding: 0.75rem 0.65rem 1rem;
+}
+
+.dashboard-overview-caption {
+    padding-left: 0.55rem;
+    border-left: 1px solid #cbd8e8;
+    color: #647b98;
+}
+
+.dashboard-updated {
+    padding-left: 0.55rem;
+    border-left: 1px solid #cbd8e8;
+    color: #647b98;
+}
+
+.dashboard-stat-card {
+    background: linear-gradient(110deg, #fff 0%, #f8fbff 100%);
+    box-shadow: 0 2px 7px rgb(23 43 77 / 6%);
+}
+
+.dashboard-welcome-panel {
+    border-color: #c7d8ed;
+    border-left: 4px solid #3474c5;
+    background: linear-gradient(110deg, #f8fbff 0%, #edf4fd 62%, #e3eefc 100%);
+    color: #172b4d;
+    box-shadow: 0 3px 10px rgb(23 43 77 / 7%);
+}
+
+.dashboard-welcome-avatar {
+    border-color: #fff;
+    box-shadow: 0 2px 8px rgb(23 43 77 / 18%);
+}
+
+.dashboard-welcome-avatar:not(img) {
+    background: #dce9f8;
+    color: #2457a7;
+}
+
+.dashboard-welcome-greeting {
+    color: #2b5f9f;
+}
+
+.dashboard-welcome-name {
+    color: #172b4d;
+    text-shadow: none;
+}
+
+.dashboard-welcome-role {
+    color: #5d728d;
+}
+
+.dashboard-welcome-clock {
+    border-color: #cbd9eb;
+    background: rgb(255 255 255 / 88%);
+    color: #334b6b;
+    box-shadow: 0 1px 3px rgb(23 43 77 / 5%);
+}
+
+.dashboard-welcome-profile {
+    border-color: #2457a7;
+    background: #2457a7;
+    color: #fff;
+    box-shadow: 0 2px 5px rgb(23 43 77 / 14%);
+}
+
+.dashboard-welcome-profile:hover {
+    border-color: #1e4788;
+    background: #1e4788;
+    color: #fff;
+}
+
+.dashboard-welcome-clock svg {
+    color: #5075a5;
 }
 
 .erp-sidebar-navigation > p {
@@ -258,14 +418,24 @@ body.erp-shell {
     min-width: 0;
     align-items: center;
     gap: 0.55rem;
-    color: #64748b;
-    font-size: 0.75rem;
-    font-weight: 600;
+    color: #000;
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+
+.dashboard-header-eyebrow {
+    color: #000 !important;
+    font-weight: 500 !important;
+}
+
+.dashboard-header-title {
+    color: #000 !important;
+    font-weight: 600 !important;
 }
 
 .erp-breadcrumb-home {
-    color: #94a3b8;
-    font-weight: 700;
+    color: #000;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
@@ -389,7 +559,6 @@ body.erp-shell {
 
 .erp-panel {
     border: 1px solid var(--erp-line);
-    border-radius: 0.65rem;
     background: #fff;
     box-shadow: 0 2px 8px rgb(23 43 77 / 3%);
 }
@@ -398,7 +567,6 @@ body.erp-shell {
     position: relative;
     overflow: hidden;
     border: 1px solid var(--erp-line);
-    border-radius: 0.65rem;
     background: #fff;
     padding: 1.1rem 1.2rem;
     box-shadow: 0 2px 8px rgb(23 43 77 / 3%);
@@ -415,7 +583,6 @@ body.erp-shell {
 .erp-field {
     min-height: 2.5rem;
     border-color: var(--erp-line) !important;
-    border-radius: 0.4rem !important;
     background-color: #fff;
     font-size: 0.8125rem !important;
 }
@@ -592,22 +759,8 @@ body.erp-shell {
 .erp-main-content .bg-white.shadow,
 .erp-main-content .bg-white.shadow-sm {
     border-color: var(--erp-line) !important;
-    border-radius: 0.65rem !important;
     background-color: #fff;
     box-shadow: 0 2px 8px rgb(23 43 77 / 4%);
-}
-
-.erp-main-content .bg-white.rounded-none,
-.erp-main-content .bg-white.rounded-sm,
-.erp-main-content .bg-white.rounded-md,
-.erp-main-content .bg-white.rounded-lg,
-.erp-main-content .bg-white.rounded-xl,
-.erp-main-content .bg-white.rounded-2xl {
-    border-radius: 0.65rem !important;
-}
-
-.erp-main-content [class*="border-l-4"] {
-    border-radius: 0.4rem;
 }
 
 .erp-main-content .bg-slate-100.border-b,
@@ -660,7 +813,6 @@ body.erp-shell {
 .erp-main-content textarea {
     min-height: 2.375rem;
     border-color: #cbd5e1;
-    border-radius: 0.4rem;
     color: #1e293b;
     font-size: 0.8125rem;
 }
@@ -682,7 +834,6 @@ body.erp-shell {
 
 .erp-main-content button,
 .erp-main-content a[class*="bg-"] {
-    border-radius: 0.4rem;
     transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
@@ -699,6 +850,277 @@ body.erp-shell {
     outline: 2px solid #6b93ce;
     outline-offset: 2px;
 }
+
+/* Keep primary action buttons consistent across the ERP, even in older views. */
+.erp-main-content button[class*="bg-emerald-"],
+.erp-main-content a[class*="bg-emerald-"],
+.erp-main-content button[class*="bg-green-"],
+.erp-main-content a[class*="bg-green-"] {
+    border: 1px solid #047857 !important;
+    background-color: #047857 !important;
+    color: #fff !important;
+}
+.erp-main-content button[class*="bg-emerald-"]:hover,
+.erp-main-content a[class*="bg-emerald-"]:hover,
+.erp-main-content button[class*="bg-green-"]:hover,
+.erp-main-content a[class*="bg-green-"]:hover {
+    border-color: #065f46 !important;
+    background-color: #065f46 !important;
+}
+
+.erp-main-content button[class*="bg-blue-"],
+.erp-main-content a[class*="bg-blue-"],
+.erp-main-content button[class*="bg-indigo-"],
+.erp-main-content a[class*="bg-indigo-"] {
+    border: 1px solid #1d4ed8 !important;
+    background-color: #2563eb !important;
+    color: #fff !important;
+}
+.erp-main-content button[class*="bg-blue-"]:hover,
+.erp-main-content a[class*="bg-blue-"]:hover,
+.erp-main-content button[class*="bg-indigo-"]:hover,
+.erp-main-content a[class*="bg-indigo-"]:hover {
+    border-color: #1e40af !important;
+    background-color: #1d4ed8 !important;
+}
+
+.erp-main-content button[class*="bg-rose-"],
+.erp-main-content a[class*="bg-rose-"],
+.erp-main-content button[class*="bg-red-"],
+.erp-main-content a[class*="bg-red-"] {
+    border: 1px solid #be123c !important;
+    background-color: #e11d48 !important;
+    color: #fff !important;
+}
+.erp-main-content button[class*="bg-rose-"]:hover,
+.erp-main-content a[class*="bg-rose-"]:hover,
+.erp-main-content button[class*="bg-red-"]:hover,
+.erp-main-content a[class*="bg-red-"]:hover {
+    border-color: #9f1239 !important;
+    background-color: #be123c !important;
+}
+
+/* Route-based action styles cover edit, approval, rejection and delete forms
+   whose old markup used outlined or neutral buttons instead of solid colors. */
+.erp-main-content a[href*="/create"] {
+    border: 1px solid #1d4ed8 !important;
+    background-color: #2563eb !important;
+    color: #fff !important;
+}
+.erp-main-content a[href*="/create"]:hover {
+    border-color: #1e40af !important;
+    background-color: #1d4ed8 !important;
+}
+.erp-action-create-link {
+    border: 1px solid #1d4ed8 !important;
+    border-radius: 0 !important;
+    background-color: #2563eb !important;
+    color: #fff !important;
+}
+.erp-action-create-link:hover {
+    border-color: #1e40af !important;
+    background-color: #1d4ed8 !important;
+}
+.erp-action-edit-button,
+.erp-main-content a.erp-action-edit-button {
+    display: inline-flex;
+    min-height: 1.875rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0 0.75rem !important;
+    border: 1px solid #1d4ed8 !important;
+    border-radius: 0 !important;
+    background-color: #2563eb !important;
+    color: #fff !important;
+    font-size: 0.75rem !important;
+    font-weight: 650;
+    line-height: 1rem;
+}
+.erp-action-edit-button:hover,
+.erp-main-content a.erp-action-edit-button:hover {
+    border-color: #1e40af !important;
+    background-color: #1d4ed8 !important;
+    color: #fff !important;
+}
+.erp-main-content a[href*="/edit"]:not(.erp-action-text),
+.erp-main-content form:has(input[name="_method"][value="PUT"]) button[type="submit"],
+.erp-main-content form:has(input[name="_method"][value="PATCH"]) button[type="submit"]:not(.erp-action-text) {
+    border: 1px solid #1d4ed8 !important;
+    background-color: #2563eb !important;
+    color: #fff !important;
+}
+.erp-main-content a[href*="/edit"]:not(.erp-action-text):hover,
+.erp-main-content form:has(input[name="_method"][value="PUT"]) button[type="submit"]:hover,
+.erp-main-content form:has(input[name="_method"][value="PATCH"]) button[type="submit"]:not(.erp-action-text):hover {
+    border-color: #1e40af !important;
+    background-color: #1d4ed8 !important;
+}
+.erp-main-content form[action*="/approve"] button,
+.erp-main-content form[action*="/approve"] input[type="submit"] {
+    border: 1px solid #047857 !important;
+    background-color: #047857 !important;
+    color: #fff !important;
+}
+.erp-main-content form[action*="/approve"] button:hover,
+.erp-main-content form[action*="/approve"] input[type="submit"]:hover {
+    border-color: #065f46 !important;
+    background-color: #065f46 !important;
+}
+.erp-main-content form[action*="/reject"] button,
+.erp-main-content form[action*="/reject"] input[type="submit"],
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) button:not(.erp-action-text),
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) input[type="submit"] {
+    border: 1px solid #be123c !important;
+    background-color: #e11d48 !important;
+    color: #fff !important;
+}
+.erp-main-content form[action*="/reject"] button:hover,
+.erp-main-content form[action*="/reject"] input[type="submit"]:hover,
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) button:not(.erp-action-text):hover,
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) input[type="submit"]:hover {
+    border-color: #9f1239 !important;
+    background-color: #be123c !important;
+}
+.erp-main-content button:disabled,
+.erp-main-content input[type="submit"]:disabled {
+    border-color: #cbd5e1 !important;
+    background-color: #94a3b8 !important;
+    color: #fff !important;
+}
+
+.erp-main-content .erp-action-create {
+    border: 1px solid #047857 !important;
+    background-color: #047857 !important;
+    color: #fff !important;
+}
+.erp-main-content .erp-action-create:hover {
+    border-color: #065f46 !important;
+    background-color: #065f46 !important;
+}
+.erp-main-content .erp-action-delete {
+    border: 1px solid #be123c !important;
+    background-color: #fff1f2 !important;
+    color: #be123c !important;
+}
+.erp-main-content .erp-action-delete:hover {
+    border-color: #9f1239 !important;
+    background-color: #ffe4e6 !important;
+    color: #9f1239 !important;
+}
+.erp-main-content .erp-action-secondary {
+    border: 1px solid #cbd5e1 !important;
+    background-color: #fff !important;
+    color: #334155 !important;
+}
+.erp-main-content .erp-action-secondary:hover {
+    border-color: #94a3b8 !important;
+    background-color: #f1f5f9 !important;
+}
+.erp-main-content .erp-action-delete:disabled {
+    border-color: #cbd5e1 !important;
+    background-color: #f1f5f9 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed;
+}
+
+/* One shared size for the main create, edit, delete and approval actions. */
+.erp-main-content button[class*="bg-emerald-"],
+.erp-main-content button[class*="bg-green-"],
+.erp-main-content button[class*="bg-blue-"],
+.erp-main-content button[class*="bg-indigo-"],
+.erp-main-content button[class*="bg-rose-"],
+.erp-main-content button[class*="bg-red-"],
+.erp-main-content a[class*="bg-emerald-"],
+.erp-main-content a[class*="bg-green-"],
+.erp-main-content a[class*="bg-blue-"],
+.erp-main-content a[class*="bg-indigo-"],
+.erp-main-content a[class*="bg-rose-"],
+.erp-main-content a[class*="bg-red-"],
+.erp-main-content a[href*="/create"],
+.erp-main-content a[href*="/edit"]:not(.erp-action-text),
+.erp-main-content form[action*="/approve"] button,
+.erp-main-content form[action*="/approve"] input[type="submit"],
+.erp-main-content form[action*="/reject"] button,
+.erp-main-content form[action*="/reject"] input[type="submit"],
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) button:not(.erp-action-text):not(.remove-row):not(.remove-row-btn),
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) input[type="submit"],
+.erp-main-content form:has(input[name="_method"][value="PUT"]) button[type="submit"],
+.erp-main-content form:has(input[name="_method"][value="PATCH"]) button[type="submit"]:not(.erp-action-text),
+.erp-main-content .erp-action-create,
+.erp-main-content .erp-action-delete:not(.remove-row):not(.remove-row-btn),
+.erp-main-content .erp-action-secondary,
+.erp-action-create-link {
+    display: inline-flex;
+    min-height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding-inline: 0.875rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 650;
+    line-height: 1.25rem;
+    vertical-align: middle;
+}
+.erp-main-content .erp-action-create-link,
+.erp-action-create-link {
+    border-radius: 0 !important;
+}
+.erp-main-content .erp-action-delete.remove-row,
+.erp-main-content .erp-action-delete.remove-row-btn {
+    display: inline-flex;
+    width: 1.75rem;
+    min-height: 1.75rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+}
+/* Across every module, row-level edit and delete actions stay text-only. */
+.erp-main-content a[href*="/edit"],
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) button:not(.remove-row):not(.remove-row-btn),
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) input[type="submit"],
+.erp-main-content form[action*="/destroy"] button,
+.erp-main-content form[action*="/destroy"] input[type="submit"] {
+    display: inline;
+    min-height: 0;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 0.75rem !important;
+    line-height: 1.25rem;
+    vertical-align: baseline;
+}
+.erp-main-content a[href*="/edit"] { color: #2563eb !important; }
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) button:not(.remove-row):not(.remove-row-btn),
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) input[type="submit"],
+.erp-main-content form[action*="/destroy"] button,
+.erp-main-content form[action*="/destroy"] input[type="submit"] {
+    color: #be123c !important;
+}
+.erp-main-content a[href*="/edit"]:hover,
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) button:not(.remove-row):not(.remove-row-btn):hover,
+.erp-main-content form:has(input[name="_method"][value="DELETE"]) input[type="submit"]:hover,
+.erp-main-content form[action*="/destroy"] button:hover,
+.erp-main-content form[action*="/destroy"] input[type="submit"]:hover {
+    background: transparent !important;
+    text-decoration: underline;
+}
+.erp-action-text {
+    display: inline !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 0.75rem !important;
+    line-height: 1.25rem;
+    vertical-align: baseline;
+}
+.erp-action-text:hover { background: transparent !important; }
+a.erp-action-text[href*="/edit"] { color: #2563eb !important; }
 
 .erp-page-toolbar h1,
 .erp-page-toolbar h2,
@@ -725,6 +1147,20 @@ body.erp-shell {
 }
 
 .erp-main-content .text-slate-400 { color: #718096; }
+
+/* Let each page body use the full content area beside the sidebar. */
+.erp-main-content .py-2 > [class*="max-w-"],
+.erp-main-content .py-3 > [class*="max-w-"],
+.erp-main-content .py-4 > [class*="max-w-"],
+.erp-main-content .py-6 > [class*="max-w-"],
+.erp-main-content .py-8 > [class*="max-w-"],
+.erp-main-content .py-10 > [class*="max-w-"],
+.erp-main-content .py-12 > [class*="max-w-"] {
+    width: 100%;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
 
 .erp-main-content a:not([class*="bg-"]) {
     text-underline-offset: 0.15em;
@@ -819,3 +1255,327 @@ body.erp-guest-shell {
     border-color: var(--erp-auth-line);
     border-radius: 0.45rem;
 }
+
+/* System-wide ERP visual refinement: clear navigation and calmer work areas. */
+@media screen {
+    .erp-shell {
+        --erp-ink: #152744;
+        --erp-muted: #64748b;
+        --erp-line: #dbe4ef;
+        --erp-canvas: #e1edfb;
+        --erp-primary: #2459ad;
+        background: var(--erp-canvas);
+    }
+
+    .erp-shell aside {
+        border-right-color: #dbe4ef;
+        background: #e8f1fc;
+        box-shadow: 3px 0 16px rgb(27 50 82 / 4%);
+    }
+
+    .erp-sidebar-brand {
+        min-height: 4.5rem;
+        border-bottom-color: #e5ebf3;
+        background: #edf4fd;
+    }
+
+    .erp-sidebar-brand img {
+        transition: transform 160ms ease;
+    }
+
+    .erp-sidebar-brand a:hover img { transform: scale(1.04); }
+
+    .erp-sidebar-navigation { padding: 0.85rem 0.7rem 1.25rem; }
+
+    .erp-sidebar-navigation > p {
+        margin: 0.6rem 0 0.5rem;
+        color: #8797ad;
+        font-size: 0.64rem;
+        letter-spacing: 0.14em;
+    }
+
+    .erp-sidebar-navigation > details,
+    .erp-sidebar-navigation > a {
+        border-radius: 0.55rem;
+    }
+
+    .erp-sidebar-navigation > details[class*="bg-blue-50"] {
+        border-color: #dce8f8 !important;
+        background: #f1f6fd !important;
+    }
+
+    .erp-sidebar-navigation > details > summary,
+    .erp-sidebar-navigation > a {
+        min-height: 2.2rem;
+        font-size: 0.77rem;
+    }
+
+    .erp-sidebar-navigation > details > div > a {
+        min-height: 1.9rem;
+        font-size: 0.73rem;
+    }
+
+    .erp-sidebar-navigation > a[class~="bg-blue-50"] {
+        border-color: #d6e4f8 !important;
+        background: #e8f0fc;
+        box-shadow: inset 3px 0 #356fc0;
+        color: #174b91;
+    }
+
+    .erp-topbar {
+        border-bottom-color: #dbe4ef;
+        background: #eaf2fc;
+        box-shadow: 0 3px 12px rgb(28 49 78 / 4%);
+    }
+
+    .erp-topbar-main { min-height: 3.75rem; }
+
+    .erp-breadcrumb {
+        gap: 0.7rem;
+        color: #63758f;
+        font-size: 0.79rem;
+    }
+
+    .erp-breadcrumb-home { color: #7c8ea8; }
+
+    .erp-page-toolbar {
+        min-height: 3.65rem;
+        border-top-color: #f2f5f9;
+        background: #fff;
+        color: var(--erp-ink);
+        padding-block: 0.75rem;
+    }
+
+    .erp-page-toolbar h1,
+    .erp-page-toolbar h2,
+    .erp-page-toolbar h3 {
+        color: #172b4d;
+        font-size: 1.05rem;
+        font-weight: 720;
+        letter-spacing: -0.02em;
+    }
+
+    .erp-page-toolbar p { color: #64748b; }
+
+    .erp-page-toolbar span[class*="bg-blue-50"] {
+        border-color: #bfdbfe !important;
+        background: #eff6ff !important;
+        color: #1d4ed8 !important;
+    }
+
+    .erp-page-toolbar .erp-action-text { color: #2563eb !important; }
+
+    .erp-page-toolbar .erp-action-create-link {
+        min-height: 1.875rem;
+        padding-inline: 0.75rem !important;
+        font-size: 0.75rem !important;
+        line-height: 1rem;
+    }
+
+    .erp-main-column { background: var(--erp-canvas); }
+
+    .erp-shell main {
+        background:
+            radial-gradient(ellipse at 96% 0%, rgb(173 205 246 / 55%), transparent 42rem),
+            var(--erp-canvas);
+    }
+
+    .erp-main-content > .py-2:has(> .erp-page),
+    .erp-main-content > .py-3:has(> .erp-page),
+    .erp-main-content > .py-4:has(> .erp-page) {
+        padding: 0 !important;
+    }
+
+    .erp-main-content > .py-2,
+    .erp-main-content > .py-3,
+    .erp-main-content > .py-4,
+    .erp-main-content > .py-5,
+    .erp-main-content > .py-6,
+    .erp-main-content > .py-8,
+    .erp-main-content > .py-10,
+    .erp-main-content > .py-12 {
+        padding: 0 !important;
+    }
+
+    .erp-main-content > .py-2 > .max-w-none,
+    .erp-main-content > .py-3 > .max-w-none,
+    .erp-main-content > .py-4 > .max-w-none,
+    .erp-main-content > .py-5 > .max-w-none,
+    .erp-main-content > .py-6 > .max-w-none,
+    .erp-main-content > .py-8 > .max-w-none,
+    .erp-main-content > .py-10 > .max-w-none,
+    .erp-main-content > .py-12 > .max-w-none {
+        padding-inline: 0 !important;
+    }
+
+    .erp-page {
+        gap: 1rem;
+        padding: 0;
+    }
+
+    .erp-page > :not([hidden]) ~ :not([hidden]) { margin-top: 0 !important; }
+
+    .erp-panel,
+    .erp-kpi,
+    .erp-main-content .bg-white.border,
+    .erp-main-content form.bg-white,
+    .erp-main-content .bg-white.shadow,
+    .erp-main-content .bg-white.shadow-sm {
+        border-color: #dbe4ef !important;
+        box-shadow: 0 3px 12px rgb(27 50 82 / 4%);
+    }
+
+    .erp-kpi { padding: 1.05rem 1.15rem; }
+
+    .erp-main-content table thead th {
+        background: #f3f6fa;
+        color: #52647d;
+        font-size: 0.69rem;
+        letter-spacing: 0.045em;
+    }
+
+    .erp-main-content table tbody tr { transition: background-color 140ms ease; }
+
+    .erp-main-content table tbody tr:hover { background-color: #f5f8fd; }
+
+    .erp-main-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    .erp-main-content select,
+    .erp-main-content textarea {
+        border-color: #cbd7e6;
+        color: #1d2f49;
+    }
+
+    .erp-main-content input::placeholder,
+    .erp-main-content textarea::placeholder { color: #8a98ac; }
+
+    .erp-main-content input:focus,
+    .erp-main-content select:focus,
+    .erp-main-content textarea:focus {
+        border-color: #6e9ddd;
+        box-shadow: 0 0 0 3px rgb(49 105 181 / 13%);
+    }
+
+    .erp-bell > summary,
+    .erp-user-trigger { transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease; }
+
+    .erp-bell[open] > summary,
+    .erp-user-menu[open] .erp-user-trigger {
+        border-color: #cbd9eb;
+        background: #f6f9fd;
+        box-shadow: 0 0 0 3px rgb(49 105 181 / 7%);
+    }
+}
+
+@media (max-width: 767px) {
+    .erp-page { gap: 0.85rem; padding: 0; }
+    .erp-page-toolbar h1,
+    .erp-page-toolbar h2,
+    .erp-page-toolbar h3 { font-size: 0.95rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .erp-shell *,
+    .erp-shell *::before,
+    .erp-shell *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Keep ERP data surfaces and controls square and consistent. */
+@media screen {
+    .erp-sidebar-navigation > details[class*="bg-blue-50"] {
+        border-color: #bfd2ec !important;
+        background: #e3edfa !important;
+    }
+
+    .erp-sidebar-navigation > details[class*="bg-blue-50"] > summary,
+    .erp-sidebar-navigation > details[class*="bg-blue-50"] > summary > div > svg {
+        color: #234f86;
+    }
+
+    .erp-sidebar-navigation > details > div > a[class~="bg-blue-50"],
+    .erp-sidebar-navigation > a[class~="bg-blue-50"] {
+        border-color: #1d4f91 !important;
+        background: #2459ad !important;
+        box-shadow: inset 3px 0 #153c70;
+        color: #fff !important;
+        font-weight: 650;
+    }
+
+    .erp-sidebar-navigation > details > div > a[class~="bg-blue-50"]:hover,
+    .erp-sidebar-navigation > a[class~="bg-blue-50"]:hover {
+        background: #1d4f91 !important;
+        color: #fff !important;
+    }
+
+    .erp-sidebar-navigation > details > div > a[class~="bg-blue-50"] > svg,
+    .erp-sidebar-navigation > a[class~="bg-blue-50"] > svg { color: #fff !important; }
+
+    .erp-main-content :not(img):not([role="img"])[class*="rounded"],
+    .erp-page-toolbar :not(img)[class*="rounded"] {
+        border-radius: 0 !important;
+    }
+
+    .erp-main-content [class*="border-l-4"] { border-radius: 0 !important; }
+
+    .erp-main-content .bg-white.border,
+    .erp-main-content form.bg-white,
+    .erp-main-content .bg-white.shadow,
+    .erp-main-content .bg-white.shadow-sm,
+    .erp-main-content .bg-white.rounded-none,
+    .erp-main-content .bg-white.rounded-sm,
+    .erp-main-content .bg-white.rounded-md,
+    .erp-main-content .bg-white.rounded-lg,
+    .erp-main-content .bg-white.rounded-xl,
+    .erp-main-content .bg-white.rounded-2xl {
+        border-radius: 0 !important;
+    }
+
+    .erp-main-content :is(div, section, article, form, table, button, a, input, select, textarea)[class*="rounded"]:not([role="img"]),
+    .erp-page-toolbar :is(div, section, article, form, button, a, input, select, textarea)[class*="rounded"],
+    .erp-main-content .erp-panel,
+    .erp-main-content .erp-kpi,
+    .erp-main-content .bg-white,
+    .erp-main-content form.bg-white,
+    .erp-main-content table,
+    .erp-main-content button,
+    .erp-main-content a[class*="bg-"],
+    .erp-main-content .erp-action-create,
+    .erp-main-content .erp-action-create-link,
+    .erp-main-content .erp-action-edit-button,
+    .erp-main-content .erp-action-delete,
+    .erp-main-content .erp-action-secondary,
+    .erp-main-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+    .erp-main-content select,
+    .erp-main-content textarea,
+    .erp-page-toolbar .erp-action-create-link,
+    .erp-page-toolbar .erp-action-edit-button {
+        border-radius: 0 !important;
+    }
+
+    .erp-bell-panel,
+    .erp-user-dropdown { border-radius: 0 !important; }
+}
+
+/* Keep real user avatars circular, including initials rendered as spans. */
+.erp-user-avatar { border-radius: 50% !important; overflow: hidden; }
+
+/* Personal profile page visual polish */
+.profile-card { border-color: #cbd9e9; box-shadow: 0 5px 18px rgb(23 43 77 / 7%); }
+.profile-cover { position: relative; isolation: isolate; overflow: hidden; background: linear-gradient(112deg, #17366f 0%, #2454a3 58%, #3478d4 100%); }
+.profile-cover::after { position: absolute; z-index: -1; inset: 0; content: ""; background: radial-gradient(ellipse at 82% 20%, rgb(255 255 255 / 17%), transparent 36%), linear-gradient(90deg, transparent 0 68%, rgb(255 255 255 / 5%) 68% 70%, transparent 70%); }
+.profile-avatar-frame { outline: 1px solid rgb(255 255 255 / 88%); box-shadow: 0 5px 16px rgb(15 23 42 / 20%); }
+.profile-details-grid { column-gap: 1.5rem; }
+.profile-detail-item { border-color: #e7edf5; }
+.profile-detail-item dt { color: #6b7c93; font-size: .68rem; font-weight: 700; letter-spacing: .045em; text-transform: uppercase; }
+.profile-detail-item dd { color: #1e3558; line-height: 1.5; }
+.profile-avatar-panel { border-color: #d9e4f1; background: linear-gradient(145deg, #f7faff, #eef4fb); }
+.profile-upload-target { min-height: 9rem; border-color: #c4d2e3; background: #fff; }
+.profile-upload-target:hover { border-color: #4380d3; background: #f5f9ff; }
+.profile-security-card { border-color: #d4dfed; background: linear-gradient(110deg, #fff, #f7faff); box-shadow: 0 3px 12px rgb(23 43 77 / 5%); }
+
+.profile-cover::after { z-index: 0; }
+.profile-identity { position: relative; z-index: 2; }

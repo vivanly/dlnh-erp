@@ -4,7 +4,7 @@
             <div>
                 <h2 class="font-bold text-sm uppercase tracking-wide text-slate-800">Lệnh sản xuất <span class="font-mono text-blue-700">{{ $productionOrder->production_code }}</span></h2>
                 <p class="mt-1 text-xs text-slate-500">
-                    {{ $productionOrder->product->name }}
+                    {{ $productionOrder->product->name }} <span class="font-mono font-semibold text-blue-700">· Mã SP: {{ $productionOrder->product->sku ?: '---' }}</span>
                     @if($productionOrder->order)
                         · Đơn bán {{ $productionOrder->order->order_code }}
                     @elseif($productionOrder->monthlyPlanLine?->plan)
@@ -50,12 +50,12 @@
                 @endif
             </section>
 
-            @if($canIssueMaterials && $productionOrder->status === 'released')
+            @if($canIssueMaterials && in_array($productionOrder->status, ['released', 'materials_issued'], true))
                 <form method="POST" action="{{ route('production-orders.issue-materials', $productionOrder) }}" class="bg-white border border-slate-300" onsubmit="return confirm('Xác nhận phiếu xuất nguyên liệu theo số lượng thực tế?');">
                     @csrf
                     <div class="p-3 bg-amber-50 border-b border-amber-200">
                         <h3 class="text-xs font-bold uppercase text-amber-900">Kho xác nhận phiếu xuất nguyên liệu sản xuất</h3>
-                        <p class="mt-1 text-xs text-amber-800">Chọn lô NCC của dược liệu thô hoặc đợt mua của phụ liệu (tồn lấy từ kho nguyên liệu) và nhập số lượng thực xuất cho từng lô (không phụ thuộc BOM). Số lượng khả dụng đã trừ các phần đang được giữ cho đơn khác.</p>
+                        <p class="mt-1 text-xs text-amber-800">Chọn lô NCC của dược liệu thô hoặc đợt mua của phụ liệu (tồn lấy từ kho nguyên liệu) và nhập số lượng thực xuất cho từng lô (không phụ thuộc BOM). Có thể lập nhiều phiếu để xuất bổ sung khi lần trước chưa đủ; lượng xuất thực tế có thể cao hơn kế hoạch.</p>
                     </div>
                     <div class="divide-y divide-slate-200">
                         <div class="p-3">
@@ -67,17 +67,19 @@
                                     $originKey = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::ascii($origin));
                                     $isDomestic = in_array($originKey, ['VN', 'VIET NAM', 'VIETNAM', 'TRONG NUOC'], true);
                                 @endphp
-                                <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="text-slate-500">· {{ $first->type === 'accessory' ? 'Phụ liệu' : 'Dược liệu thô' }}</span>
+                                <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="font-mono font-semibold text-blue-700">· Mã SP: {{ $first->item->sku ?: '---' }}</span> <span class="text-slate-500">· {{ $first->type === 'accessory' ? 'Phụ liệu' : 'Dược liệu thô' }}</span>
                                     <span class="ml-1 inline-flex items-center border px-1.5 py-0.5 text-[10px] font-bold {{ $origin === '' ? 'border-slate-300 bg-slate-100 text-slate-600' : ($isDomestic ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800') }}">
                                         {{ $origin === '' ? 'Chưa khai báo xuất xứ' : ($isDomestic ? 'Trong nước' : 'Nhập khẩu') }}{{ $origin !== '' ? ' · '.$origin : '' }}
                                     </span>
-                                    <table class="mt-1 w-full border border-slate-200 text-[11px]">
-                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'accessory' ? 'Tồn tổng' : 'Lô NCC' }}</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 w-40 text-right">Số lượng xuất</th></tr></thead>
+                                    <table class="mt-1 w-full table-fixed border border-slate-200 text-[11px]">
+                                        <colgroup><col style="width:26%"><col style="width:18%"><col style="width:18%"><col style="width:18%"><col style="width:20%"></colgroup>
+                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'accessory' ? 'Tồn tổng' : 'Lô NCC' }}</th><th class="px-2 py-1.5">Mã SP</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 text-right">Số lượng xuất</th></tr></thead>
                                         <tbody class="divide-y divide-slate-200">
                                             @foreach($group as $lot)
                                                 @php $i = $loop->parent->index . '_' . $loop->index; @endphp
                                                 <tr>
                                                     <td class="px-2 py-1.5 font-mono font-semibold">{{ $first->type === 'accessory' ? 'Toàn bộ' : ($lot->batch ?: '(không số lô)') }}</td>
+                                                    <td class="px-2 py-1.5 font-mono text-blue-700">{{ $lot->item->sku ?: '---' }}</td>
                                                     <td class="px-2 py-1.5">{{ $lot->exp_date ? \Illuminate\Support\Carbon::parse($lot->exp_date)->format('d/m/Y') : 'Không hạn' }}</td>
                                                     <td class="px-2 py-1.5 text-right font-mono">{{ number_format($lot->balance, 4) }} {{ $lot->item->unit }}</td>
                                                     <td class="px-2 py-1.5">
@@ -122,9 +124,9 @@
                             @foreach($productionOrder->materials as $material)
                                 @foreach($material->lots as $allocation)
                                     @if((float) $allocation->issued_quantity > 0)
-                                        @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô nhà cung cấp'; @endphp
+                                    @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô nhà cung cấp'; @endphp
                                         <label class="flex items-center justify-between gap-3 border border-slate-200 p-2 text-xs">
-                                            <span>{{ $material->display_name }} - {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
+                                            <span>{{ $material->display_name }} <span class="font-mono text-blue-700">· Mã SP: {{ $material->product?->sku ?? $material->catalog_item?->sku ?? '---' }}</span> - {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">Đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
                                             <input type="number" name="reported_returned_materials[{{ $allocation->id }}]" value="{{ old('reported_returned_materials.'.$allocation->id, 0) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 border-slate-300 text-right font-mono text-xs" aria-label="Lượng dự kiến trả của lô {{ $sourceLotCode }}">
                                         </label>
                                     @endif
@@ -148,7 +150,7 @@
                                 @if((float) $allocation->issued_quantity > 0)
                                     @php $sourceLotCode = $allocation->supplierBatch?->batch_number ?? $allocation->batch_number ?? 'Lô nhà cung cấp'; @endphp
                                     <label class="flex items-center justify-between gap-3 border border-slate-200 p-2 text-xs">
-                                            <span>{{ $material->display_name }} · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">SX dự kiến trả {{ number_format((float) $allocation->reported_returned_quantity, 4) }} / đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
+                                            <span>{{ $material->display_name }} <span class="font-mono text-blue-700">· Mã SP: {{ $material->product?->sku ?? $material->catalog_item?->sku ?? '---' }}</span> · {{ $sourceLotCode }}<span class="block text-[10px] text-slate-500">SX dự kiến trả {{ number_format((float) $allocation->reported_returned_quantity, 4) }} / đã xuất {{ number_format((float) $allocation->issued_quantity, 4) }} {{ $material->unit }}</span></span>
                                             <input type="number" name="returned_materials[{{ $allocation->id }}]" value="{{ old('returned_materials.'.$allocation->id, $allocation->reported_returned_quantity) }}" min="0" max="{{ $allocation->issued_quantity }}" step="0.0001" class="w-32 text-right font-mono text-xs border-slate-300 rounded-none" aria-label="Kho xác nhận lượng trả của lô {{ $sourceLotCode }}">
                                     </label>
                                 @endif

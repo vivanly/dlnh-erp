@@ -58,11 +58,11 @@
                                     <td class="py-2 px-3">{{ $document->document_date->format('d/m/Y') }}</td>
                                     <td class="py-2 px-3">{{ $document->document_form }}</td>
                                     <td class="py-2 px-3 text-center whitespace-nowrap space-x-2">
-                                        <a href="{{ route('product-regulatory-documents.edit', $document) }}" class="text-blue-600 font-bold">Sửa</a>
+                                        <a href="{{ route('product-regulatory-documents.edit', $document) }}" class="erp-action-text text-blue-600 font-bold">Sửa</a>
                                         <form action="{{ route('product-regulatory-documents.destroy', $document) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa hồ sơ này không?');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-rose-600 font-bold">Xóa</button>
+                                            <button type="submit" class="erp-action-text text-rose-600 font-bold">Xóa</button>
                                         </form>
                                     </td>
                                 </tr>

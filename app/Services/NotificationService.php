@@ -8,6 +8,7 @@ use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionMonthlyPlan;
 use App\Models\ProductionOrder;
 use App\Models\PurchaseOrder;
+use App\Models\OrderItem;
 use App\Models\SupplierBatch;
 use App\Models\User;
 
@@ -27,6 +28,10 @@ class NotificationService
 
         if ($user->canApproveSalesOrder()) {
             $add('Đơn hàng cần duyệt', Order::where('status', 'pending_sales_approval')->count(), 'sales-order-approvals.index');
+        }
+
+        if ($user->canPrintLabels()) {
+            $add('Đơn hàng cần in nhãn', $this->ordersWaitingForLabels(), 'labels.index');
         }
 
         if ($user->canApproveProductionPlan()) {
@@ -100,5 +105,41 @@ class NotificationService
         }
 
         return $items;
+    }
+
+    private function ordersWaitingForLabels(): int
+    {
+        return Order::query()
+            ->whereIn('status', ['pending_planning', 'waiting_production', 'processing', 'ready_to_ship', 'completed'])
+            ->whereNotNull('qa_confirmed_at')
+            ->with([
+                'items:id,order_id,quantity,finished_quantity,packaging_spec',
+                'items.lotAllocations' => fn ($query) => $query
+                    ->select(['id', 'order_item_id', 'supplier_batch_id', 'production_finished_batch_id', 'reserved_quantity', 'status'])
+                    ->whereIn('status', ['reserved', 'shipped'])
+                    ->withSum('labelPrints', 'copies_count')
+                    ->with(['supplierBatch:id,batch_number', 'finishedBatch:id,batch_number']),
+            ])
+            ->get()
+            ->filter(function (Order $order): bool {
+                return $order->items->contains(function (OrderItem $item): bool {
+                    $allocations = $item->lotAllocations;
+                    if ($allocations->isEmpty() || $allocations->sum(fn ($allocation) => (float) $allocation->reserved_quantity) + 0.0001 < (float) $item->quantity) {
+                        return false;
+                    }
+
+                    $target = $item->label_target_count;
+                    if ($target <= 0) {
+                        return false;
+                    }
+
+                    $printed = $allocations
+                        ->filter(fn ($allocation) => $allocation->supplierBatch || $allocation->finishedBatch)
+                        ->sum(fn ($allocation) => (int) $allocation->label_prints_sum_copies_count);
+
+                    return $printed < $target;
+                });
+            })
+            ->count();
     }
 }

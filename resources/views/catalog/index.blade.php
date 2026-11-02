@@ -6,9 +6,7 @@
                 <div class="flex items-center gap-2">
                 <a href="{{ route($prefix . '.import.form') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 border border-emerald-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-emerald-700 transition">Import Excel</a>
                 <a href="{{ route($prefix . '.export', request()->query()) }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 border border-slate-800 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-slate-800 transition">Export Excel</a>
-                <a href="{{ route($prefix . '.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition">
-                    + {{ $labels['add'] }}
-                </a>
+                <button type="button" onclick="document.getElementById('catalog-create-modal').showModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition">+ {{ $labels['add'] }}</button>
                 </div>
             @endif
         </div>
@@ -74,11 +72,11 @@
                                     <td class="py-2 px-3 border-r border-slate-200 text-slate-600 truncate max-w-[150px]" title="{{ $item->note }}">{{ $item->note ?? '---' }}</td>
                                     @if($canManage)
                                         <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
-                                            <a href="{{ route($prefix . '.edit', $item->id) }}" class="text-blue-600 hover:text-blue-900 font-bold">Sửa</a>
+                                            <button type="button" onclick="document.getElementById('catalog-edit-modal-{{ $item->id }}').showModal()" class="erp-action-text text-blue-600 hover:text-blue-900 font-bold">Sửa</button>
                                             <form action="{{ route($prefix . '.destroy', $item->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa mục này không?');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
+                                                <button type="submit" class="erp-action-text text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
                                             </form>
                                         </td>
                                     @endif
@@ -94,6 +92,25 @@
                     </table>
                 </div>
 
+                @if($canManage)
+                    <dialog id="catalog-create-modal" class="erp-form-modal w-[min(54rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                        <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><h3 class="text-base font-bold text-slate-900">{{ $labels['add'] }}</h3><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-1 text-lg">×</button></div>
+                        <form method="POST" action="{{ route($prefix . '.store') }}" class="space-y-4 p-5">@csrf<input type="hidden" name="_catalog_modal" value="create">
+                            @include('catalog.partials.fields', ['item' => null])
+                            <div class="flex justify-end gap-2 border-t border-slate-300 pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border border-slate-300 px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu</button></div>
+                        </form>
+                    </dialog>
+                    @foreach($items as $item)
+                    <dialog id="catalog-edit-modal-{{ $item->id }}" class="erp-form-modal w-[min(54rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                        <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><h3 class="text-base font-bold text-slate-900">Sửa {{ $labels['singular'] }} · {{ $item->name }}</h3><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-1 text-lg">×</button></div>
+                        <form method="POST" action="{{ route($prefix . '.update', $item->id) }}" class="space-y-4 p-5">@csrf @method('PUT')<input type="hidden" name="_catalog_modal" value="edit"><input type="hidden" name="_catalog_id" value="{{ $item->id }}">
+                            @include('catalog.partials.fields', ['item' => $item])
+                            <div class="flex justify-end gap-2 border-t border-slate-300 pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border border-slate-300 px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu thay đổi</button></div>
+                        </form>
+                    </dialog>
+                    @endforeach
+                    @if(old('_catalog_modal'))<script>document.addEventListener('DOMContentLoaded',()=>{const id= @json(old('_catalog_modal'))==='create'?'catalog-create-modal':`catalog-edit-modal-${@json(old('_catalog_id'))}`;document.getElementById(id)?.showModal();});</script>@endif
+                @endif
                 <div class="p-3 border-t border-slate-300 bg-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <x-per-page-select :default="100" />
                     @if($items->hasPages())

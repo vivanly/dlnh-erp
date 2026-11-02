@@ -32,8 +32,12 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="mb-4">
                             <label class="block text-gray-700 text-sm font-bold mb-2">Mật khẩu mới (Bỏ trống nếu không đổi):</label>
-                            <input type="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                            <input type="password" name="password" minlength="12" autocomplete="new-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                             @error('password') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Xác nhận mật khẩu mới:</label>
+                            <input type="password" name="password_confirmation" minlength="12" autocomplete="new-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
                         </div>
 
                         <div class="mb-4">

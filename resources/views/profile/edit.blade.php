@@ -14,25 +14,25 @@
         </div>
     </x-slot>
 
-    <div class="erp-page space-y-5">
-        <section class="erp-panel overflow-hidden">
-            <div class="h-24 bg-gradient-to-r from-slate-900 via-blue-950 to-blue-800 sm:h-28"></div>
+    <div class="erp-page profile-page space-y-5">
+        <section class="erp-panel profile-card overflow-hidden">
+            <div class="profile-cover h-20 sm:h-24"></div>
 
             <div class="px-5 pb-5 sm:px-7 sm:pb-7">
-                <div class="-mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:justify-between">
+                <div class="profile-identity relative z-10 -mt-10 flex flex-col gap-4 sm:-mt-12 sm:flex-row sm:items-end sm:justify-between">
                     <div class="flex min-w-0 items-end gap-4">
-                        <div class="shrink-0 rounded-full bg-white p-1.5 shadow-md">
+                        <div role="img" class="erp-user-avatar profile-avatar-frame shrink-0 p-1.5 shadow-md" style="background-color: #fff;">
                             @if($user->avatar_path)
-                                <img id="profile-avatar-preview" src="{{ route('profile.avatar') }}" alt="Ảnh đại diện của {{ $user->name }}" class="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24">
+                                <img id="profile-avatar-preview" src="{{ route('profile.avatar') }}" alt="Ảnh đại diện của {{ $user->name }}" class="erp-user-avatar h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24">
                             @else
-                                <span id="profile-avatar-fallback" class="flex h-20 w-20 items-center justify-center rounded-full bg-blue-700 text-2xl font-bold text-white sm:h-24 sm:w-24">
+                                <span role="img" id="profile-avatar-fallback" class="erp-user-avatar flex h-20 w-20 items-center justify-center rounded-full bg-blue-700 text-2xl font-bold text-white sm:h-24 sm:w-24">
                                     {{ mb_substr($user->name, 0, 1) }}
                                 </span>
-                                <img id="profile-avatar-preview" src="" alt="Xem trước ảnh đại diện" class="hidden h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24">
+                                <img id="profile-avatar-preview" src="" alt="Xem trước ảnh đại diện" class="erp-user-avatar hidden h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24">
                             @endif
                         </div>
                         <div class="min-w-0 pb-1">
-                            <p class="text-xs font-medium text-slate-500">Hồ sơ nhân sự</p>
+                            <p class="profile-personnel-label text-sm font-semibold text-slate-900">Hồ sơ nhân sự</p>
                             <h2 class="mt-1 truncate text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">{{ $user->name }}</h2>
                             <p class="mt-1 truncate text-sm text-slate-500">{{ $user->position ?? 'Nhân viên' }}{{ $user->department ? ' · '.$user->department->name : '' }}</p>
                         </div>
@@ -41,7 +41,7 @@
                     <div class="flex items-center gap-2 pb-1">
                         @if($user->status === 'working' || !$user->status)
                             <span class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                <span role="img" aria-label="Trạng thái đang làm việc" class="h-2 w-2 rounded-full bg-emerald-500"></span>
                                 Đang làm việc
                             </span>
                         @else
@@ -60,35 +60,35 @@
                             <p class="mt-1 text-xs text-slate-500">Thông tin định danh và công tác của bạn trong hệ thống.</p>
                         </div>
 
-                        <dl class="grid gap-x-8 sm:grid-cols-2">
-                            <div class="border-b border-slate-100 py-3">
+                        <dl class="profile-details-grid grid gap-x-8 sm:grid-cols-2">
+                            <div class="profile-detail-item border-b border-slate-100 py-3">
                                 <dt class="text-xs font-medium text-slate-500">Mã nhân viên</dt>
                                 <dd class="mt-1.5 text-sm font-semibold text-slate-800">{{ $user->employee_code ?? 'Chưa cập nhật' }}</dd>
                             </div>
-                            <div class="border-b border-slate-100 py-3">
+                            <div class="profile-detail-item border-b border-slate-100 py-3">
                                 <dt class="text-xs font-medium text-slate-500">Phòng ban</dt>
                                 <dd class="mt-1.5 text-sm font-semibold text-slate-800">{{ $user->department?->name ?? ($user->department_id ? 'Phòng ban #'.$user->department_id : 'Chưa gán phòng ban') }}</dd>
                             </div>
-                            <div class="border-b border-slate-100 py-3">
+                            <div class="profile-detail-item border-b border-slate-100 py-3">
                                 <dt class="text-xs font-medium text-slate-500">Địa chỉ email</dt>
                                 <dd class="mt-1.5 break-all text-sm font-medium text-slate-800">{{ $user->email }}</dd>
                             </div>
-                            <div class="border-b border-slate-100 py-3">
+                            <div class="profile-detail-item border-b border-slate-100 py-3">
                                 <dt class="text-xs font-medium text-slate-500">Chức vụ</dt>
                                 <dd class="mt-1.5 text-sm font-semibold text-slate-800">{{ $user->position ?? 'Chưa cập nhật' }}</dd>
                             </div>
-                            <div class="border-b border-slate-100 py-3">
+                            <div class="profile-detail-item border-b border-slate-100 py-3">
                                 <dt class="text-xs font-medium text-slate-500">Số điện thoại</dt>
                                 <dd class="mt-1.5 text-sm font-medium text-slate-800">{{ $user->phone ?: 'Chưa cập nhật' }}</dd>
                             </div>
-                            <div class="border-b border-slate-100 py-3 sm:col-span-2">
+                            <div class="profile-detail-item border-b border-slate-100 py-3 sm:col-span-2">
                                 <dt class="text-xs font-medium text-slate-500">Địa chỉ liên hệ</dt>
                                 <dd class="mt-1.5 text-sm font-medium text-slate-800">{{ $user->address ?: 'Chưa cập nhật' }}</dd>
                             </div>
                         </dl>
                     </section>
 
-                    <section aria-labelledby="avatar-heading" class="rounded-lg border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                    <section aria-labelledby="avatar-heading" class="profile-avatar-panel rounded-lg border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
                         <div class="flex items-start gap-3">
                             <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
@@ -110,7 +110,7 @@
                         <form method="POST" action="{{ route('profile.avatar.update') }}" enctype="multipart/form-data" class="mt-4">
                             @csrf
                             <input id="avatar" type="file" name="avatar" accept="image/jpeg,image/png,image/webp" aria-describedby="avatar-help" required class="sr-only">
-                            <label for="avatar" class="flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-4 py-5 text-center transition hover:border-blue-400 hover:bg-blue-50/40 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2">
+                            <label for="avatar" class="profile-upload-target flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white px-4 py-5 text-center transition hover:border-blue-400 hover:bg-blue-50/40 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2">
                                 <span class="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4 4 4M4 16v4h16v-4"></path>
@@ -147,7 +147,7 @@
             </div>
         </section>
 
-        <section class="erp-panel flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <section class="erp-panel profile-security-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div class="flex items-start gap-3">
                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-100">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">

@@ -15,10 +15,10 @@
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Export Excel
                     </a>
-                    <a href="{{ route('products.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
+                    <button type="button" onclick="document.getElementById('product-create-modal').showModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                         Thêm sản phẩm mới
-                    </a>
+                    </button>
                 @endif
             </div>
         </div>
@@ -127,11 +127,11 @@
                                     @if(auth()->user()->isQADepartment() || auth()->user()->isITDepartment())
                                         <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
                                             <a href="{{ route('product-regulatory-documents.index', ['product_id' => $product->id]) }}" class="text-emerald-600 hover:text-emerald-900 font-bold">Hồ sơ</a>
-                                            <a href="{{ route('products.edit', ['product' => $product->id] + request()->only(['search', 'classification', 'per_page', 'page'])) }}" class="text-blue-600 hover:text-blue-900 font-bold">Sửa</a>
+                                            <button type="button" onclick="document.getElementById('product-edit-modal-{{ $product->id }}').showModal()" class="erp-action-text text-blue-600 hover:text-blue-900 font-bold">Sửa</button>
                                             <form action="{{ route('products.destroy', $product->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
+                                                <button type="submit" class="erp-action-text text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
                                             </form>
                                         </td>
                                     @endif
@@ -154,6 +154,23 @@
                     </table>
                 </div>
 
+                @if($canManageProducts)
+                    <dialog id="product-create-modal" class="erp-form-modal w-[min(64rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                        <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><div><p class="text-[11px] uppercase tracking-wider text-blue-700">Danh mục hàng hóa</p><h3 class="text-base font-bold">Thêm sản phẩm</h3></div><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border bg-white px-3 py-1 text-lg">×</button></div>
+                        <form action="{{ route('products.store') }}" method="POST" class="space-y-4 p-5">@csrf<input type="hidden" name="_product_modal" value="create">@include('products.partials.fields', ['product' => null])
+                            <div class="flex justify-end gap-2 border-t pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu sản phẩm</button></div>
+                        </form>
+                    </dialog>
+                    @foreach($products as $product)
+                        <dialog id="product-edit-modal-{{ $product->id }}" class="erp-form-modal w-[min(64rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                            <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><div><p class="text-[11px] uppercase tracking-wider text-blue-700">Danh mục hàng hóa</p><h3 class="text-base font-bold">Sửa sản phẩm · {{ $product->name }}</h3></div><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border bg-white px-3 py-1 text-lg">×</button></div>
+                            <form action="{{ route('products.update', $product) }}" method="POST" class="space-y-4 p-5">@csrf @method('PUT')<input type="hidden" name="_product_modal" value="edit"><input type="hidden" name="_product_id" value="{{ $product->id }}">@include('products.partials.fields', ['product' => $product])
+                                <div class="flex justify-end gap-2 border-t pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu thay đổi</button></div>
+                            </form>
+                        </dialog>
+                    @endforeach
+                    @if(old('_product_modal'))<script>document.addEventListener('DOMContentLoaded',()=>{const id=@json(old('_product_modal'))==='create'?'product-create-modal':`product-edit-modal-${@json(old('_product_id'))}`;document.getElementById(id)?.showModal();});</script>@endif
+                @endif
                 <!-- Footer phân trang -->
                 <div class="p-3 border-t border-slate-300 bg-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <x-per-page-select :default="100" />

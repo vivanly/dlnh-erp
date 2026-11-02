@@ -11,19 +11,10 @@
             </div>
 
             <!-- PHÂN QUYỀN HIỂN THỊ NÚT LẬP ĐƠN -->
-            @php
-                $user = auth()->user();
-                $isSales = (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment()) ||
-                           (isset($user->department) && strtolower($user->department) === 'sales');
+            @php $canSubmitOrders = auth()->user()?->canSubmitOrders() ?? false; @endphp
 
-                $isIT = (method_exists($user, 'isITDepartment') && $user->isITDepartment()) ||
-                        (isset($user->department) && strtolower($user->department) === 'it') ||
-                        (isset($user->role) && strtolower($user->role) === 'it');
-
-            @endphp
-
-            @if($isSales || $isIT)
-                <a href="{{ route('orders.create') }}" class="inline-flex items-center justify-center gap-1.5 rounded-md border border-emerald-700 bg-emerald-600 px-4 py-2 font-bold text-xs text-white tracking-wide shadow-sm transition hover:bg-emerald-700">
+            @if($canSubmitOrders)
+                <a href="{{ route('orders.create') }}" class="erp-action-create-link inline-flex items-center justify-center gap-1.5 px-4 py-2 font-bold text-xs tracking-wide shadow-sm transition">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                     Lên Đơn Mới
                 </a>
@@ -68,6 +59,7 @@
                         <label class="mb-1 block text-xs font-semibold text-slate-600">Trạng thái</label>
                         <select name="status" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
                             <option value="">-- Tất cả trạng thái --</option>
+                            <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Nháp · chờ gửi duyệt</option>
                             <option value="pending_qa" {{ request('status') == 'pending_qa' ? 'selected' : '' }}>Chờ QA chốt số lô</option>
                             <option value="pending_sales_approval" {{ request('status') == 'pending_sales_approval' ? 'selected' : '' }}>Chờ Giám đốc Kinh doanh duyệt</option>
                             <option value="sales_rejected" {{ request('status') == 'sales_rejected' ? 'selected' : '' }}>Kinh doanh từ chối</option>
@@ -120,7 +112,7 @@
                                     {{ $order->customer->name ?? 'N/A' }}
                                 </td>
                                 <td class="py-2.5 px-3 border-r border-slate-200">
-                                    {{ $order->order_type }}
+                                    {{ ['DL' => 'Dược liệu', 'VT' => 'Vị thuốc', 'NL' => 'Dược liệu thô'][$order->order_type] ?? $order->order_type }}
                                 </td>
                                 <td class="py-2.5 px-3 border-r border-slate-200 text-center font-mono">
                                     {{ date('d/m/Y', strtotime($order->order_date)) }}
@@ -148,6 +140,7 @@
                                             {{ $lotStatus }}
                                         </span>
                                         <span class="text-[9px] text-slate-500">Đơn: {{ [
+                                            'draft' => 'Nháp · chờ gửi duyệt',
                                             'pending_sales_approval' => 'Chờ GĐ Kinh doanh duyệt',
                                             'sales_rejected' => 'Kinh doanh từ chối',
                                             'pending_warehouse_check' => 'Chờ Kho kiểm tồn',
@@ -170,6 +163,12 @@
                                         <a href="{{ route('orders.show', $order->id) }}" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] uppercase tracking-wider rounded-none transition">
                                             Chi tiết
                                         </a>
+                                        @if($canSubmitOrders && in_array($order->status, ['draft', 'sales_rejected'], true))
+                                            <form action="{{ route('orders.submit-sales', $order) }}" method="POST" class="inline" onsubmit="return confirm('Gửi đơn hàng này lên Giám đốc Kinh doanh duyệt?');">
+                                                @csrf
+                                                <button type="submit" class="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-none transition" title="Gửi duyệt">Gửi duyệt</button>
+                                            </form>
+                                        @endif
                                         @if($canManageOrderDrafts && !$order->isApproved() && (!in_array($order->status, ['pending_sales_approval', 'pending_warehouse_check', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true) || $canManageLockedOrders))
                                             <form action="{{ route('orders.destroy', $order->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa đơn hàng này?');">
                                                 @csrf

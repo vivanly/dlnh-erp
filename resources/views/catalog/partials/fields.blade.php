@@ -1,0 +1,12 @@
+@if($errors->any())<div class="border-l-4 border-rose-600 bg-rose-50 p-3 text-xs text-rose-800"><ul class="list-disc pl-4">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+<div class="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-2">
+<label class="block text-xs font-semibold text-slate-700">Phân loại<input value="{{ $classification }}" readonly class="mt-1 block w-full border-slate-300 bg-slate-100 px-3 py-2 text-sm"><input type="hidden" name="classification" value="{{ $classification }}"></label>
+<label class="block text-xs font-semibold text-slate-700">Mã hàng (SKU) *<input name="sku" value="{{ old('sku', $item?->sku) }}" required class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm">@error('sku')<span class="text-rose-600">{{ $message }}</span>@enderror</label>
+<label class="block text-xs font-semibold text-slate-700 md:col-span-2">Tên hàng *<input name="name" value="{{ old('name', $item?->name) }}" required class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm">@error('name')<span class="text-rose-600">{{ $message }}</span>@enderror</label>
+<label class="block text-xs font-semibold text-slate-700">Đơn vị tính<input name="unit" value="{{ old('unit', $item?->unit) }}" class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm"></label>
+<label class="block text-xs font-semibold text-slate-700">Nguồn gốc<input name="origin" value="{{ old('origin', $item?->origin) }}" class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm"></label>
+<label class="block text-xs font-semibold text-slate-700">Bộ phận dùng<input name="part_used" value="{{ old('part_used', $item?->part_used) }}" class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm"></label>
+<label class="block text-xs font-semibold text-slate-700">Tên khoa học<input name="scientific_name" value="{{ old('scientific_name', $item?->scientific_name) }}" class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm"></label>
+<label class="block text-xs font-semibold text-slate-700 md:col-span-2">Tài liệu tham khảo tên khoa học<input name="scientific_name_reference" value="{{ old('scientific_name_reference', $item?->scientific_name_reference) }}" class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm"></label>
+<label class="block text-xs font-semibold text-slate-700 md:col-span-2">Ghi chú<textarea name="note" rows="3" class="mt-1 block w-full border-slate-300 px-3 py-2 text-sm">{{ old('note', $item?->note) }}</textarea></label>
+</div>

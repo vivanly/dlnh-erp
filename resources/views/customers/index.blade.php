@@ -7,7 +7,7 @@
             <div class="flex items-center gap-2">
                 <!-- NÚT THÊM KHÁCH HÀNG MỚI -->
                 @if($canManageCustomers)
-                <a href="{{ route('customers.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
+                <button type="button" onclick="document.getElementById('customer-create-modal').showModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                     Thêm khách hàng mới
                 </a>
@@ -126,11 +126,11 @@
                                     </td>
                                     <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
                                         @if($canManageCustomers)
-                                        <a href="{{ route('customers.edit', $customer->id) }}" class="text-blue-600 hover:text-blue-900 font-bold">Sửa</a>
+                                        <button type="button" onclick="document.getElementById('customer-edit-modal-{{ $customer->id }}').showModal()" class="erp-action-text text-blue-600 hover:text-blue-900 font-bold">Sửa</button>
                                         <form action="{{ route('customers.status.toggle', $customer) }}" method="POST" class="inline-block" onsubmit="return confirm('{{ $customer->is_active ? 'Đánh dấu khách hàng này không hoạt động?' : 'Kích hoạt lại khách hàng này?' }}');">
                                             @csrf
                                             @method('PATCH')
-                                            <button type="submit" class="font-bold cursor-pointer {{ $customer->is_active ? 'text-amber-700 hover:text-amber-900' : 'text-emerald-700 hover:text-emerald-900' }}">{{ $customer->is_active ? 'Ngưng dùng' : 'Kích hoạt' }}</button>
+                                            <button type="submit" class="erp-action-text font-bold cursor-pointer {{ $customer->is_active ? 'text-amber-700 hover:text-amber-900' : 'text-emerald-700 hover:text-emerald-900' }}">{{ $customer->is_active ? 'Ngưng dùng' : 'Kích hoạt' }}</button>
                                         </form>
                                         @else
                                             <span class="text-slate-400">Chỉ xem</span>
@@ -152,6 +152,36 @@
                     </table>
                 </div>
 
+                @if($canManageCustomers)
+                    <dialog id="customer-create-modal" class="erp-form-modal w-[min(54rem,calc(100%-2rem))] max-h-[90vh] p-0" style="width: min(54rem, calc(100vw - 2rem)); max-width: none; margin: auto; transform: translateX(clamp(0px, 1vw, 12px));">
+                        <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-6 py-4"><div><p class="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Danh mục khách hàng</p><h3 class="mt-1 text-base font-bold text-slate-900">Thêm khách hàng</h3><p class="mt-1 text-xs text-slate-600">Nhập thông tin khách hàng và thông tin liên hệ.</p></div><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">×</button></div>
+                        <form action="{{ route('customers.store') }}" method="POST" class="space-y-5 p-6">
+                            @csrf
+                            <input type="hidden" name="_customer_modal" value="create">
+                            @include('customers.partials.fields', ['customer' => null])
+                            <div class="flex justify-end gap-2 border-t border-slate-300 pt-4">
+                                <button type="button" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">Hủy</button>
+                                <button type="submit" class="border border-blue-700 bg-blue-600 px-3 py-2 text-xs font-bold text-white">Lưu khách hàng</button>
+                            </div>
+                        </form>
+                    </dialog>
+                    @foreach($customers as $customer)
+                        <dialog id="customer-edit-modal-{{ $customer->id }}" class="erp-form-modal w-[min(54rem,calc(100%-2rem))] max-h-[90vh] p-0" style="width: min(54rem, calc(100vw - 2rem)); max-width: none; margin: auto; transform: translateX(clamp(0px, 1vw, 12px));">
+                            <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-6 py-4"><div><p class="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Danh mục khách hàng</p><h3 class="mt-1 text-base font-bold text-slate-900">Cập nhật khách hàng</h3><p class="mt-1 text-xs text-slate-600">{{ $customer->name }}</p></div><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">×</button></div>
+                            <form action="{{ route('customers.update', $customer) }}" method="POST" class="space-y-5 p-6">
+                                @csrf
+                                @method('PUT')
+                                <input type="hidden" name="_customer_modal" value="edit">
+                                <input type="hidden" name="_customer_id" value="{{ $customer->id }}">
+                                @include('customers.partials.fields', ['customer' => $customer])
+                                <div class="flex justify-end gap-2 border-t border-slate-300 pt-4">
+                                    <button type="button" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">Hủy</button>
+                                    <button type="submit" class="border border-blue-700 bg-blue-600 px-3 py-2 text-xs font-bold text-white">Lưu thay đổi</button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @endforeach
+                @endif
                 <!-- Footer phân trang -->
                 <div class="p-3 border-t border-slate-300 bg-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <x-per-page-select />
@@ -164,4 +194,13 @@
 
         </div>
     </div>
-</x-app-layout>
+    @if($canManageCustomers && old('_customer_modal'))
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const modalType = @json(old('_customer_modal'));
+                const customerId = @json(old('_customer_id'));
+                const modalId = modalType === 'create' ? 'customer-create-modal' : `customer-edit-modal-${customerId}`;
+                document.getElementById(modalId)?.showModal();
+            });
+        </script>
+    @endif</x-app-layout>

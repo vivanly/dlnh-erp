@@ -24,18 +24,7 @@ class PurchaseOrderController extends Controller
     private function checkSalesOrItPermission()
     {
         $user = auth()->user();
-        if (!$user) {
-            return false;
-        }
-
-        $isSales = (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment()) ||
-                   (isset($user->department) && strtolower($user->department) === 'sales');
-
-        $isIT = (method_exists($user, 'isITDepartment') && $user->isITDepartment()) ||
-                (isset($user->department) && strtolower($user->department) === 'it') ||
-                (isset($user->role) && strtolower($user->role) === 'it');
-
-        return $isSales || $isIT;
+        return $user && $user->canSubmitOrders();
     }
 
     // 1. Hiển thị danh sách đơn mua hàng kèm tìm kiếm và bộ lọc tối ưu
@@ -52,7 +41,7 @@ class PurchaseOrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = PurchaseOrder::with(['supplier', 'user'])->orderBy('id', 'desc');
+        $query = PurchaseOrder::with(['supplier', 'user', 'items.product', 'items.rawMaterial', 'items.accessory'])->orderBy('id', 'desc');
 
         // Lọc theo từ khóa (Mã PO hoặc Tên Nhà cung cấp)
         if ($request->filled('search')) {
@@ -78,8 +67,9 @@ class PurchaseOrderController extends Controller
         $purchaseOrders = $query->paginate($this->perPage($request))->appends($request->query());
             
         $canManageLockedPurchaseOrders = $this->isItOrAdminPermission();
+        $canApprovePurchaseOrder = auth()->user()->canApprovePurchaseOrder();
 
-        return view('purchase-orders.index', compact('purchaseOrders', 'canManageLockedPurchaseOrders'));
+        return view('purchase-orders.index', compact('purchaseOrders', 'canManageLockedPurchaseOrders', 'canApprovePurchaseOrder'));
     }
 
     // 2. Hiển thị form tạo đơn mua hàng
@@ -304,6 +294,10 @@ class PurchaseOrderController extends Controller
     // 8. Chức năng Gửi duyệt đơn hàng (Chuyển từ draft/rejected sang pending)
     public function submit($id)
     {
+        if (! $this->checkSalesOrItPermission()) {
+            return back()->with('error', 'Bạn không có quyền gửi duyệt đơn mua. Chỉ Kinh doanh và IT được thực hiện.');
+        }
+
         try {
             $purchaseOrder = PurchaseOrder::findOrFail($id);
 

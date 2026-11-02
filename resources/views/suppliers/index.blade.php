@@ -29,7 +29,7 @@
             @endphp
 
             @if($canManage)
-                <a href="{{ route('suppliers.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
+                <button type="button" onclick="document.getElementById('supplier-create-modal').showModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                     Thêm mới Nhà Cung Cấp
                 </a>
@@ -135,11 +135,11 @@
                                     <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
                                         {{-- HIỂN THỊ NÚT SỬA VÀ XÓA NẾU CÓ QUYỀN QUẢN LÝ --}}
                                         @if($canManage)
-                                            <a href="{{ route('suppliers.edit', $supplier->id) }}" class="text-blue-600 hover:text-blue-900 font-bold">Sửa</a>
+                                            <button type="button" onclick="document.getElementById('supplier-edit-modal-{{ $supplier->id }}').showModal()" class="erp-action-text text-blue-600 hover:text-blue-900 font-bold">Sửa</button>
                                             <form action="{{ route('suppliers.status.toggle', $supplier) }}" method="POST" class="inline-block" onsubmit="return confirm('{{ $supplier->is_active ? 'Đánh dấu nhà cung cấp này không hoạt động?' : 'Kích hoạt lại nhà cung cấp này?' }}');">
                                                 @csrf
                                                 @method('PATCH')
-                                                <button type="submit" class="font-bold cursor-pointer {{ $supplier->is_active ? 'text-amber-700 hover:text-amber-900' : 'text-emerald-700 hover:text-emerald-900' }}">{{ $supplier->is_active ? 'Ngưng dùng' : 'Kích hoạt' }}</button>
+                                                <button type="submit" class="erp-action-text font-bold cursor-pointer {{ $supplier->is_active ? 'text-amber-700 hover:text-amber-900' : 'text-emerald-700 hover:text-emerald-900' }}">{{ $supplier->is_active ? 'Ngưng dùng' : 'Kích hoạt' }}</button>
                                             </form>
                                         @else
                                             <span class="text-slate-400 italic">Chỉ xem</span>
@@ -161,6 +161,36 @@
                     </table>
                 </div>
 
+                @if($canManage)
+                    <dialog id="supplier-create-modal" class="erp-form-modal w-[min(42rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                        <div class="flex items-center justify-between border-b border-slate-300 bg-slate-100 px-4 py-3"><h3 class="text-sm font-bold text-slate-800">Thêm nhà cung cấp</h3><button type="button" aria-label="Close" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">×</button></div>
+                        <form action="{{ route('suppliers.store') }}" method="POST" class="space-y-4 p-4">
+                            @csrf
+                            <input type="hidden" name="_supplier_modal" value="create">
+                            @include('suppliers.partials.fields', ['supplier' => null])
+                            <div class="flex justify-end gap-2 border-t border-slate-300 pt-3">
+                                <button type="button" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">Hủy</button>
+                                <button type="submit" class="border border-blue-700 bg-blue-600 px-3 py-2 text-xs font-bold text-white">Lưu nhà cung cấp</button>
+                            </div>
+                        </form>
+                    </dialog>
+                    @foreach($suppliers as $supplier)
+                        <dialog id="supplier-edit-modal-{{ $supplier->id }}" class="erp-form-modal w-[min(42rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                            <div class="flex items-center justify-between border-b border-slate-300 bg-slate-100 px-4 py-3"><h3 class="text-sm font-bold text-slate-800">Sửa nhà cung cấp: {{ $supplier->name }}</h3><button type="button" aria-label="Close" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100">×</button></div>
+                            <form action="{{ route('suppliers.update', $supplier) }}" method="POST" class="space-y-4 p-4">
+                                @csrf
+                                @method('PUT')
+                                <input type="hidden" name="_supplier_modal" value="edit">
+                                <input type="hidden" name="_supplier_id" value="{{ $supplier->id }}">
+                                @include('suppliers.partials.fields', ['supplier' => $supplier])
+                                <div class="flex justify-end gap-2 border-t border-slate-300 pt-3">
+                                    <button type="button" onclick="this.closest('dialog').close()" class="border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">Hủy</button>
+                                    <button type="submit" class="border border-blue-700 bg-blue-600 px-3 py-2 text-xs font-bold text-white">Lưu thay đổi</button>
+                                </div>
+                            </form>
+                        </dialog>
+                    @endforeach
+                @endif
                 <!-- Footer phân trang -->
                 <div class="p-3 border-t border-slate-300 bg-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <x-per-page-select />
@@ -173,4 +203,13 @@
 
         </div>
     </div>
-</x-app-layout>
+    @if($canManage && old('_supplier_modal'))
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const modalType = @json(old('_supplier_modal'));
+                const supplierId = @json(old('_supplier_id'));
+                const modalId = modalType === 'create' ? 'supplier-create-modal' : `supplier-edit-modal-${supplierId}`;
+                document.getElementById(modalId)?.showModal();
+            });
+        </script>
+    @endif</x-app-layout>

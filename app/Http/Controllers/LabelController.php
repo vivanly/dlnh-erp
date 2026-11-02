@@ -10,7 +10,6 @@ use App\Models\SalesOrderLotAllocation;
 use App\Models\SupplierBatch;
 use App\Models\TraceabilityLotCode;
 use App\Models\TraceabilitySetting;
-use App\Services\SalesOrderLabelWorkbook;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,25 +24,17 @@ class LabelController extends Controller
         'dl_b' => 'Dược liệu Trung Quốc',
     ];
 
-    private function ensureProductionAccess(): void
+    private function ensureLabelPrintPermission(): void
     {
         $user = auth()->user();
-        $allowed = $user && (
-            (method_exists($user, 'isProductionDepartment') && $user->isProductionDepartment()) ||
-            (method_exists($user, 'isITDepartment') && $user->isITDepartment())
-        );
-
-        abort_unless($allowed, 403);
+        abort_unless($user && $user->canPrintLabels(), 403);
     }
 
     private function userCanPrintLabels(): bool
     {
         $user = auth()->user();
 
-        return $user && (
-            (method_exists($user, 'isProductionDepartment') && $user->isProductionDepartment()) ||
-            (method_exists($user, 'isITDepartment') && $user->isITDepartment())
-        );
+        return $user && $user->canPrintLabels();
     }
 
     public function index()
@@ -124,19 +115,14 @@ class LabelController extends Controller
         ]);
     }
 
-    public function printOrder(Request $request, Order $order, SalesOrderLabelWorkbook $workbookBuilder)
+    public function printOrderDirect(Request $request, Order $order)
     {
-        return $this->generateOrderLabels($request, $order, $workbookBuilder);
+        return $this->generateOrderLabels($request, $order);
     }
 
-    public function printOrderDirect(Request $request, Order $order, SalesOrderLabelWorkbook $workbookBuilder)
+    private function generateOrderLabels(Request $request, Order $order)
     {
-        return $this->generateOrderLabels($request, $order, $workbookBuilder, true);
-    }
-
-    private function generateOrderLabels(Request $request, Order $order, SalesOrderLabelWorkbook $workbookBuilder, bool $html = false)
-    {
-        $this->ensureProductionAccess();
+        $this->ensureLabelPrintPermission();
         $this->ensureLabelOrder($order);
 
         $validated = $request->validate([
@@ -152,15 +138,14 @@ class LabelController extends Controller
             'include_packaging_control' => 'nullable|boolean',
             'packaging_controller' => 'required_if:include_packaging_control,1|nullable|string|max:60',
             'packaging_performer' => 'required_if:include_packaging_control,1|nullable|string|max:60',
+            'traditional_medicine_name' => 'nullable|boolean',
             'preview' => 'nullable|boolean',
             'watermark' => 'nullable|boolean',
         ]);
-        $preview = $html && (bool) ($validated['preview'] ?? false);
-
-        $downloadPath = null;
+        $preview = (bool) ($validated['preview'] ?? false);
         $printLabels = [];
         try {
-            DB::transaction(function () use ($order, $validated, $workbookBuilder, $html, $preview, &$downloadPath, &$printLabels) {
+            DB::transaction(function () use ($order, $validated, $preview, &$printLabels) {
                 $lockedOrder = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
                 $this->ensureLabelOrder($lockedOrder);
                 $items = OrderItem::with(['product.regulatoryDocuments', 'labelPrints', 'lotAllocations'])
@@ -250,6 +235,7 @@ class LabelController extends Controller
 
                         $label = [
                             'label_type' => $this->labelType($item),
+                            'traditional_medicine_name' => (bool) ($validated['traditional_medicine_name'] ?? false),
                             'product' => $item->product->name,
                             'batch' => $this->batchCode($allocation, $batch),
                             'scientific' => $item->product->scientific_name,
@@ -303,46 +289,29 @@ class LabelController extends Controller
                 if ($labels === []) {
                     throw new DomainException('Đơn này đã in đủ nhãn; nhập số lượng in bổ sung và lý do nếu cần in thêm.');
                 }
-                if ($html) {
-                    $printLabels = $labels;
-                } else {
-                    $downloadPath = $workbookBuilder->create($labels);
-                }
+                $printLabels = $labels;
             });
         } catch (DomainException $exception) {
-            if ($downloadPath && is_file($downloadPath)) {
-                @unlink($downloadPath);
-            }
-
-            if ($html) {
+            if ($request->expectsJson()) {
                 return response()->json(['message' => $exception->getMessage()], 422);
             }
 
             return back()->withInput()->with('error', $exception->getMessage());
         } catch (\Throwable $exception) {
-            if ($downloadPath && is_file($downloadPath)) {
-                @unlink($downloadPath);
-            }
             report($exception);
 
-            if ($html) {
+            if ($request->expectsJson()) {
                 return response()->json(['message' => 'Không tạo được nhãn để in. Vui lòng thử lại.'], 500);
             }
 
-            return back()->withInput()->with('error', 'Không tạo được file nhãn Excel. Vui lòng kiểm tra mẫu Nhan.xlsx.');
+            return back()->withInput()->with('error', 'Không tạo được nhãn để in. Vui lòng thử lại.');
         }
 
-        if ($html) {
-            return response()->view('labels.print', [
-                'order' => $order,
-                'labels' => $printLabels,
-                'watermark' => (bool) ($validated['watermark'] ?? false),
-            ]);
-        }
-
-        $safeOrderCode = preg_replace('/[^A-Za-z0-9_-]+/', '-', $order->order_code);
-
-        return response()->download($downloadPath, 'Nhan-' . $safeOrderCode . '.xlsx')->deleteFileAfterSend(true);
+        return response()->view('labels.print', [
+            'order' => $order,
+            'labels' => $printLabels,
+            'watermark' => (bool) ($validated['watermark'] ?? false),
+        ]);
     }
 
     private function ensureLabelOrder(Order $order): void

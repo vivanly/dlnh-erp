@@ -9,6 +9,7 @@ use Maatwebsite\Excel\Concerns\SkipsOnFailure;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
+use Illuminate\Validation\Rules\Password;
 
 class UsersImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFailure
 {
@@ -45,7 +46,7 @@ class UsersImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnFai
             '*.employee_code' => 'nullable|string|max:50|unique:users,employee_code',
             '*.name' => 'required|string|max:255',
             '*.email' => 'required|email|max:255|unique:users,email',
-            '*.password' => 'required|string|min:6',
+            '*.password' => ['required', 'string', Password::min(12)->mixedCase()->numbers()->symbols()],
             '*.phone' => 'nullable|string|max:255',
             '*.address' => 'nullable|string',
             '*.status' => 'nullable|in:working,resigned',

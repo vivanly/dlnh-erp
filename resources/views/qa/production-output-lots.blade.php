@@ -29,7 +29,7 @@
                                 <td class="p-2.5">{{ $productionOrder->completed_at?->format('d/m/Y H:i') ?? '—' }}</td>
                                 @if($canManageLots)
                                     <td class="p-2.5">
-                                        <a href="{{ route('qa.internal-lots.create', ['production_order_id' => $productionOrder->id]) }}" class="inline-block whitespace-nowrap bg-emerald-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-emerald-800">Tạo lô theo lệnh</a>
+                                        <a href="{{ route('qa.internal-lots.create', ['production_order_id' => $productionOrder->id]) }}" class="erp-action-create-link inline-block whitespace-nowrap px-3 py-1.5 text-[10px] font-bold uppercase">Tạo lô theo lệnh</a>
                                     </td>
                                 @endif
                             </tr>

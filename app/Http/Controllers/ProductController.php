@@ -28,7 +28,10 @@ class ProductController extends Controller
             ->paginate($this->perPage($request, 100))
             ->withQueryString();
 
-        return view('products.index', compact('products', 'classifications'));
+        $ppcbs = Ppcb::orderBy('ten_ppcb')->get(['id', 'ma', 'ten_ppcb']);
+        $canManageProducts = $this->canManageProducts();
+
+        return view('products.index', compact('products', 'classifications', 'ppcbs', 'canManageProducts'));
     }
 
     public function export(Request $request)

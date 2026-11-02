@@ -27,7 +27,7 @@
                                 <td class="p-2.5 text-rose-700">{{ $plan->rejection_reason }}</td>
                                 <td class="p-2.5 text-center whitespace-nowrap">
                                     @if($canManagePlans && in_array($plan->status, ['draft', 'rejected'], true))
-                                        <a href="{{ route('production-monthly-plans.edit', $plan) }}" class="border border-slate-300 px-2.5 py-1.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-50">Sửa</a>
+                                        <a href="{{ route('production-monthly-plans.edit', $plan) }}" class="erp-action-text text-[10px] font-semibold text-blue-700">Sửa</a>
                                         <form method="POST" action="{{ route('production-monthly-plans.submit', $plan) }}" class="inline" onsubmit="return confirm('Gửi kế hoạch tháng này lên Ban Giám Đốc duyệt?');">@csrf<button class="bg-blue-700 px-2.5 py-1.5 text-[10px] font-semibold text-white hover:bg-blue-800">Gửi duyệt</button></form>
                                     @elseif($plan->status === 'approved')
                                         <span class="text-slate-500">{{ $plan->lines->filter(fn ($line) => $line->productionOrder)->count() }} lệnh đã tạo</span>

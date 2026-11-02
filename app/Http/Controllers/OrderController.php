@@ -66,8 +66,9 @@ class OrderController extends Controller
             (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment()) ||
             $this->isItOrAdmin($user)
         );
+        $canSubmitOrders = $user && $user->canSubmitOrders();
 
-        return view('orders.index', compact('orders', 'canManageLockedOrders', 'canManageOrderDrafts'));
+        return view('orders.index', compact('orders', 'canManageLockedOrders', 'canManageOrderDrafts', 'canSubmitOrders'));
     }
 
     private function canApproveSalesOrder($user): bool
@@ -77,9 +78,9 @@ class OrderController extends Controller
 
     public function salesApprovalQueue(Request $request)
     {
-        abort_unless(auth()->check(), 403);
+        abort_unless($this->canApproveSalesOrder(auth()->user()), 403);
 
-        $orders = Order::with(['customer', 'items.product', 'items.rawMaterial'])
+        $orders = Order::with(['customer', 'items.product.ppcb', 'items.rawMaterial', 'items.ppcb'])
             ->where('status', 'pending_sales_approval')
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
@@ -87,6 +88,9 @@ class OrderController extends Controller
                     $subQuery->where('order_code', 'like', "%{$search}%")
                         ->orWhereHas('customer', fn ($customerQuery) => $customerQuery->where('name', 'like', "%{$search}%"));
                 });
+            })
+            ->when($request->filled('order_type') && in_array($request->input('order_type'), ['DL', 'VT', 'NL'], true), function ($query) use ($request) {
+                $query->where('order_type', $request->input('order_type'));
             })
             ->latest()
             ->paginate($this->perPage($request))
@@ -125,6 +129,35 @@ class OrderController extends Controller
         return back()->with('success', $order->order_type === 'NL'
             ? 'Đã duyệt đơn dược liệu thô; đơn được chuyển sang Kho xuất hàng.'
             : 'Đã duyệt đơn bán; đơn được chuyển sang Kho xác nhận tồn.');
+    }
+
+    public function submitSalesOrder(Order $order)
+    {
+        $user = auth()->user();
+        if (! $user || ! $user->canSubmitOrders()) {
+            return back()->with('error', 'Bạn không có quyền gửi duyệt đơn bán. Chỉ Kinh doanh và IT được thực hiện.');
+        }
+
+        try {
+            DB::transaction(function () use ($order) {
+                $lockedOrder = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
+                if (! in_array($lockedOrder->status, ['draft', 'sales_rejected'], true)) {
+                    throw new DomainException('Chỉ đơn nháp hoặc đơn bị từ chối mới có thể gửi duyệt.');
+                }
+                if (! $lockedOrder->items()->exists()) {
+                    throw new DomainException('Không thể gửi duyệt đơn hàng chưa có sản phẩm.');
+                }
+
+                $lockedOrder->update([
+                    'status' => 'pending_sales_approval',
+                    'sales_rejection_reason' => null,
+                ]);
+            });
+        } catch (DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Đã gửi đơn hàng lên Giám đốc Kinh doanh duyệt.');
     }
 
     public function rejectSalesOrder(Request $request, Order $order)
@@ -332,10 +365,7 @@ class OrderController extends Controller
     public function create()
     {
         $user = auth()->user();
-        abort_unless($user && (
-            (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment()) ||
-            $this->isItOrAdmin($user)
-        ), 403);
+        abort_unless($user && $user->canSubmitOrders(), 403);
 
         // Gợi ý mã đơn hàng tự động theo định dạng ĐH-YYYYMMDD-XXXX
         $orderType = request('order_type', 'DL');
@@ -358,13 +388,13 @@ class OrderController extends Controller
     private function suggestOrderCode(string $orderType, string $orderDate): string
     {
         abort_unless(in_array($orderType, ['DL', 'VT', 'NL'], true), 422);
-        $prefix = $orderType.'-'.Carbon::parse($orderDate)->format('Ymd').'-';
+        $prefix = $orderType.Carbon::parse($orderDate)->format('ym');
         $next = Order::where('order_code', 'like', $prefix.'%')
             ->pluck('order_code')
-            ->map(fn ($code) => preg_match('/^'.preg_quote($prefix, '/').'([0-9]+)$/', $code, $matches) ? (int) $matches[1] : 0)
+            ->map(fn ($code) => preg_match('/^'.preg_quote($prefix, '/').'([0-9]{4})$/', $code, $matches) ? (int) $matches[1] : 0)
             ->max() + 1;
 
-        return $prefix.str_pad((string) $next, 3, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -385,11 +415,14 @@ class OrderController extends Controller
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+        abort_unless($user && $user->canSubmitOrders(), 403);
+
         $this->normalizeSaleItems($request);
         $isRawMaterialOrder = $request->input('order_type') === 'NL';
 
         $validated = $request->validate([
-            'order_code' => 'required|unique:orders,order_code',
+            'order_code' => ['required', 'string', 'regex:/^(DL|VT|NL)[0-9]{6,}$/', 'unique:orders,order_code'],
             'customer_id' => [
                 'required',
                 'exists:customers,id',
@@ -399,7 +432,7 @@ class OrderController extends Controller
                     }
                 },
             ],
-            'order_type' => 'required|string',
+            'order_type' => 'required|in:DL,VT,NL',
             'order_date' => 'required|date',
             'delivery_date' => 'required|date',
             'province_city' => 'required|string',
@@ -416,13 +449,14 @@ class OrderController extends Controller
             'items.*.notes' => 'nullable|string|max:500',
         ]);
 
-        $user = auth()->user();
-        abort_unless($user && (
-            (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment()) ||
-            $this->isItOrAdmin($user)
-        ), 403);
+        $expectedCodePrefix = $validated['order_type'].Carbon::parse($validated['order_date'])->format('ym');
+        if (! preg_match('/^'.preg_quote($expectedCodePrefix, '/').'[0-9]{4,}$/', $validated['order_code'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'order_code' => 'Mã đơn phải đúng loại đơn và tháng nhận đơn (ví dụ: '.$expectedCodePrefix.'0001).',
+            ]);
+        }
 
-        $validated['status'] = 'pending_sales_approval';
+        $validated['status'] = 'draft';
 
         DB::beginTransaction();
         try {
@@ -450,7 +484,7 @@ class OrderController extends Controller
 
             DB::commit();
 
-            return redirect()->route('orders.index')->with('success', 'Đã tạo đơn hàng; đơn đang chờ Giám đốc Kinh doanh duyệt.');
+            return redirect()->route('orders.index')->with('success', 'Đã lưu đơn ở trạng thái Nháp. Kiểm tra đơn rồi bấm Gửi duyệt trong danh sách.');
         } catch (DomainException $e) {
             DB::rollBack();
 
@@ -753,8 +787,8 @@ class OrderController extends Controller
                 'province_city' => $validated['province_city'],
                 'contact_person' => $validated['contact_person'] ?? null,
                 'notes' => $validated['notes'] ?? null,
-                'status' => $salesResubmission ? 'pending_sales_approval' : $validated['status'],
-                'sales_rejection_reason' => $salesResubmission ? null : $order->sales_rejection_reason,
+                'status' => $salesResubmission ? 'sales_rejected' : $validated['status'],
+                'sales_rejection_reason' => $order->sales_rejection_reason,
             ]);
 
             // 2. Xử lý cập nhật / thêm mới danh sách vị thuốc (items)

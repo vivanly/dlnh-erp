@@ -196,11 +196,11 @@
     @endif
 
     @if($currentUser)
-        <details class="group/menu rounded-md border {{ request()->routeIs(['departments*', 'users*']) ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs(['departments*', 'users*']) ? 'open' : '' }}>
+        <details class="group/menu rounded-md border {{ request()->routeIs(['departments*', 'users*', 'permissions.label-printing.*']) ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs(['departments*', 'users*', 'permissions.label-printing.*']) ? 'open' : '' }}>
             <summary class="list-none cursor-pointer flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
                 <div class="flex items-center gap-2.5">
-                    <svg class="w-4 h-4 text-slate-500 {{ request()->routeIs(['departments*', 'users*', 'traceability*']) ? 'text-blue-600' : '' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                    <span class="{{ request()->routeIs(['departments*', 'users*', 'traceability*']) ? 'text-blue-700 font-semibold' : '' }}">Quản trị</span>
+                    <svg class="w-4 h-4 text-slate-500 {{ request()->routeIs(['departments*', 'users*', 'permissions.label-printing.*', 'traceability*']) ? 'text-blue-600' : '' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    <span class="{{ request()->routeIs(['departments*', 'users*', 'permissions.label-printing.*', 'traceability*']) ? 'text-blue-700 font-semibold' : '' }}">Quản trị</span>
                 </div>
                 <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-open/menu:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
             </summary>
@@ -209,6 +209,7 @@
                 <a href="{{ route('departments.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('departments*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Phòng ban</a>
                 @if($currentUser->isITDepartment())
                     <a href="{{ route('users.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('users*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Nhân sự</a>
+                    <a href="{{ route('permissions.label-printing.index') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('permissions.label-printing.*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Phân Quyền</a>
                 @endif
             </div>
         </details>

@@ -726,7 +726,7 @@ class ProductionController extends Controller
         );
 
         $materialLots = collect();
-        if ($productionOrder->status === 'released') {
+        if (in_array($productionOrder->status, ['released', 'materials_issued'], true)) {
             $pairs = \App\Models\MaterialStockMovement::select('material_type', 'material_id')->distinct()->get();
             foreach ($pairs as $pair) {
                 $catalogItem = $pair->material_type === 'accessory' ? \App\Models\Accessory::find($pair->material_id) : \App\Models\RawMaterial::find($pair->material_id);
@@ -911,7 +911,7 @@ class ProductionController extends Controller
     {
         abort_unless($this->userCanWorkInWarehouse(), 403);
 
-        if ($productionOrder->status !== 'released') {
+        if (! in_array($productionOrder->status, ['released', 'materials_issued'], true)) {
             return back()->with('error', 'Giám đốc cần duyệt kế hoạch trước khi Kho xuất nguyên liệu.');
         }
         $validated = $request->validate([
@@ -939,7 +939,7 @@ class ProductionController extends Controller
         try {
             DB::transaction(function () use ($productionOrder, $selected, $materialSelected, $inventoryLedger, $availability) {
                 $lockedOrder = ProductionOrder::whereKey($productionOrder->id)->lockForUpdate()->firstOrFail();
-                if ($lockedOrder->status !== 'released') {
+                if (! in_array($lockedOrder->status, ['released', 'materials_issued'], true)) {
                     throw new DomainException('Lệnh sản xuất không còn chờ xuất nguyên liệu.');
                 }
 

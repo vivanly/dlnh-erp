@@ -34,10 +34,10 @@
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         Export Excel
                     </a>
-                    <a href="{{ route('ppcb.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
+                    <button type="button" onclick="document.getElementById('ppcb-create-modal').showModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 border border-blue-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-blue-700 transition shadow-none">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                         Thêm mới PPCB
-                    </a>
+                    </button>
                 </div>
             @endif
         </div>
@@ -122,11 +122,11 @@
                                     <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
                                         {{-- KIỂM TRA QUYỀN ĐỂ HIỂN THỊ NÚT SỬA VÀ XÓA --}}
                                         @if($canManage)
-                                            <a href="{{ route('ppcb.edit', $item->id) }}" class="text-blue-600 hover:text-blue-900 font-bold">Sửa</a>
+                                            <button type="button" onclick="document.getElementById('ppcb-edit-modal-{{ $item->id }}').showModal()" class="erp-action-text text-blue-600 hover:text-blue-900 font-bold">Sửa</button>
                                             <form action="{{ route('ppcb.destroy', $item->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa bản ghi này không?');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
+                                                <button type="submit" class="erp-action-text text-rose-600 hover:text-rose-900 font-bold cursor-pointer">Xóa</button>
                                             </form>
                                         @else
                                             <span class="text-slate-400 italic">Chỉ xem</span>
@@ -149,6 +149,23 @@
                 </div>
 
                 <!-- Footer phân trang -->
+                @if($canManage)
+                    <dialog id="ppcb-create-modal" class="erp-form-modal w-[min(48rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                        <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><h3 class="text-base font-bold">Thêm phương pháp chế biến</h3><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border bg-white px-3 py-1 text-lg">×</button></div>
+                        <form action="{{ route('ppcb.store') }}" method="POST" class="space-y-4 p-5">@csrf<input type="hidden" name="_ppcb_modal" value="create">@include('ppcb.partials.fields', ['item' => null])
+                            <div class="flex justify-end gap-2 border-t pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu</button></div>
+                        </form>
+                    </dialog>
+                    @foreach($ppcbs as $item)
+                        <dialog id="ppcb-edit-modal-{{ $item->id }}" class="erp-form-modal w-[min(48rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                            <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><h3 class="text-base font-bold">Sửa phương pháp chế biến · {{ $item->ten_ppcb }}</h3><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border bg-white px-3 py-1 text-lg">×</button></div>
+                            <form action="{{ route('ppcb.update', $item) }}" method="POST" class="space-y-4 p-5">@csrf @method('PUT')<input type="hidden" name="_ppcb_modal" value="edit"><input type="hidden" name="_ppcb_id" value="{{ $item->id }}">@include('ppcb.partials.fields', ['item' => $item])
+                                <div class="flex justify-end gap-2 border-t pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu</button></div>
+                            </form>
+                        </dialog>
+                    @endforeach
+                    @if(old('_ppcb_modal'))<script>document.addEventListener('DOMContentLoaded',()=>{const id=@json(old('_ppcb_modal'))==='create'?'ppcb-create-modal':`ppcb-edit-modal-${@json(old('_ppcb_id'))}`;document.getElementById(id)?.showModal();});</script>@endif
+                @endif
                 <div class="p-3 border-t border-slate-300 bg-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <x-per-page-select />
                     @if(method_exists($ppcbs, 'hasPages') && $ppcbs->hasPages())

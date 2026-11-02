@@ -14,16 +14,15 @@ use App\Models\TraceabilityLotCode;
 use App\Models\TraceabilitySetting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class LabelPrintTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_order_print_uses_excel_template_tracks_required_and_additional_copies(): void
+    public function test_order_print_tracks_required_and_additional_copies(): void
     {
-        $warehouseUser = User::factory()->create(['role' => 'production']);
+        $warehouseUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'LABEL-ORDER-CUST', 'name' => 'Label Order Customer', 'type' => 'Retail']);
         $product = Product::create([
             'name' => 'Label test herb',
@@ -84,54 +83,33 @@ class LabelPrintTest extends TestCase
             ->get(route('labels.orders.show', $order))
             ->assertOk()
             ->assertSee('LABEL-LOT-001')
-            ->assertSee('Tải mẫu Excel để in')
+            ->assertSee('In trực tiếp')
             ->assertSee('Dược liệu trong nước')
             ->assertSee('QCĐG 1');
 
-        $excelResponse = $this->actingAs($warehouseUser)
-            ->post(route('labels.orders.print', $order), [
+        $printResponse = $this->actingAs($warehouseUser)
+            ->post(route('labels.orders.print-direct', $order), [
                 'additional' => [$allocation->id => 0],
             ]);
-        $excelResponse->assertDownload('Nhan-SO-LABEL-PRINT-001.xlsx');
+        $printResponse->assertOk()->assertSee('LABEL TEST HERB');
 
         $this->assertSame(3, (int) SalesOrderLabelPrint::sum('copies_count'));
         $this->assertSame('required', SalesOrderLabelPrint::sole()->print_kind);
-        $workbook = IOFactory::load($excelResponse->baseResponse->getFile()->getPathname());
-        $printSetup = $workbook->getSheetByName('NhanDL_N')->getPageSetup();
-        $this->assertSame('A1:AS48', $printSetup->getPrintArea());
-        $this->assertTrue($printSetup->getFitToPage());
-        $this->assertSame(1, $printSetup->getFitToWidth());
-        $this->assertSame(1, $printSetup->getFitToHeight());
-        $this->assertTrue($printSetup->getHorizontalCentered());
-        $qrCoordinates = collect($workbook->getSheetByName('NhanDL_N')->getDrawingCollection())
-            ->map(fn ($drawing) => $drawing->getCoordinates())
-            ->filter(fn ($coordinate) => in_array($coordinate, ['Q18', 'AN18', 'Q42', 'AN42'], true));
-        $this->assertCount(3, $qrCoordinates);
 
-        $additionalExcelResponse = $this->actingAs($warehouseUser)
-            ->post(route('labels.orders.print', $order), [
+        $additionalPrintResponse = $this->actingAs($warehouseUser)
+            ->post(route('labels.orders.print-direct', $order), [
                 'additional' => [$allocation->id => 1],
-                'additional_reason' => 'In bổ sung theo mẫu Excel',
+                'additional_reason' => 'In bổ sung trực tiếp',
             ]);
-        $additionalExcelResponse->assertDownload('Nhan-SO-LABEL-PRINT-001.xlsx');
-        $additionalWorkbook = IOFactory::load($additionalExcelResponse->baseResponse->getFile()->getPathname());
-        $additionalSheet = $additionalWorkbook->getSheetByName('NhanDL_N');
-        $templateSheet = IOFactory::load(base_path('Nhan.xlsx'))->getSheetByName('NhanDL_N');
-        $this->assertSame('Label test herb', $additionalSheet->getCell('H5')->getValue());
-        $this->assertSame($templateSheet->getStyle('H5')->getFont()->getName(), $additionalSheet->getStyle('H5')->getFont()->getName());
-        $this->assertSame($templateSheet->getStyle('H5')->getFont()->getSize(), $additionalSheet->getStyle('H5')->getFont()->getSize());
-        $this->assertGreaterThan(0, $additionalSheet->getDrawingCollection()->count());
-        $this->assertNotNull(collect($additionalSheet->getDrawingCollection())->first(
-            fn ($drawing) => $drawing->getCoordinates() === 'Q18'
-        ));
+        $additionalPrintResponse->assertOk()->assertSee('LABEL TEST HERB');
         $this->assertSame('LOT-QR-001', TraceabilityLotCode::query()->where('supplier_batch_id', $batch->id)->value('trace_code'));
 
         $this->actingAs($warehouseUser)
-            ->post(route('labels.orders.print', $order), [
+            ->post(route('labels.orders.print-direct', $order), [
                 'additional' => [$allocation->id => 2],
                 'additional_reason' => 'Hai tem bị hỏng khi dán',
             ])
-            ->assertDownload('Nhan-SO-LABEL-PRINT-001.xlsx');
+            ->assertOk();
 
         $this->assertSame(6, (int) SalesOrderLabelPrint::sum('copies_count'));
         $this->assertSame(3, (int) SalesOrderLabelPrint::where('print_kind', 'additional')->sum('copies_count'));
@@ -167,7 +145,7 @@ class LabelPrintTest extends TestCase
             ->get(route('labels.orders.show', $order))
             ->assertOk()
             ->assertSee('7')
-            ->assertSee('In bổ sung theo mẫu Excel')
+            ->assertSee('In bổ sung trực tiếp')
             ->assertSee('Hai tem bị hỏng khi dán')
             ->assertSee('In bổ sung');
 
@@ -183,7 +161,7 @@ class LabelPrintTest extends TestCase
 
     public function test_standard_labels_cannot_be_printed_from_a_lot_pending_qa(): void
     {
-        $warehouseUser = User::factory()->create(['role' => 'production']);
+        $warehouseUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'LABEL-PENDING-CUST', 'name' => 'Pending Label Customer', 'type' => 'Retail']);
         $product = Product::create([
             'name' => 'Pending label herb',
@@ -231,7 +209,7 @@ class LabelPrintTest extends TestCase
             ->assertSee('Chờ QA');
 
         $this->actingAs($warehouseUser)
-            ->post(route('labels.orders.print', $order), [
+            ->post(route('labels.orders.print-direct', $order), [
                 'additional' => [$allocation->id => 0],
             ])
             ->assertRedirect();
@@ -242,7 +220,7 @@ class LabelPrintTest extends TestCase
 
     public function test_assigned_lot_can_be_printed_before_full_allocation_or_production_completion(): void
     {
-        $user = User::factory()->create(['role' => 'production']);
+        $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'LABEL-PARTIAL-CUST', 'name' => 'Partial Label Customer', 'type' => 'Retail']);
         $product = Product::create([
             'name' => 'Partially allocated herb',
@@ -314,7 +292,7 @@ class LabelPrintTest extends TestCase
 
     public function test_order_products_select_vt_domestic_and_china_label_sheets_from_product_data(): void
     {
-        $warehouseUser = User::factory()->create(['role' => 'production']);
+        $warehouseUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'LABEL-TYPES-CUST', 'name' => 'Label Types Customer', 'type' => 'Retail']);
         $order = Order::create([
             'order_code' => 'SO-LABEL-TYPES-001',
@@ -397,24 +375,16 @@ class LabelPrintTest extends TestCase
             ->assertSee('Vị thuốc cổ truyền');
 
         $response = $this->actingAs($warehouseUser)
-            ->post(route('labels.orders.print', $order), [
+            ->post(route('labels.orders.print-direct', $order), [
                 'additional' => array_fill_keys($allocations, 0),
             ]);
-        $response->assertDownload('Nhan-SO-LABEL-TYPES-001.xlsx');
+        $response->assertOk()
+            ->assertSee('TRADITIONAL VT')
+            ->assertSee('DOMESTIC D')
+            ->assertSee('CHINA DL')
+            ->assertSee('SCB-LABEL-001')
+            ->assertSee('GPNK-LABEL-FALLBACK');
 
         $this->assertSame(5, (int) SalesOrderLabelPrint::sum('copies_count'));
-
-        $downloadPath = $response->baseResponse->getFile()->getPathname();
-        try {
-            $workbook = IOFactory::load($downloadPath);
-            $this->assertSame(['NhanVT', 'NhanDL_N', 'NhanDL_B'], $workbook->getSheetNames());
-            $this->assertSame('Traditional VT', $workbook->getSheetByName('NhanVT')->getCell('H5')->getValue());
-            $this->assertSame('Domestic D', $workbook->getSheetByName('NhanDL_N')->getCell('H5')->getValue());
-            $this->assertSame('China DL', $workbook->getSheetByName('NhanDL_B')->getCell('H5')->getValue());
-            $this->assertSame('SCB-LABEL-001', $workbook->getSheetByName('NhanDL_B')->getCell('H13')->getValue());
-            $this->assertSame('GPNK-LABEL-FALLBACK', $workbook->getSheetByName('NhanDL_B')->getCell('AE13')->getValue());
-        } finally {
-            @unlink($downloadPath);
-        }
     }
 }

@@ -23,8 +23,12 @@ use App\Http\Controllers\ProductionMonthlyPlanController;
 use App\Http\Controllers\TraceabilityController;
 use App\Http\Controllers\TraceabilityManagementController;
 use App\Http\Controllers\LabelController;
+use App\Http\Controllers\LabelPermissionController;
 use App\Models\Department; 
-use App\Models\User;         
+use App\Models\User;
+use App\Models\Order;
+use App\Models\PurchaseOrder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -44,6 +48,61 @@ Route::get('/dashboard', function () {
     $isPlanning = $currentUser->isPlanningDepartment();
     $isProduction = $currentUser->isProductionDepartment();
     $isQA = $currentUser->isQADepartment();
+    $isQC = $currentUser->isQCDepartment();
+    $showDirectorAnalytics = $currentUser->isDirector() || $currentUser->isGeneralDirector();
+
+    $analyticsPeriod = request()->query('period', 'month');
+    if (! in_array($analyticsPeriod, ['month', 'quarter', 'year'], true)) {
+        $analyticsPeriod = 'month';
+    }
+    $analyticsYear = max(2000, min(now()->year + 1, (int) request()->query('year', now()->year)));
+    $analyticsMonth = max(1, min(12, (int) request()->query('month', now()->month)));
+    $analyticsQuarter = max(1, min(4, (int) request()->query('quarter', (int) ceil(now()->month / 3))));
+    $analyticsStart = match ($analyticsPeriod) {
+        'quarter' => Carbon::create($analyticsYear, (($analyticsQuarter - 1) * 3) + 1, 1)->startOfDay(),
+        'year' => Carbon::create($analyticsYear, 1, 1)->startOfDay(),
+        default => Carbon::create($analyticsYear, $analyticsMonth, 1)->startOfDay(),
+    };
+    $analyticsEnd = match ($analyticsPeriod) {
+        'quarter' => $analyticsStart->copy()->addMonths(3)->subSecond(),
+        'year' => $analyticsStart->copy()->addYear()->subSecond(),
+        default => $analyticsStart->copy()->addMonth()->subSecond(),
+    };
+    $bucketFormat = $analyticsPeriod === 'month' ? 'Y-m-d' : 'Y-m';
+    $bucketLabelFormat = $analyticsPeriod === 'month' ? 'd' : 'm/Y';
+    $analyticsBuckets = collect();
+    $bucketCursor = $analyticsStart->copy();
+    while ($bucketCursor <= $analyticsEnd) {
+        $analyticsBuckets->push([
+            'key' => $bucketCursor->format($bucketFormat),
+            'label' => $bucketCursor->format($bucketLabelFormat),
+        ]);
+        $analyticsPeriod === 'month' ? $bucketCursor->addDay() : $bucketCursor->addMonth();
+    }
+    $loadOrderTrend = function ($model, string $dateColumn, ?string $approvedAtColumn, array $approvedStatuses, array $excludedStatuses = []) use ($showDirectorAnalytics, $analyticsStart, $analyticsEnd, $analyticsPeriod) {
+        if (! $showDirectorAnalytics) {
+            return collect();
+        }
+
+        return $model::query()
+            ->when($approvedAtColumn, fn ($query) => $query->whereNotNull($approvedAtColumn))
+            ->when($approvedStatuses, fn ($query) => $query->whereIn('status', $approvedStatuses))
+            ->when($excludedStatuses, fn ($query) => $query->whereNotIn('status', $excludedStatuses))
+            ->whereBetween($dateColumn, [$analyticsStart->toDateString(), $analyticsEnd->toDateString()])
+            ->selectRaw("DATE({$dateColumn}) as bucket, COUNT(*) as total")
+            ->groupBy('bucket')
+            ->get()
+            ->groupBy(fn ($row) => $analyticsPeriod === 'month'
+                ? $row->bucket
+                : Carbon::parse($row->bucket)->format('Y-m'))
+            ->map(fn ($rows) => $rows->sum('total'));
+    };
+    $purchaseOrdersByBucket = $loadOrderTrend(PurchaseOrder::class, 'expected_delivery_date', null, ['approved', 'delivered', 'completed']);
+    $salesOrdersByBucket = $loadOrderTrend(Order::class, 'delivery_date', 'sales_approved_at', [], ['cancelled', 'canceled']);
+    $purchaseOrderTrend = $analyticsBuckets->map(fn ($bucket) => $bucket + ['count' => (int) $purchaseOrdersByBucket->get($bucket['key'], 0)]);
+    $salesOrderTrend = $analyticsBuckets->map(fn ($bucket) => $bucket + ['count' => (int) $salesOrdersByBucket->get($bucket['key'], 0)]);
+    $purchaseOrderCount = $purchaseOrderTrend->sum('count');
+    $salesOrderCount = $salesOrderTrend->sum('count');
 
     return view('dashboard', compact(
         'totalDepartments',
@@ -55,10 +114,24 @@ Route::get('/dashboard', function () {
         'isPlanning',
         'isProduction',
         'isQA',
+        'isQC',
+        'showDirectorAnalytics',
+        'analyticsPeriod',
+        'analyticsYear',
+        'analyticsMonth',
+        'analyticsQuarter',
+        'analyticsStart',
+        'analyticsEnd',
+        'purchaseOrderCount',
+        'salesOrderCount',
+        'purchaseOrderTrend',
+        'salesOrderTrend',
     ));
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/permissions/label-printing', [LabelPermissionController::class, 'index'])->name('permissions.label-printing.index');
+    Route::put('/permissions/label-printing', [LabelPermissionController::class, 'update'])->name('permissions.label-printing.update');
     Route::get('/notifications/summary', [\App\Http\Controllers\NotificationController::class, 'summary'])->name('notifications.summary');
     Route::get('/documents/supplier-batches/{supplierBatch}/coa', [PrivateDocumentController::class, 'supplierCoa'])
         ->name('private-documents.supplier-coa');
@@ -207,7 +280,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/warehouse/stock/{product}', [WarehouseController::class, 'showStockProduct'])->name('warehouse.stock.product');
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
     Route::get('/labels/orders/{order}', [LabelController::class, 'showOrder'])->name('labels.orders.show');
-    Route::post('/labels/orders/{order}/print', [LabelController::class, 'printOrder'])->name('labels.orders.print');
     Route::post('/labels/orders/{order}/print-direct', [LabelController::class, 'printOrderDirect'])->name('labels.orders.print-direct');
     Route::get('/warehouse/sales-order-stock-checks', [WarehouseController::class, 'salesOrderStockChecks'])->name('warehouse.sales-order-stock-checks');
     Route::post('/warehouse/sales-order-stock-checks/{order}/confirm', [WarehouseController::class, 'confirmSalesOrderStockCheck'])->name('warehouse.sales-order-stock-checks.confirm');
@@ -249,6 +321,7 @@ Route::middleware('auth')->group(function () {
     // MODULE: QUẢN LÝ ĐƠN HÀNG (SALES ORDERS) & CHI TIẾT VỊ THUỐC
     // ==========================================
     Route::get('/sales-order-approvals', [OrderController::class, 'salesApprovalQueue'])->name('sales-order-approvals.index');
+    Route::post('/orders/{order}/submit-sales', [OrderController::class, 'submitSalesOrder'])->name('orders.submit-sales');
     Route::post('/orders/{order}/approve-sales', [OrderController::class, 'approveSalesOrder'])->name('orders.approve-sales');
     Route::post('/orders/{order}/reject-sales', [OrderController::class, 'rejectSalesOrder'])->name('orders.reject-sales');
     Route::get('/qa/order-batches', [OrderController::class, 'qaBatchQueue'])->name('qa.order-batches');

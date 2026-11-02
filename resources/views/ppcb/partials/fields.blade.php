@@ -1,0 +1,7 @@
+@if($errors->any())<div class="border-l-4 border-rose-600 bg-rose-50 p-3 text-xs text-rose-800"><ul class="list-disc pl-4">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+<label class="block text-xs font-bold uppercase text-slate-700">Mã PPCB *<input name="ma" value="{{ old('ma', $item?->ma) }}" required class="mt-1 w-full border-slate-300 px-3 py-2 text-sm">@error('ma')<span class="text-rose-600">{{ $message }}</span>@enderror</label>
+<label class="block text-xs font-bold uppercase text-slate-700">Tên PPCB *<input name="ten_ppcb" value="{{ old('ten_ppcb', $item?->ten_ppcb) }}" required class="mt-1 w-full border-slate-300 px-3 py-2 text-sm">@error('ten_ppcb')<span class="text-rose-600">{{ $message }}</span>@enderror</label>
+<label class="block text-xs font-bold uppercase text-slate-700 sm:col-span-2">Chi tiết PPCB<textarea name="chi_tiet_ppcb" rows="3" class="mt-1 w-full border-slate-300 px-3 py-2 text-sm">{{ old('chi_tiet_ppcb', $item?->chi_tiet_ppcb) }}</textarea></label>
+<label class="block text-xs font-bold uppercase text-slate-700 sm:col-span-2">Ghi chú<textarea name="ghi_chu" rows="2" class="mt-1 w-full border-slate-300 px-3 py-2 text-sm">{{ old('ghi_chu', $item?->ghi_chu) }}</textarea></label>
+</div>

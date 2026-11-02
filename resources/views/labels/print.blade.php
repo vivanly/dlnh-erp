@@ -67,6 +67,9 @@
         .lot-info-row { display: grid; grid-template-columns: 3fr 9fr; align-items: center; line-height: 1; }
         .quality-block { display: flex; flex-direction: column; justify-content: center; gap: 1mm; line-height: 1.05; }
         .product-name { display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
+        .product-title-line { display: flex; align-items: center; gap: 2mm; white-space: nowrap; }
+        .product-title-label { flex: 0 0 auto; }
+        .product-title-line .product-name { min-width: 0; flex: 0 1 auto; }
         .batch-value { display: block; min-width: 0; white-space: nowrap; overflow: hidden; }
         .fit-one-line { white-space: nowrap; }
         .fit-wrap { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
@@ -80,7 +83,7 @@
         .center { text-align: center; }
         .mid { display: flex; align-items: center; justify-content: center; }
         .logo { display: flex; align-items: center; justify-content: center; padding: .6mm !important; }
-        .logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .logo img { width: 115%; height: 115%; max-width: none; max-height: none; object-fit: contain; transform: translate(1mm, 1mm); }
         .qr-box { grid-column: 14 / 21; grid-row: 16 / 20; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0 !important; }
         .qr-box canvas { display: block; width: 18mm !important; height: 18mm !important; max-width: 100%; max-height: 100%; }
         .qr-heading { padding-top: 1.2mm !important; line-height: 1 !important; }
@@ -119,10 +122,13 @@
                     <div class="box-top" style="grid-column: 1 / 21; grid-row: 20 / 22; padding: 0;"></div>
 
                     <div class="logo" style="grid-column: 1 / 3; grid-row: 1 / 6;"><img src="{{ asset('images/label-logo.png') }}" alt="Logo"></div>
-                    <div class="b center mid fit-one-line" style="grid-column: 3 / {{ $t['titleEnd'] }}; grid-row: 1 / 3; font-size: {{ $t['size'] + 1.5 }}pt;">{{ $t['title'] }}</div>
+                    <div class="b center mid fit-one-line label-title" style="grid-column: 3 / {{ $t['titleEnd'] }}; grid-row: 1 / 3; font-size: {{ $t['size'] + 1.5 }}pt;">{{ $t['title'] }}</div>
 
-                    <div class="b fit-one-line" style="grid-column: 3 / 6; grid-row: 3 / 4;">{{ $t['name'] }}</div>
-                    <div class="b product-name fit-one-line" style="grid-column: 6 / 14; grid-row: 3 / 4; font-size: {{ $productFontSize }}pt;">{{ $productName }}</div>
+                    @php $showTraditionalMedicineName = $type === 'vt' && !empty($label['traditional_medicine_name']); @endphp
+                    <div class="product-title-line" style="grid-column: 3 / 21; grid-row: 3 / 4;">
+                        <span class="b fit-one-line product-title-label">{{ $showTraditionalMedicineName ? 'Tên vị thuốc cổ truyền:' : $t['name'] }}</span>
+                        <span class="b product-name fit-one-line" style="font-size: {{ $productFontSize }}pt;">{{ $productName }}</span>
+                    </div>
                     <div class="lot-info-stack" style="grid-column: 14 / 21; grid-row: 4 / 11;">
                         <div class="lot-info-row"><span class="b">Số lô:</span><span class="batch-value">{{ $label['batch'] }}</span></div>
                         <div class="lot-info-row"><span class="b">NSX:</span><span class="fit-one-line">{{ $label['mfg'] }}</span></div>
@@ -152,7 +158,7 @@
                     @endif
                     <div class="quality-block fit-wrap" style="grid-column: 14 / 21; grid-row: 11 / 14;">
                         <div class="b">Tiêu chuẩn chất lượng:</div>
-                        <div>{{ $label['standard'] }}</div>
+                        <div class="b">{{ $label['standard'] }}</div>
                     </div>
 
                     <div class="b center mid" style="grid-column: 1 / 14; grid-row: 14 / 15;">Sản xuất tại:</div>
@@ -187,22 +193,21 @@
 
                 let size = baseSize;
                 element.style.fontSize = `${size}px`;
-                const minimumSize = element.classList.contains('product-name') ? 0.1 : 0.5;
+                const minimumSize = element.classList.contains('label-title')
+                    ? baseSize * 0.82
+                    : 8;
                 while (overflows() && size > minimumSize) {
                     size = Math.max(minimumSize, size - 0.25);
                     element.style.fontSize = `${size}px`;
                 }
 
-                // Keep unusually long values visible too; only relax the one-line
-                // rule when they cannot fit even at the smallest print size.
+                // Keep short fields on one line when possible. If a value is still
+                // too long at a readable size, let it wrap instead of shrinking it
+                // to an unreadable fraction of a pixel.
                 const keepOneLine = element.classList.contains('packaging-control-line');
                 if (!isWrapped && !element.classList.contains('product-name') && !keepOneLine && overflows()) {
                     element.style.whiteSpace = 'normal';
                     element.style.overflowWrap = 'anywhere';
-                    while (element.scrollHeight > element.clientHeight + 1 && size > 0.1) {
-                        size = Math.max(0.1, size - 0.1);
-                        element.style.fontSize = `${size}px`;
-                    }
                 }
             });
         };

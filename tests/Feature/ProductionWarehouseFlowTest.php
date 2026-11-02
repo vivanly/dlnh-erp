@@ -315,8 +315,8 @@ class ProductionWarehouseFlowTest extends TestCase
         $this->assertSame('ready_to_ship', $order->fresh()->status);
 
         $this->actingAs($productionUser)
-            ->post(route('labels.orders.print', $order), ['additional' => $orderItem->lotAllocations()->pluck('id')->mapWithKeys(fn ($id) => [$id => 0])->all()])
-            ->assertDownload('Nhan-SO-PROD-WH-TEST.xlsx');
+            ->post(route('labels.orders.print-direct', $order), ['additional' => $orderItem->lotAllocations()->pluck('id')->mapWithKeys(fn ($id) => [$id => 0])->all()])
+            ->assertOk();
         $this->actingAs($productionUser)
             ->get(route('production.packaging.index'))
             ->assertOk()

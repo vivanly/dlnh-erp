@@ -83,11 +83,16 @@
                         </div>
 
                         <div class="mb-4">
-                            <label class="block text-gray-700 text-sm font-bold mb-2">Mật khẩu:</label>
-                            <input type="password" name="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Mật khẩu ban đầu:</label>
+                            <input type="password" name="password" minlength="12" autocomplete="new-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
                             @error('password') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 text-sm font-bold mb-2">Xác nhận mật khẩu:</label>
+                            <input type="password" name="password_confirmation" minlength="12" autocomplete="new-password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                        </div>
                     </div>
+                    <p class="-mt-3 mb-4 text-xs text-gray-500">Chỉ IT được cấp tài khoản. Mật khẩu phải từ 12 ký tự, có chữ hoa, chữ thường, số và ký hiệu.</p>
 
                     <!-- Hàng 5: Trạng thái làm việc -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

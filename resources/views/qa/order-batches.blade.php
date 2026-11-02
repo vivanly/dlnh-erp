@@ -42,7 +42,7 @@
                                     @endforeach
                                     @if($order->notes)<p class="mt-2 border-t pt-1 text-[10px] text-slate-500">Ghi chú đơn: {{ $order->notes }}</p>@endif
                                 </td>
-                                <td class="p-2.5 whitespace-nowrap">@if($canManageQaLots)<a href="{{ route('orders.edit', $order) }}" class="inline-block px-3 py-1.5 bg-blue-600 text-[10px] font-bold uppercase text-white hover:bg-blue-700">Cập nhật số lô</a>@endif<a href="{{ route('orders.show', $order) }}" class="ml-1 inline-block px-3 py-1.5 bg-slate-100 text-[10px] font-bold uppercase text-slate-700 hover:bg-slate-200">Chi tiết</a></td>
+                                <td class="p-2.5 whitespace-nowrap">@if($canManageQaLots)<a href="{{ route('orders.edit', $order) }}" class="erp-action-text font-bold text-blue-700 hover:text-blue-900">Cập nhật số lô</a>@endif<a href="{{ route('orders.show', $order) }}" class="ml-2 inline-block px-3 py-1.5 bg-slate-100 text-[10px] font-bold uppercase text-slate-700 hover:bg-slate-200">Chi tiết</a></td>
                             </tr>
                         @empty
                             <tr><td colspan="5" class="p-8 text-center text-slate-500">Không có đơn nào đang chờ QA chốt lô.</td></tr>

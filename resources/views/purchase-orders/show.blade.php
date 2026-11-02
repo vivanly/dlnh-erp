@@ -25,7 +25,7 @@
                 </a>
                 <!-- Cho phép chỉnh sửa khi ở trạng thái Nháp hoặc Bị từ chối -->
                 @if(in_array($purchaseOrder->status, ['draft', 'rejected'], true))
-                    <a href="{{ route('purchase-orders.edit', $purchaseOrder->id) }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500 border border-amber-600 rounded-none font-bold text-xs text-white uppercase hover:bg-amber-600 transition">
+                    <a href="{{ route('purchase-orders.edit', $purchaseOrder->id) }}" class="erp-action-edit-button text-xs uppercase">
                         Chỉnh sửa đơn
                     </a>
                 @endif
@@ -67,7 +67,7 @@
 
                 <div class="flex items-center gap-2">
                     <!-- 1. Nút Gửi duyệt (Dành cho nhân viên khi ở trạng thái draft hoặc rejected) -->
-                    @if(in_array($purchaseOrder->status, ['draft', 'rejected']))
+                    @if((auth()->user()?->canSubmitOrders() ?? false) && in_array($purchaseOrder->status, ['draft', 'rejected']))
                         <form action="{{ route('purchase-orders.submit', $purchaseOrder->id) }}" method="POST">
                             @csrf
                             <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-none">

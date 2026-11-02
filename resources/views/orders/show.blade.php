@@ -46,7 +46,7 @@
                                                 <span class="font-medium text-rose-800">{{ $order->sales_rejection_reason }}</span>
                                             </div>
                                         @endif
-                    <a href="{{ route('orders.edit', $order->id) }}" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-xs uppercase font-bold rounded-none transition">
+                    <a href="{{ route('orders.edit', $order->id) }}" class="erp-action-edit-button text-xs uppercase">
                         {{ $canManageOrderLots && !$canManageLockedOrders && $order->status === 'pending_qa' ? 'QA Chốt Số Lô' : 'Sửa Đơn Hàng' }}
                     </a>
                 @endif

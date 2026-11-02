@@ -54,7 +54,7 @@
                 <div class="mt-5 border-t border-slate-200 pt-4 text-xs text-slate-600 space-y-2">
                     <p class="font-bold text-slate-800">Tên cột ở dòng đầu tiên (dùng đúng tên cột):</p>
                     <p><code>employee_code</code>, <code>name</code>, <code>email</code>, <code>password</code>, <code>phone</code>, <code>address</code>, <code>status</code>, <code>department</code>, <code>position</code></p>
-                    <p>Bắt buộc: <code>name</code>, <code>email</code>, <code>password</code> (tối thiểu 6 ký tự). Phòng ban cần khớp tên đã có trong hệ thống.</p>
+                    <p>Bắt buộc: <code>name</code>, <code>email</code>, <code>password</code> (từ 12 ký tự, gồm chữ hoa, chữ thường, số và ký hiệu). Phòng ban cần khớp tên đã có trong hệ thống. Chỉ IT được phép cấp tài khoản; không dùng lại mật khẩu mẫu giữa các nhân viên.</p>
                     <p><code>status</code> nhận <code>working</code> hoặc <code>resigned</code>; nếu để trống, mặc định là <code>working</code>. Email và mã nhân viên phải chưa tồn tại. Dòng trùng/sai sẽ được bỏ qua và báo lỗi.</p>
                 </div>
             </div>

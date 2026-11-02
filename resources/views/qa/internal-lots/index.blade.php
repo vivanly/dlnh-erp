@@ -6,7 +6,7 @@
                 <p class="mt-1 text-xs text-slate-500">{{ $batches->total() }} lô trong hệ thống</p>
             </div>
             @if($canManageLots)
-            <a href="{{ route('qa.internal-lots.create') }}" class="inline-flex items-center gap-2 bg-emerald-700 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800" aria-label="Tạo lô nội bộ mới">
+            <a href="{{ route('qa.internal-lots.create') }}" class="erp-action-create-link inline-flex items-center gap-2 px-3 py-2 text-xs font-bold uppercase" aria-label="Tạo lô nội bộ mới">
                 <span aria-hidden="true">+</span> Tạo lô
             </a>
             @endif
@@ -59,7 +59,7 @@
                                 </td>
                                 <td class="p-2.5 whitespace-nowrap">
                                     @if($canManageLots)
-                                    <a href="{{ route('qa.internal-lots.edit', $batch) }}" class="inline-block border border-slate-300 px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-100">Sửa</a>
+                                    <a href="{{ route('qa.internal-lots.edit', $batch) }}" class="erp-action-text font-semibold text-blue-700 hover:text-blue-900">Sửa</a>
                                     @php
                                         $appendableOrders = $availableProductionOrders->where('product_id', $batch->product_id);
                                         $canAppendProduction = in_array($batch->status, ['pending_qa', 'active'], true) && !$batch->qa_approved_at && (float) $batch->initial_quantity < (float) $batch->planned_quantity;
@@ -80,7 +80,7 @@
                                         </form>
                                     @endif
                                     @if($batch->can_delete)
-                                        <form method="POST" action="{{ route('qa.internal-lots.destroy', $batch) }}" class="inline" onsubmit="return confirm('Xóa lô chưa nhập kho và chưa phát sinh giao dịch?');">@csrf @method('DELETE')<button class="ml-1 border border-rose-300 px-2 py-1 text-[10px] font-semibold text-rose-700 hover:bg-rose-50">Xóa</button></form>
+                                        <form method="POST" action="{{ route('qa.internal-lots.destroy', $batch) }}" class="inline" onsubmit="return confirm('Xóa lô chưa nhập kho và chưa phát sinh giao dịch?');">@csrf @method('DELETE')<button class="erp-action-text ml-1 text-[10px] font-semibold text-rose-700 hover:text-rose-900">Xóa</button></form>
                                     @endif
                                     @else
                                         <span class="text-slate-400">Chỉ xem</span>

@@ -59,6 +59,7 @@ abstract class CatalogController extends Controller
             'classifications' => $classifications,
             'prefix' => $this->routePrefix(),
             'labels' => $this->labels(),
+            'classification' => $this->classificationLabel(),
             'canManage' => auth()->user()->isQADepartment() || auth()->user()->isITDepartment(),
         ]);
     }

@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">
-                    Quản Lý Đơn Mua Dược Liệu (Purchase Orders)
+                    {{ request('status') === 'pending' ? 'Duyệt đơn mua dược liệu' : 'Quản Lý Đơn Mua Dược Liệu (Purchase Orders)' }}
                 </h2>
                 <span class="px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-none text-xs font-semibold">
                     Tổng: {{ $purchaseOrders->total() }} đơn
@@ -11,19 +11,10 @@
             </div>
 
             <!-- CHỈ HIỆN KHI LÀ KINH DOANH, IT HOẶC ADMIN -->
-            @php
-                $user = auth()->user();
-                $isSales = (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment()) ||
-                           (isset($user->department) && strtolower($user->department) === 'sales');
+            @php $canSubmitOrders = auth()->user()?->canSubmitOrders() ?? false; $isPurchaseApprovalQueue = request()->routeIs('purchase-orders.index') && request('status') === 'pending'; @endphp
 
-                $isIT = (method_exists($user, 'isITDepartment') && $user->isITDepartment()) ||
-                        (isset($user->department) && strtolower($user->department) === 'it') ||
-                        (isset($user->role) && strtolower($user->role) === 'it');
-
-            @endphp
-
-            @if($isSales || $isIT)
-                <a href="{{ route('purchase-orders.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 border border-emerald-700 rounded-none font-bold text-xs text-white uppercase tracking-wider hover:bg-emerald-700 transition shadow-none">
+            @if($canSubmitOrders && !$isPurchaseApprovalQueue)
+                <a href="{{ route('purchase-orders.create') }}" class="erp-action-create-link inline-flex items-center gap-1.5 px-3 py-1.5 font-bold text-xs uppercase tracking-wider transition shadow-none">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
                     Lập Đơn Mới
                 </a>
@@ -50,48 +41,70 @@
             @endif
 
             <!-- THANH TÌM KIẾM & BỘ LỌC NHANH -->
-            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                <div class="mb-3">
-                    <h3 class="text-sm font-bold text-slate-800">Tìm kiếm và lọc đơn mua hàng</h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Lọc theo nhóm hàng, trạng thái hoặc thông tin đơn mua.</p>
-                </div>
-                <form action="{{ route('purchase-orders.index') }}" method="GET" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4 xl:items-end">
-                    <div class="xl:col-span-2">
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">Từ khóa</label>
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Tìm theo mã PO, nhà cung cấp..." class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none py-1.5">
+            <div class="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                <form action="{{ route('purchase-orders.index') }}" method="GET" style="display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px;">
+                    @if($isPurchaseApprovalQueue)<input type="hidden" name="status" value="pending">@endif
+                    <div style="flex:1 1 420px; max-width:560px; min-width:260px;">
+                        <label class="mb-1 block text-[11px] font-semibold text-slate-600">Từ khóa</label>
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Mã PO hoặc nhà cung cấp..." style="height:36px; width:100%; box-sizing:border-box; padding:6px 10px; font-size:13px;" class="rounded-md border-slate-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
                     </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">Loại đơn mua hàng</label>
-                        <select name="item_type" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                    <div style="flex:0 1 250px; min-width:180px;">
+                        <label class="mb-1 block text-[11px] font-semibold text-slate-600">Nhóm hàng</label>
+                        <select name="item_type" style="height:36px; width:100%; box-sizing:border-box; padding:4px 10px; font-size:13px;" class="rounded-md border-slate-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
                             <option value="">-- Tất cả nhóm hàng --</option>
                             <option value="raw_material" {{ request('item_type') === 'raw_material' ? 'selected' : '' }}>Dược liệu thô</option>
                             <option value="accessory" {{ request('item_type') === 'accessory' ? 'selected' : '' }}>Phụ liệu</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">Trạng thái</label>
-                        <select name="status" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
-                            <option value="">-- Tất cả trạng thái --</option>
-                            <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Khởi tạo / Nháp</option>
-                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Chờ duyệt</option>
-                            <option value="approved" {{ request('status') == 'approved' ? 'selected' : '' }}>Đã duyệt</option>
-                            <option value="delivered" {{ request('status') == 'delivered' ? 'selected' : '' }}>Đã giao hàng</option>
-                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Đã hoàn thành</option>
-                            <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Bị từ chối</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center justify-end gap-2 md:col-span-2 xl:col-span-4">
-                        <a href="{{ route('purchase-orders.index') }}" class="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50">
-                            Xóa bộ lọc
+                    <div style="display:flex; gap:8px; flex:0 0 auto;">
+                        <a href="{{ route('purchase-orders.index', $isPurchaseApprovalQueue ? ['status' => 'pending'] : []) }}" style="height:36px; display:inline-flex; align-items:center; padding:0 12px; font-size:12px;" class="rounded-md border border-slate-300 bg-white font-semibold text-slate-700 transition hover:bg-slate-50">
+                            Xóa lọc
                         </a>
-                        <button type="submit" class="inline-flex items-center justify-center rounded-md bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Lọc dữ liệu
+                        <button type="submit" style="height:36px; padding:0 14px; font-size:12px;" class="inline-flex items-center justify-center rounded-md bg-blue-700 font-bold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            Lọc
                         </button>
                     </div>
                 </form>
             </div>
 
             <!-- BẢNG DANH SÁCH ĐƠN HÀNG -->
+            @if($isPurchaseApprovalQueue && $canApprovePurchaseOrder)
+                <div class="space-y-3">
+                    @forelse($purchaseOrders as $po)
+                        <article class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+                            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+                                <div>
+                                    <a href="{{ route('purchase-orders.show', $po->id) }}" class="text-base font-bold text-blue-700 hover:underline">{{ $po->po_number }}</a>
+                                    <div class="mt-1 text-sm font-semibold text-slate-900">
+                                        {{ $po->supplier->name ?? 'N/A' }}@if($po->supplier?->address) <span class="font-normal text-slate-600">· {{ $po->supplier->address }}</span>@endif
+                                    </div>
+                                    @if($po->supplier?->phone)<div class="text-xs text-slate-500">SĐT: {{ $po->supplier->phone }}</div>@endif
+                                    <div class="mt-1 text-sm text-slate-600">Ngày đặt {{ date('d/m/Y', strtotime($po->order_date)) }} · Dự kiến giao {{ $po->expected_delivery_date ? date('d/m/Y', strtotime($po->expected_delivery_date)) : 'chưa có' }}</div>
+                                </div>
+                                <div class="text-right text-xs text-slate-500">TỔNG TIỀN<div class="text-sm font-bold text-slate-900">{{ number_format($po->grand_total, 0, ',', '.') }} đ</div></div>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-slate-100 text-[10px] uppercase text-slate-600"><tr><th class="p-2.5">Hàng hóa</th><th class="p-2.5">Nhóm</th><th class="p-2.5">Mã hàng</th><th class="p-2.5 text-right">Số lượng</th><th class="p-2.5 text-right">Thành tiền</th></tr></thead>
+                                    <tbody class="divide-y divide-slate-200">
+                                        @foreach($po->items as $item)
+                                            @php $catalogItem = $item->rawMaterial ?? $item->accessory ?? $item->product; @endphp
+                                            <tr><td class="p-2.5 font-semibold">{{ $catalogItem?->name ?? '---' }}</td><td class="p-2.5">{{ $item->material_type === 'accessory' ? 'Phụ liệu' : 'Dược liệu thô' }}</td><td class="p-2.5 font-mono">{{ $catalogItem?->sku ?? '---' }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->quantity, 2) }} {{ $item->unit }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->total_price, 0, ',', '.') }} đ</td></tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+                                <form method="POST" action="{{ route('purchase-orders.reject', $po->id) }}" class="flex min-w-0 flex-1 gap-2">@csrf<input name="rejection_reason" required maxlength="500" placeholder="Lý do từ chối bắt buộc" class="min-w-0 flex-1 rounded-md border-slate-300 text-sm"><button class="rounded-md bg-rose-700 px-4 py-2 text-xs font-bold text-white">TỪ CHỐI</button></form>
+                                <form method="POST" action="{{ route('purchase-orders.approve', $po->id) }}" onsubmit="return confirm('Duyệt đơn mua {{ $po->po_number }}?');">@csrf<button class="rounded-md bg-emerald-700 px-5 py-2 text-xs font-bold text-white">DUYỆT ĐƠN</button></form>
+                            </div>
+                        </article>
+                    @empty
+                        <div class="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">Không có đơn mua chờ duyệt.</div>
+                    @endforelse
+                </div>
+                <div class="flex flex-wrap items-center justify-between gap-2"><x-per-page-select /> @if($purchaseOrders->hasPages()){{ $purchaseOrders->links() }}@endif</div>
+            @else
             <div class="bg-white border border-slate-300 rounded-none shadow-none">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
@@ -115,7 +128,7 @@
                                     </a>
                                 </td>
                                 <td class="py-2.5 px-3 border-r border-slate-200">
-                                    <div class="font-bold text-slate-900">{{ $po->supplier->name ?? 'N/A' }}</div>
+                                    <div class="font-bold text-slate-900">{{ $po->supplier->name ?? 'N/A' }}@if($po->supplier?->address) <span class="font-normal text-slate-600">· {{ $po->supplier->address }}</span>@endif</div>
                                     @if($po->supplier && $po->supplier->phone)
                                         <div class="text-[11px] text-slate-500 font-mono">SĐT: {{ $po->supplier->phone }}</div>
                                     @endif
@@ -154,7 +167,7 @@
                                 </td>
                                 <td class="py-2.5 px-3 text-center align-middle">
                                     <div class="flex items-center justify-center gap-1.5">
-                                        @if($po->status === 'draft')
+                                        @if($canSubmitOrders && $po->status === 'draft')
                                             <!-- Nút Gửi Duyệt -->
                                             <form action="{{ route('purchase-orders.submit', $po->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn gửi đơn mua dược liệu này đi duyệt?');">
                                                 @csrf
@@ -213,6 +226,7 @@
                     @endif
                 </div>
             </div>
+            @endif
 
         </div>
     </div>

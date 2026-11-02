@@ -629,11 +629,13 @@ class WarehouseController extends Controller
 
         $type = $request->input('type');
         $search = trim((string) $request->input('search'));
+        $selectedItemId = $request->integer('item_id') ?: null;
 
         $rows = collect(['raw_material' => \App\Models\RawMaterial::class, 'accessory' => \App\Models\Accessory::class])
             ->when($type, fn ($c) => $c->only([$type]))
-            ->flatMap(function ($model, $materialType) use ($search) {
+            ->flatMap(function ($model, $materialType) use ($search, $selectedItemId) {
                 return $model::query()
+                    ->when($selectedItemId, fn ($q) => $q->whereKey($selectedItemId))
                     ->when($search !== '', fn ($q) => $q->where(fn ($s) => $s->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")))
                     ->orderBy('name')
                     ->get()
@@ -648,9 +650,11 @@ class WarehouseController extends Controller
             })
             ->values();
 
-        $movements = \App\Models\MaterialStockMovement::latest()->limit(20)->get();
+        $movements = \App\Models\MaterialStockMovement::query()
+            ->when($selectedItemId, fn ($q) => $q->where('material_type', $type)->where('material_id', $selectedItemId))
+            ->latest()->limit(20)->get();
 
-        return view('warehouse.material-stock', compact('rows', 'movements', 'type', 'search'));
+        return view('warehouse.material-stock', compact('rows', 'movements', 'type', 'search', 'selectedItemId'));
     }
 
     public function productionIssues()
@@ -658,7 +662,7 @@ class WarehouseController extends Controller
         $this->ensureWarehouseViewAccess();
 
         $productionOrders = \App\Models\ProductionOrder::with(['order.customer', 'product'])
-            ->where('status', 'released')
+            ->whereIn('status', ['released', 'materials_issued'])
             ->latest()
             ->paginate(20);
 

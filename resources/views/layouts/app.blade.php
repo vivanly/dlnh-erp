@@ -62,15 +62,15 @@
 
             <aside class="erp-sidebar w-64 bg-white flex flex-col sticky top-0 h-screen z-30 select-none shrink-0" aria-label="Điều hướng chính">
                 <div class="erp-sidebar-content">
-                    <div class="erp-sidebar-brand flex items-center px-5 border-b border-slate-200">
-                        <a href="{{ route('dashboard') }}" class="flex items-center space-x-2.5 group">
-                            <div class="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-sm transition group-hover:border-blue-300">
-                                <img src="{{ asset('images/logo.png') }}" alt="ERP Logo" class="block h-6 w-auto object-contain">
-                            </div>
-                            <div class="flex flex-col">
-                                <span class="font-bold text-[13px] tracking-tight text-slate-900 group-hover:text-blue-700">Dược Liệu Ninh Hiệp</span>
-                                <span class="mt-0.5 whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.06em] text-slate-400">Uy Tín Tạo Niềm Tin</span>
-                            </div>
+                    <div class="erp-sidebar-brand flex items-center border-b">
+                        <a href="{{ route('dashboard') }}" class="erp-brand-link group">
+                            <span class="erp-brand-mark">
+                                <img src="{{ asset('images/logo.png') }}" alt="Logo Dược Liệu Ninh Hiệp" class="block object-contain">
+                            </span>
+                            <span class="erp-brand-copy">
+                                <span class="erp-brand-name">Dược Liệu Ninh Hiệp</span>
+                                <span class="erp-brand-tagline"><span class="erp-brand-dot" aria-hidden="true"></span>Uy tín tạo niềm tin</span>
+                            </span>
                         </a>
                     </div>
 
@@ -120,9 +120,9 @@
                         <details class="erp-user-menu relative">
                             <summary class="erp-user-trigger list-none cursor-pointer">
                                 @if(Auth::user()->avatar_path)
-                                    <img src="{{ route('profile.avatar') }}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-slate-200 object-cover">
+                                    <img src="{{ route('profile.avatar') }}" alt="" class="erp-user-avatar h-8 w-8 shrink-0 rounded-full border border-slate-200 object-cover">
                                 @else
-                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-700 text-xs font-bold text-white">
+                                    <span role="img" class="erp-user-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-700 text-xs font-bold text-white">
                                         {{ mb_substr(Auth::user()->name, 0, 1) }}
                                     </span>
                                 @endif
@@ -206,6 +206,23 @@
                 setInterval(load, 15000);
                 document.addEventListener('visibilitychange', load);
                 document.addEventListener('click', function (e) { if (!bell.contains(e.target)) bell.removeAttribute('open'); });
+            })();
+        </script>
+        <script>
+            (function () {
+                var userMenu = document.querySelector('.erp-user-menu');
+                if (!userMenu) return;
+
+                document.addEventListener('click', function (event) {
+                    if (!userMenu.contains(event.target)) userMenu.removeAttribute('open');
+                });
+
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && userMenu.open) {
+                        userMenu.removeAttribute('open');
+                        userMenu.querySelector('summary')?.focus();
+                    }
+                });
             })();
         </script>
         @stack('scripts')

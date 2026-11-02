@@ -611,10 +611,10 @@ class SalesOrderShipmentTest extends TestCase
         ]);
 
         $this->actingAs($productionUser)
-            ->post(route('labels.orders.print', $order), [
+            ->post(route('labels.orders.print-direct', $order), [
                 'additional' => [$allocation->id => 0],
             ])
-            ->assertDownload('Nhan-SO-SHIP-TEST.xlsx');
+            ->assertOk();
 
         $this->actingAs($productionUser)
             ->post(route('production.packaging.confirm', $order))
@@ -935,14 +935,14 @@ class SalesOrderShipmentTest extends TestCase
         $this->assertSame('ready_to_ship', $order->fresh()->status);
 
         $this->actingAs($productionUser)
-            ->post(route('labels.orders.print', $order), [
+            ->post(route('labels.orders.print-direct', $order), [
                 'additional' => SalesOrderLotAllocation::where('order_item_id', $item->id)
                     ->where('status', 'reserved')
                     ->pluck('id')
                     ->mapWithKeys(fn ($id) => [$id => 0])
                     ->all(),
             ])
-            ->assertDownload('Nhan-SO-QA-SHIP-TEST.xlsx');
+            ->assertOk();
         $this->actingAs($productionUser)
             ->post(route('production.packaging.confirm', $order))
             ->assertRedirect()
@@ -1063,8 +1063,8 @@ class SalesOrderShipmentTest extends TestCase
 
         $allocation = SalesOrderLotAllocation::sole();
         $this->actingAs($productionUser)
-            ->post(route('labels.orders.print', $order), ['additional' => [$allocation->id => 0]])
-            ->assertDownload('Nhan-SO-PKN-GATE-TEST.xlsx');
+            ->post(route('labels.orders.print-direct', $order), ['additional' => [$allocation->id => 0]])
+            ->assertOk();
         $this->actingAs($productionUser)
             ->get(route('production.packaging.index'))
             ->assertOk()
@@ -1215,8 +1215,8 @@ class SalesOrderShipmentTest extends TestCase
         ]);
 
         $this->actingAs($productionUser)
-            ->post(route('labels.orders.print', $order), ['additional' => [$allocation->id => 0]])
-            ->assertDownload('Nhan-SO-WIP-PKN-TEST.xlsx');
+            ->post(route('labels.orders.print-direct', $order), ['additional' => [$allocation->id => 0]])
+            ->assertOk();
         $this->actingAs($productionUser)
             ->post(route('production.packaging.confirm', $order))
             ->assertRedirect()

@@ -8,6 +8,7 @@ use App\Imports\UsersImport;
 use App\Exports\UsersExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Maatwebsite\Excel\Facades\Excel;
@@ -131,7 +132,7 @@ class UserController extends Controller implements HasMiddleware
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6',
+            'password' => ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
             'employee_code' => 'nullable|string|max:50|unique:users',
             'department_id' => 'nullable|exists:departments,id',
             'position' => 'nullable|string|max:100',
@@ -183,7 +184,7 @@ class UserController extends Controller implements HasMiddleware
 
         // Nếu có nhập mật khẩu mới thì cập nhật
         if ($request->filled('password')) {
-            $request->validate(['password' => 'string|min:6']);
+            $request->validate(['password' => ['confirmed', Password::min(12)->mixedCase()->numbers()->symbols()]]);
             $data['password'] = Hash::make($request->password);
         }
 

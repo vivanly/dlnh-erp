@@ -4,7 +4,7 @@
             <h2 class="font-bold text-sm text-slate-900 tracking-tight">
                 Lập Đơn Hàng Dược Liệu Mới (Kinh Doanh)
             </h2>
-            <a href="{{ route('orders.index') }}" class="inline-flex items-center px-2.5 py-1 bg-white border border-slate-300 text-slate-800 text-xs font-semibold rounded shadow-sm hover:bg-slate-50 transition">
+            <a href="{{ route('orders.index') }}" class="erp-action-secondary inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded shadow-sm transition">
                 <svg class="w-3.5 h-3.5 mr-1 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 Quay lại
             </a>
@@ -90,7 +90,7 @@
                             <span class="w-1.5 h-1.5 bg-blue-600 rounded-full"></span>
                             2. Danh mục vị thuốc dược liệu yêu cầu
                         </h3>
-                        <button type="button" id="addRowBtn" class="inline-flex items-center px-2.5 py-1 bg-slate-900 hover:bg-black text-white text-xs font-semibold rounded shadow-sm transition">
+                        <button type="button" id="addRowBtn" class="erp-action-create inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded shadow-sm transition">
                             <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Thêm vị thuốc
                         </button>
@@ -140,7 +140,7 @@
                                     <td class="py-2 px-1.5 text-center text-[11px] text-slate-500 italic font-semibold">(QA chỉ định)</td>
                                     <td class="py-2 px-1.5"><input type="text" name="items[0][notes]" placeholder="Ghi chú..." class="w-full text-xs font-medium border-slate-300 rounded px-1 py-1 focus:border-blue-500 focus:ring-blue-500"></td>
                                     <td class="py-2 px-1.5 text-center">
-                                        <button type="button" class="text-slate-400 hover:text-rose-600 remove-row p-1 rounded hover:bg-rose-50 transition">
+                                        <button type="button" class="erp-action-delete remove-row p-1 rounded transition" aria-label="Xóa dòng sản phẩm">
                                             <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                         </button>
                                     </td>
@@ -152,10 +152,10 @@
 
                 <!-- NÚT LƯU -->
                 <div class="flex justify-end gap-2 pt-1">
-                    <a href="{{ route('orders.index') }}" class="px-4 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-semibold text-xs rounded shadow-sm transition">
+                    <a href="{{ route('orders.index') }}" class="erp-action-secondary px-4 py-1.5 font-semibold text-xs rounded shadow-sm transition">
                         Hủy bỏ
                     </a>
-                    <button type="submit" class="px-5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded shadow-sm transition flex items-center gap-1">
+                    <button type="submit" class="erp-action-create px-5 py-1.5 font-semibold text-xs rounded shadow-sm transition flex items-center gap-1">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         Lưu Đơn Hàng Mới
                     </button>
@@ -350,7 +350,7 @@
                         <td class="py-2 px-1.5 text-center text-[11px] text-slate-500 italic font-semibold">(QA chỉ định)</td>
                         <td class="py-2 px-1.5"><input type="text" name="items[${rowIndex}][notes]" placeholder="Ghi chú..." class="w-full text-xs font-medium border-slate-300 rounded px-1 py-1 focus:border-blue-500 focus:ring-blue-500"></td>
                         <td class="py-2 px-1.5 text-center">
-                            <button type="button" class="text-slate-400 hover:text-rose-600 remove-row p-1 rounded hover:bg-rose-50 transition">
+                            <button type="button" class="erp-action-delete remove-row p-1 rounded transition" aria-label="Xóa dòng sản phẩm">
                                 <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                             </button>
                         </td>

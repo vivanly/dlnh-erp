@@ -30,6 +30,7 @@ class User extends Authenticatable
         'locale',
         'position',
         'role',
+        'can_print_labels',
     ];
 
     /**
@@ -52,7 +53,13 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'can_print_labels' => 'boolean',
         ];
+    }
+
+    public function canPrintLabels(): bool
+    {
+        return $this->isITDepartment() || (bool) $this->can_print_labels;
     }
 
     // Quan hệ: Một nhân viên thuộc về một phòng ban
@@ -74,6 +81,14 @@ class User extends Authenticatable
     {
         return $this->isITDepartment()
             || $this->isDepartment('KINH-DOANH') || in_array($this->role, ['sales', 'sales_staff', 'sales_director']);
+    }
+
+    public function canSubmitOrders(): bool
+    {
+        $isGeneralDirectorAccount = $this->role === 'general_director'
+            || mb_strtolower(trim((string) $this->position)) === mb_strtolower('Tổng Giám Đốc');
+
+        return ! $isGeneralDirectorAccount && ($this->isITDepartment() || $this->isSalesDepartment());
     }
 
     public function isPlanningDepartment()

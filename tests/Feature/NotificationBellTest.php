@@ -5,9 +5,13 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Department;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionOrder;
+use App\Models\SalesOrderLabelPrint;
+use App\Models\SalesOrderLotAllocation;
+use App\Models\SupplierBatch;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -67,6 +71,71 @@ class NotificationBellTest extends TestCase
     public function test_guest_cannot_read_notifications(): void
     {
         $this->getJson(route('notifications.summary'))->assertUnauthorized();
+    }
+
+    public function test_orders_waiting_for_labels_notify_only_users_with_print_permission(): void
+    {
+        $customer = Customer::create(['code' => 'LABEL-NOTIFY-CUST', 'name' => 'Label Notify Customer', 'type' => 'Retail']);
+        $product = Product::create([
+            'name' => 'Label notification herb',
+            'slug' => 'label-notification-herb',
+            'sku' => 'LABEL-NOTIFY-1',
+            'unit' => 'kg',
+            'classification' => 'VT',
+        ]);
+        $batch = SupplierBatch::create([
+            'goods_receipt_item_id' => 1,
+            'product_id' => $product->id,
+            'batch_number' => 'LABEL-NOTIFY-LOT-1',
+            'initial_quantity' => 2,
+            'current_quantity' => 2,
+            'mfg_date' => today()->subMonth(),
+            'exp_date' => today()->addYear(),
+            'status' => 'active',
+        ]);
+        $order = Order::create([
+            'order_code' => 'SO-LABEL-NOTIFY-001',
+            'customer_id' => $customer->id,
+            'order_type' => 'VT',
+            'order_date' => today(),
+            'delivery_date' => today()->addDays(3),
+            'province_city' => 'Hà Nội',
+            'status' => 'ready_to_ship',
+            'qa_confirmed_at' => now(),
+        ]);
+        $item = OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'packaging_spec' => '1',
+            'finished_quantity' => 2,
+        ]);
+        $allocation = SalesOrderLotAllocation::create([
+            'order_item_id' => $item->id,
+            'supplier_batch_id' => $batch->id,
+            'reserved_quantity' => 2,
+            'status' => 'reserved',
+        ]);
+
+        $authorizedUser = User::factory()->create(['can_print_labels' => true]);
+        $unauthorizedUser = User::factory()->create(['can_print_labels' => false]);
+
+        $authorizedItems = collect($this->actingAs($authorizedUser)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $labelNotice = $authorizedItems->firstWhere('label', 'Đơn hàng cần in nhãn');
+        $this->assertSame(1, $labelNotice['count']);
+        $this->assertSame(route('labels.index'), $labelNotice['url']);
+
+        $unauthorizedItems = collect($this->actingAs($unauthorizedUser)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertNotContains('Đơn hàng cần in nhãn', $unauthorizedItems->pluck('label')->all());
+
+        SalesOrderLabelPrint::create([
+            'order_item_id' => $item->id,
+            'sales_order_lot_allocation_id' => $allocation->id,
+            'copies_count' => 2,
+            'printed_by' => $authorizedUser->id,
+        ]);
+        $authorizedItems = collect($this->actingAs($authorizedUser)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertNotContains('Đơn hàng cần in nhãn', $authorizedItems->pluck('label')->all());
     }
 
     public function test_production_lot_notifications_match_available_work_at_each_stage(): void
