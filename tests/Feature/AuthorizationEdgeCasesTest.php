@@ -51,6 +51,60 @@ class AuthorizationEdgeCasesTest extends TestCase
             ->assertSee('Đơn mua hàng');
     }
 
+    public function test_completed_purchase_orders_cannot_be_deleted_by_it(): void
+    {
+        $itUser = User::factory()->create(['role' => 'it']);
+        $supplier = Supplier::create(['name' => 'Completed order supplier', 'code' => 'COMPLETED-PO-SUPPLIER']);
+        $purchaseOrder = PurchaseOrder::create([
+            'po_number' => 'PO-COMPLETED-NO-DELETE',
+            'supplier_id' => $supplier->id,
+            'user_id' => $itUser->id,
+            'order_date' => today(),
+            'status' => 'completed',
+            'subtotal' => 100,
+            'tax_amount' => 5,
+            'grand_total' => 105,
+        ]);
+
+        $this->actingAs($itUser)
+            ->get(route('purchase-orders.index'))
+            ->assertOk()
+            ->assertDontSee('action="'.route('purchase-orders.destroy', $purchaseOrder).'"', false);
+
+        $this->delete(route('purchase-orders.destroy', $purchaseOrder))
+            ->assertRedirect()
+            ->assertSessionHas('error', 'Không thể xóa đơn mua hàng đã hoàn thành.');
+
+        $this->assertDatabaseHas('purchase_orders', ['id' => $purchaseOrder->id, 'status' => 'completed']);
+    }
+
+    public function test_sales_can_delete_rejected_purchase_orders(): void
+    {
+        $salesUser = User::factory()->create(['role' => 'sales_staff']);
+        $supplier = Supplier::create(['name' => 'Rejected order supplier', 'code' => 'REJECTED-PO-SUPPLIER']);
+        $purchaseOrder = PurchaseOrder::create([
+            'po_number' => 'PO-REJECTED-DELETE',
+            'supplier_id' => $supplier->id,
+            'user_id' => $salesUser->id,
+            'order_date' => today(),
+            'status' => 'rejected',
+            'subtotal' => 100,
+            'tax_amount' => 5,
+            'grand_total' => 105,
+        ]);
+
+        $this->actingAs($salesUser)
+            ->get(route('purchase-orders.index'))
+            ->assertOk()
+            ->assertSee('action="'.route('purchase-orders.destroy', $purchaseOrder).'"', false);
+
+        $this->delete(route('purchase-orders.destroy', $purchaseOrder))
+            ->assertRedirect(route('purchase-orders.index'))
+            ->assertSessionHas('success', 'Đã xóa đơn mua hàng thành công!');
+
+        $this->assertDatabaseMissing('purchase_orders', ['id' => $purchaseOrder->id]);
+    }
+
     public function test_it_is_excluded_from_production_plan_approval_workflow(): void
     {
         $itUser = User::factory()->create(['role' => 'it']);

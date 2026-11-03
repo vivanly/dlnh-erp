@@ -167,8 +167,7 @@
                                 </td>
                                 <td class="py-2.5 px-3 text-center align-middle">
                                     <div class="flex items-center justify-center gap-1.5">
-                                        @if($canSubmitOrders && $po->status === 'draft')
-                                            <!-- Nút Gửi Duyệt -->
+                                        @if($canSubmitOrders && in_array($po->status, ['draft', 'rejected'], true))
                                             <form action="{{ route('purchase-orders.submit', $po->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn gửi đơn mua dược liệu này đi duyệt?');">
                                                 @csrf
                                                 <button type="submit" class="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] uppercase tracking-wider rounded-none transition" title="Gửi duyệt">
@@ -176,25 +175,25 @@
                                                 </button>
                                             </form>
 
-                                            <!-- Nút Chỉnh Sửa -->
                                             <a href="{{ route('purchase-orders.edit', $po->id) }}" class="p-1 text-slate-600 hover:text-blue-600 transition" title="Chỉnh sửa">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                                             </a>
 
-                                            <!-- Nút Xóa -->
-                                            <form action="{{ route('purchase-orders.destroy', $po->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa đơn nháp này không?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Xóa đơn hàng">
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                                </button>
-                                            </form>
+                                            @if(in_array($po->status, ['draft', 'rejected'], true))
+                                                <form action="{{ route('purchase-orders.destroy', $po->id) }}" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa đơn mua hàng này không?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="p-1 text-slate-400 hover:text-rose-600 transition" title="Xóa đơn hàng">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         @else
                                             <!-- Xem chi tiết -->
                                             <a href="{{ route('purchase-orders.show', $po->id) }}" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] uppercase tracking-wider rounded-none transition">
                                                 Chi tiết
                                             </a>
-                                            @if($canManageLockedPurchaseOrders)
+                                            @if($canManageLockedPurchaseOrders && $po->status !== 'completed')
                                                 <form action="{{ route('purchase-orders.destroy', $po->id) }}" method="POST" class="inline" onsubmit="return confirm('IT xóa đơn mua hàng này?');">
                                                     @csrf
                                                     @method('DELETE')

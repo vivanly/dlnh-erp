@@ -371,19 +371,21 @@ class PurchaseOrderController extends Controller
         }
     }
 
-    // 12. Xóa đơn hàng (Chỉ cho phép xóa khi ở trạng thái draft)
+    // 12. Xóa đơn nháp hoặc bị từ chối; IT/Admin được xử lý các trạng thái khác trừ completed.
     public function destroy($id)
     {
         try {
             $purchaseOrder = PurchaseOrder::findOrFail($id);
 
-            $isItOrAdmin = $this->isItOrAdminPermission();
-            if ($purchaseOrder->status !== 'draft' && !$isItOrAdmin) {
-                return back()->with('error', 'Đơn mua đã duyệt, chỉ IT/Admin mới được xóa.');
+            if ($purchaseOrder->status === 'completed') {
+                return back()->with('error', 'Không thể xóa đơn mua hàng đã hoàn thành.');
             }
 
-            if ($purchaseOrder->status === 'draft' && !$this->checkSalesOrItPermission()) {
-                return back()->with('error', 'Bạn không có quyền xóa đơn mua hàng này.');
+            $isItOrAdmin = $this->isItOrAdminPermission();
+            $canDeleteEditableOrder = in_array($purchaseOrder->status, ['draft', 'rejected'], true)
+                && $this->checkSalesOrItPermission();
+            if (! $canDeleteEditableOrder && ! $isItOrAdmin) {
+                return back()->with('error', 'Đơn mua đã duyệt, chỉ IT/Admin mới được xóa.');
             }
 
             $purchaseOrder->items()->delete();
