@@ -130,6 +130,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/huong-dan', fn () => view('guide.index'))->name('guide.index');
     Route::get('/permissions/label-printing', [LabelPermissionController::class, 'index'])->name('permissions.label-printing.index');
     Route::put('/permissions/label-printing', [LabelPermissionController::class, 'update'])->name('permissions.label-printing.update');
     Route::get('/notifications/summary', [\App\Http\Controllers\NotificationController::class, 'summary'])->name('notifications.summary');

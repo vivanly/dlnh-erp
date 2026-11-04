@@ -105,6 +105,11 @@
                             </svg>
                             {{ app()->getLocale() === 'en' ? now()->format('m/d/Y') : now()->format('d/m/Y') }}
                         </span>
+                        <a href="{{ route('guide.index') }}" class="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700" title="{{ __('Hướng dẫn sử dụng') }}" aria-label="{{ __('Hướng dẫn sử dụng') }}">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </a>
                         <details class="erp-bell" id="erp-bell" data-url="{{ route('notifications.summary') }}">
                             <summary aria-label="{{ __('Thông báo') }}">
                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
