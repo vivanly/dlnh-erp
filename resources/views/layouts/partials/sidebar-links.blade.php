@@ -197,6 +197,24 @@
         </details>
     @endif
 
+    @if($currentUser && $currentUser->canPrintLabels())
+        <details class="group/menu rounded-md border {{ request()->routeIs('manual-labels.*') ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs('manual-labels.*') ? 'open' : '' }}>
+            <summary class="list-none cursor-pointer flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
+                <div class="flex items-center gap-2.5">
+                    <svg class="w-4 h-4 {{ request()->routeIs('manual-labels.*') ? 'text-blue-600' : 'text-slate-500' }}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    <span class="{{ request()->routeIs('manual-labels.*') ? 'text-blue-700 font-semibold' : '' }}">In Nhãn Tay</span>
+                </div>
+                <svg class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200 group-open/menu:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path></svg>
+            </summary>
+            <div class="px-2 pb-2 pt-1 space-y-1 border-t border-slate-200 bg-white rounded-b-md">
+                <a href="{{ route('manual-labels.create') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.create') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">In nhãn mới</a>
+                <a href="{{ route('manual-labels.orders') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.orders*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Truy xuất đơn hàng</a>
+                <a href="{{ route('manual-labels.history') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.history') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Lịch sử &amp; giao nhãn</a>
+                <a href="{{ route('manual-labels.import.form') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.import*', 'manual-labels.templates.*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Import Excel</a>
+            </div>
+        </details>
+    @endif
+
     @if($currentUser)
         <details class="group/menu rounded-md border {{ request()->routeIs(['departments*', 'users*', 'permissions.label-printing.*']) ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100' }} transition" {{ request()->routeIs(['departments*', 'users*', 'permissions.label-printing.*']) ? 'open' : '' }}>
             <summary class="list-none cursor-pointer flex items-center justify-between px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">

@@ -42,13 +42,13 @@
 <html lang="vi">
 <head>
     <meta charset="utf-8">
-    <title>In nhãn {{ $order->order_code }}</title>
+    <title>{{ $printTitle ?? 'In nhãn ' . $order->order_code }}</title>
     @vite('resources/js/app.js')
     <style>
         @page { size: A4 landscape; margin: 0; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        .page { width: 293mm; height: 206mm; margin: 2mm auto; display: grid; grid-template-columns: 144.5mm 144.5mm; grid-template-rows: 101mm 101mm; column-gap: 4mm; row-gap: 4mm; align-content: start; overflow: hidden; break-after: page; page-break-after: always; }
+        .page { width: 293mm; height: 206mm; zoom: .96; margin: 6mm auto 0; display: grid; grid-template-columns: 144.5mm 144.5mm; grid-template-rows: 101mm 101mm; column-gap: 4mm; row-gap: 4mm; align-content: start; overflow: hidden; break-after: page; page-break-after: always; }
         .page:last-child { break-after: auto; page-break-after: auto; }
         .slot { width: 144.5mm; height: 101mm; }
         .label { position: relative; width: 144.5mm; height: 101mm; display: grid; border: 1mm double #000; line-height: 1.12; overflow: hidden; }
@@ -64,20 +64,21 @@
         .lot-top-rule::before { content: ""; position: absolute; top: 3mm; left: 0; right: 0; border-top: .15mm solid #aaa; }
         .lot-box-rule { border-top: .15mm solid #aaa; }
         .lot-info-stack { display: flex; flex-direction: column; justify-content: space-between; padding-top: 3.8mm !important; padding-bottom: 1mm !important; }
+        .lot-batch-row { align-items: start; line-height: 1.1; }
         .lot-info-row { display: grid; grid-template-columns: 3fr 9fr; align-items: center; line-height: 1; }
         .quality-block { display: flex; flex-direction: column; justify-content: center; gap: 1mm; line-height: 1.05; }
         .product-name { display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
         .product-title-line { display: flex; align-items: center; gap: 2mm; white-space: nowrap; }
         .product-title-label { flex: 0 0 auto; }
         .product-title-line .product-name { min-width: 0; flex: 0 1 auto; }
-        .batch-value { display: block; min-width: 0; white-space: nowrap; overflow: hidden; }
+        .batch-value { display: block; min-width: 0; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
         .fit-one-line { white-space: nowrap; }
         .fit-wrap { white-space: normal; overflow-wrap: anywhere; word-break: normal; }
         .packaging-control-block { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: .7mm !important; }
         .packaging-control-line { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 2mm; width: 100%; white-space: nowrap !important; }
         .packaging-control-line > span { flex: 0 0 auto; white-space: nowrap !important; }
         .scientific-name { overflow-wrap: anywhere; word-break: normal; line-height: 1.05; }
-        .field-label-nowrap { white-space: nowrap; font-size: .9em; }
+        .field-label-nowrap { white-space: nowrap; }
         .b { font-weight: bold; }
         .i { font-style: italic; }
         .center { text-align: center; }
@@ -126,26 +127,26 @@
 
                     @php $showTraditionalMedicineName = $type === 'vt' && !empty($label['traditional_medicine_name']); @endphp
                     <div class="product-title-line" style="grid-column: 3 / 21; grid-row: 3 / 4;">
-                        <span class="b fit-one-line product-title-label">{{ $showTraditionalMedicineName ? 'Tên vị thuốc cổ truyền:' : $t['name'] }}</span>
+                        <span class="b fit-one-line product-title-label field-title">{{ $showTraditionalMedicineName ? 'Tên vị thuốc cổ truyền:' : $t['name'] }}</span>
                         <span class="b product-name fit-one-line" style="font-size: {{ $productFontSize }}pt;">{{ $productName }}</span>
                     </div>
                     <div class="lot-info-stack" style="grid-column: 14 / 21; grid-row: 4 / 11;">
-                        <div class="lot-info-row"><span class="b">Số lô:</span><span class="batch-value">{{ $label['batch'] }}</span></div>
-                        <div class="lot-info-row"><span class="b">NSX:</span><span class="fit-one-line">{{ $label['mfg'] }}</span></div>
-                        <div class="lot-info-row"><span class="b">HSD:</span><span class="fit-one-line">{{ $label['exp'] }}</span></div>
+                        <div class="lot-info-row lot-batch-row"><span class="b">Số lô:</span><span class="batch-value b">{{ $label['batch'] }}</span></div>
+                        <div class="lot-info-row"><span class="b">NSX:</span><span class="b fit-one-line">{{ $label['mfg'] }}</span></div>
+                        <div class="lot-info-row"><span class="b">HSD:</span><span class="b fit-one-line">{{ $label['exp'] }}</span></div>
                         <div class="lot-info-row" style="grid-template-columns: 9fr 3fr;"><span class="b fit-one-line">Khối lượng tịnh:</span><span class="b fit-one-line">{{ $label['weight'] }}</span></div>
                     </div>
 
-                    <div class="b fit-one-line" style="grid-column: 3 / 6; grid-row: 5 / 6;">Tên khoa học:</div>
+                    <div class="b fit-one-line field-title" style="grid-column: 3 / 6; grid-row: 5 / 6;">Tên khoa học:</div>
                     <div class="i scientific-name fit-wrap" style="grid-column: 6 / 14; grid-row: 5 / 7;">{{ $label['scientific'] }}</div>
 
-                    <div class="b field-label-nowrap fit-one-line" style="grid-column: 3 / 6; grid-row: 7 / 8;">Bộ phận dùng:</div>
+                    <div class="b field-label-nowrap fit-one-line field-title" style="grid-column: 3 / 6; grid-row: 7 / 8;">Bộ phận dùng:</div>
                     <div class="fit-wrap" style="grid-column: 6 / 14; grid-row: 7 / 9;">{{ $label['part'] }}</div>
 
-                    <div class="b fit-one-line" style="grid-column: 3 / 6; grid-row: 9 / 10;">Nguồn gốc:</div>
+                    <div class="b fit-one-line field-title" style="grid-column: 3 / 6; grid-row: 9 / 10;">Nguồn gốc:</div>
                     <div class="fit-wrap" style="grid-column: 6 / 14; grid-row: 9 / 11;">{{ $label['origin'] }}</div>
 
-                    <div class="b fit-one-line" style="grid-column: 3 / {{ $registrationValueStart }}; grid-row: 11 / 12;">{{ $t['registration'] }}</div>
+                    <div class="b fit-one-line field-title" style="grid-column: 3 / {{ $registrationValueStart }}; grid-row: 11 / 12;">{{ $t['registration'] }}</div>
                     <div class="fit-one-line" style="grid-column: {{ $registrationValueStart }} / 14; grid-row: 11 / 12;">{{ $label['registration'] }}</div>
                     @if(!empty($label['include_packaging_control']))
                         <div class="packaging-control-block" style="grid-column: 1 / 14; grid-row: 12 / 14; font-size: {{ $t['size'] - .4 }}pt;">
@@ -168,8 +169,8 @@
                         <div class="qr-box"><canvas data-qr-value="{{ $label['qr_url'] }}" aria-label="Mã QR truy xuất {{ $label['batch'] }}"></canvas></div>
                     @endif
                     <div class="b center mid fit-one-line" style="grid-column: 1 / 14; grid-row: 15 / 16;">CÔNG TY CỔ PHẦN DƯỢC LIỆU NINH HIỆP</div>
-                    <div class="mid fit-one-line" style="grid-column: 1 / 14; grid-row: 16 / 17; justify-content: flex-start;">Địa chỉ: Số 34-35 Lô E Baza Long Vĩ, P.Từ Sơn, Bắc Ninh</div>
-                    <div class="mid fit-one-line" style="grid-column: 1 / 14; grid-row: 17 / 18; justify-content: flex-start;">Nhà máy: Lô E4 CCN Đa Nghề Đông Thọ - Văn Môn - Bắc Ninh</div>
+                    <div class="mid fit-one-line" style="grid-column: 1 / 14; grid-row: 16 / 17; justify-content: flex-start;">Địa chỉ: Số 34-35 Lô E Baza Long Vĩ - P. Từ Sơn - TP. Bắc Ninh</div>
+                    <div class="mid fit-one-line" style="grid-column: 1 / 14; grid-row: 17 / 18; justify-content: flex-start;">Nhà máy: Lô E4 CCN Đa Nghề Đông Thọ - Văn Môn - TP. Bắc Ninh</div>
                     <div class="mid fit-one-line" style="grid-column: 1 / 14; grid-row: 18 / 19; justify-content: flex-start;">Điện thoại: 02223.883.356</div>
                     <div class="mid fit-one-line" style="grid-column: 1 / 14; grid-row: 19 / 20; justify-content: flex-start; font-size: {{ $t['size'] - .4 }}pt;">Email: duoclieuninhhiep@gmail.com - Website: duoclieuninhhiep.vn</div>
 
@@ -195,7 +196,7 @@
                 element.style.fontSize = `${size}px`;
                 const minimumSize = element.classList.contains('label-title')
                     ? baseSize * 0.82
-                    : 8;
+                    : element.classList.contains('batch-value') ? 7 : 8;
                 while (overflows() && size > minimumSize) {
                     size = Math.max(minimumSize, size - 0.25);
                     element.style.fontSize = `${size}px`;
@@ -205,10 +206,18 @@
                 // too long at a readable size, let it wrap instead of shrinking it
                 // to an unreadable fraction of a pixel.
                 const keepOneLine = element.classList.contains('packaging-control-line');
-                if (!isWrapped && !element.classList.contains('product-name') && !keepOneLine && overflows()) {
+                if (!isWrapped && !element.classList.contains('product-name') && !element.classList.contains('batch-value') && !keepOneLine && overflows()) {
                     element.style.whiteSpace = 'normal';
                     element.style.overflowWrap = 'anywhere';
                 }
+            });
+
+            // Các tiêu đề trường trong cùng một nhãn dùng chung một cỡ chữ (cỡ nhỏ nhất).
+            document.querySelectorAll('.label').forEach((label) => {
+                const titles = [...label.querySelectorAll('.field-title')];
+                if (!titles.length) return;
+                const smallest = Math.min(...titles.map((el) => parseFloat(el.style.fontSize || getComputedStyle(el).fontSize)));
+                titles.forEach((el) => { el.style.fontSize = `${smallest}px`; });
             });
         };
 
@@ -222,5 +231,8 @@
         requestAnimationFrame(fitLabelText);
     })();
 </script>
+@if(!empty($autoPrint))
+<script>window.addEventListener('load', () => setTimeout(() => window.print(), 600));</script>
+@endif
 </body>
 </html>

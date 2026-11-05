@@ -291,6 +291,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
     Route::get('/labels/orders/{order}', [LabelController::class, 'showOrder'])->name('labels.orders.show');
     Route::post('/labels/orders/{order}/print-direct', [LabelController::class, 'printOrderDirect'])->name('labels.orders.print-direct');
+    Route::get('/manual-labels', [\App\Http\Controllers\ManualLabelController::class, 'create'])->name('manual-labels.create');
+    Route::post('/manual-labels', [\App\Http\Controllers\ManualLabelController::class, 'store'])->name('manual-labels.store');
+    Route::get('/manual-labels/history', [\App\Http\Controllers\ManualLabelController::class, 'history'])->name('manual-labels.history');
+    Route::post('/manual-labels/{manualLabel}/reprint', [\App\Http\Controllers\ManualLabelController::class, 'reprint'])->name('manual-labels.reprint');
+    Route::post('/manual-labels/{manualLabel}/deliver', [\App\Http\Controllers\ManualLabelController::class, 'deliver'])->name('manual-labels.deliver');
+    Route::delete('/manual-labels/{manualLabel}', [\App\Http\Controllers\ManualLabelController::class, 'destroy'])->name('manual-labels.destroy');
+    Route::get('/manual-label-orders', [\App\Http\Controllers\ManualLabelOrderController::class, 'index'])->name('manual-labels.orders');
+    Route::get('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'index'])->name('manual-labels.import.form');
+    Route::get('/manual-label-sources/search', [\App\Http\Controllers\ManualLabelSourceController::class, 'search'])->name('manual-labels.sources.search');
+    Route::post('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'import'])->name('manual-labels.import');
+    Route::delete('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'destroyAll'])->name('manual-labels.sources.destroy');
     Route::get('/warehouse/sales-order-stock-checks', [WarehouseController::class, 'salesOrderStockChecks'])->name('warehouse.sales-order-stock-checks');
     Route::post('/warehouse/sales-order-stock-checks/{order}/confirm', [WarehouseController::class, 'confirmSalesOrderStockCheck'])->name('warehouse.sales-order-stock-checks.confirm');
     Route::get('/warehouse/production-batches', [WarehouseController::class, 'productionBatchReceipts'])->name('warehouse.production-batches');
