@@ -298,6 +298,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/manual-labels/{manualLabel}/deliver', [\App\Http\Controllers\ManualLabelController::class, 'deliver'])->name('manual-labels.deliver');
     Route::delete('/manual-labels/{manualLabel}', [\App\Http\Controllers\ManualLabelController::class, 'destroy'])->name('manual-labels.destroy');
     Route::get('/manual-label-orders', [\App\Http\Controllers\ManualLabelOrderController::class, 'index'])->name('manual-labels.orders');
+Route::get('/manual-label-orders/create', [\App\Http\Controllers\ManualLabelOrderController::class, 'create'])->name('manual-labels.orders.create');
+Route::post('/manual-label-orders', [\App\Http\Controllers\ManualLabelOrderController::class, 'store'])->name('manual-labels.orders.store');
+Route::get('/manual-label-orders/{order}/edit', [\App\Http\Controllers\ManualLabelOrderController::class, 'edit'])->name('manual-labels.orders.edit');
+Route::put('/manual-label-orders/{order}', [\App\Http\Controllers\ManualLabelOrderController::class, 'update'])->name('manual-labels.orders.update');
+Route::delete('/manual-label-orders/{order}', [\App\Http\Controllers\ManualLabelOrderController::class, 'destroy'])->name('manual-labels.orders.destroy');
+Route::get('/manual-label-products', [\App\Http\Controllers\ManualLabelProductController::class, 'index'])->name('manual-labels.products');
+Route::get('/manual-label-products/create', [\App\Http\Controllers\ManualLabelProductController::class, 'create'])->name('manual-labels.products.create');
+Route::post('/manual-label-products', [\App\Http\Controllers\ManualLabelProductController::class, 'store'])->name('manual-labels.products.store');
+Route::get('/manual-label-products/{product}/edit', [\App\Http\Controllers\ManualLabelProductController::class, 'edit'])->name('manual-labels.products.edit');
+Route::put('/manual-label-products/{product}', [\App\Http\Controllers\ManualLabelProductController::class, 'update'])->name('manual-labels.products.update');
+Route::delete('/manual-label-products/{product}', [\App\Http\Controllers\ManualLabelProductController::class, 'destroy'])->name('manual-labels.products.destroy');
     Route::get('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'index'])->name('manual-labels.import.form');
     Route::get('/manual-label-sources/search', [\App\Http\Controllers\ManualLabelSourceController::class, 'search'])->name('manual-labels.sources.search');
     Route::post('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'import'])->name('manual-labels.import');

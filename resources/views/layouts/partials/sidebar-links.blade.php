@@ -208,8 +208,9 @@
             </summary>
             <div class="px-2 pb-2 pt-1 space-y-1 border-t border-slate-200 bg-white rounded-b-md">
                 <a href="{{ route('manual-labels.create') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.create') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">In nhãn mới</a>
-                <a href="{{ route('manual-labels.orders') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.orders*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Truy xuất đơn hàng</a>
-                <a href="{{ route('manual-labels.history') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.history') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Lịch sử &amp; giao nhãn</a>
+                <a href="{{ route('manual-labels.orders') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.orders*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Lệnh sản xuất</a>
+                <a href="{{ route('manual-labels.products') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.products*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Mã hàng</a>
+                <a href="{{ route('manual-labels.history') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.history') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Quản lý nhãn</a>
                 <a href="{{ route('manual-labels.import.form') }}" class="block pl-5 pr-2.5 py-1.5 rounded text-xs transition {{ request()->routeIs('manual-labels.import*', 'manual-labels.templates.*') ? 'text-blue-700 font-semibold bg-blue-50' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' }}">Import Excel</a>
             </div>
         </details>

@@ -64,7 +64,7 @@
         .lot-top-rule::before { content: ""; position: absolute; top: 3mm; left: 0; right: 0; border-top: .15mm solid #aaa; }
         .lot-box-rule { border-top: .15mm solid #aaa; }
         .lot-info-stack { display: flex; flex-direction: column; justify-content: space-between; padding-top: 3.8mm !important; padding-bottom: 1mm !important; }
-        .lot-batch-row { align-items: start; line-height: 1.1; }
+        .lot-info-row.lot-batch-row { align-items: start; line-height: 1.1; }
         .lot-info-row { display: grid; grid-template-columns: 3fr 9fr; align-items: center; line-height: 1; }
         .quality-block { display: flex; flex-direction: column; justify-content: center; gap: 1mm; line-height: 1.05; }
         .product-name { display: flex; align-items: center; white-space: nowrap; overflow: hidden; }

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class ManualLabelDelivery extends Model
 {
-    protected $fillable = ['manual_label_print_id', 'quantity', 'received_by', 'note', 'delivered_by', 'delivered_at'];
+    protected $fillable = ['manual_label_print_id', 'quantity', 'kind', 'received_by', 'note', 'delivered_by', 'delivered_at'];
 
     protected $casts = ['delivered_at' => 'datetime'];
 

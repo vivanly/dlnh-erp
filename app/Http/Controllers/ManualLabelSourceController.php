@@ -2,39 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ManualLabelCatalog;
-use App\Models\ManualLabelOrderLine;
-use App\Models\ManualLabelSource;
+use App\Models\ManualLabelProduct;
+use App\Models\ManualLabelProductionOrder;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ManualLabelSourceController extends Controller
 {
-    private const SHEET = 'PKN';
+    private const ORDERS = 'DM lệnh SX';
 
-    private const CATALOG = 'TT';
-
-    private const ORDERS = 'DataChitietDH';
+    private const PRODUCTS = 'MÃ HÀNG';
 
     private function authorizePrinting(): void
     {
         abort_unless(auth()->user()?->canPrintLabels(), 403);
     }
 
-    public function index(Request $request)
+    public function index()
     {
         $this->authorizePrinting();
-        $q = trim((string) $request->query('q'));
 
         return view('manual-labels.import', [
-            'sources' => ManualLabelSource::query()
-                ->when($q !== '', function ($w) use ($q) {
-                    $like = '%' . addcslashes($q, '%_\\') . '%';
-                    $w->where(fn ($x) => $x->where('name', 'like', $like)->orWhere('batch', 'like', $like));
-                })
-                ->orderBy('name')->orderBy('batch')->paginate($this->perPage($request))->withQueryString(),
-            'total' => ManualLabelSource::count(),
+            'orderCount' => ManualLabelProductionOrder::count(),
+            'productCount' => ManualLabelProduct::count(),
+            'lastImport' => ManualLabelProductionOrder::max('updated_at'),
         ]);
     }
 
@@ -45,12 +38,10 @@ class ManualLabelSourceController extends Controller
         if ($q === '') {
             return response()->json([]);
         }
-        $like = '%' . addcslashes($q, '%_\\') . '%';
 
         return response()->json(
-            ManualLabelSource::where(fn ($w) => $w->where('name', 'like', $like)->orWhere('batch', 'like', $like))
-                ->orderByDesc('mfg_date')->limit(20)->get()
-                ->map->toFormArray()->values()
+            ManualLabelOrderController::searchQuery($q)->orderByDesc('order_date')->orderByDesc('id')->limit(20)->get()
+                ->map(fn ($o) => $o->toFormArray())->values()
         );
     }
 
@@ -65,145 +56,112 @@ class ManualLabelSourceController extends Controller
         $reader = IOFactory::createReaderForFile($path);
         $reader->setReadDataOnly(true);
         $names = $reader->listWorksheetNames($path);
-        if (! in_array(self::SHEET, $names, true)) {
-            return back()->with('error', 'Không tìm thấy sheet "' . self::SHEET . '" trong file Excel.');
+        if (! in_array(self::ORDERS, $names, true)) {
+            return back()->with('error', 'Không tìm thấy sheet "' . self::ORDERS . '" trong file Excel.');
         }
-        $reader->setLoadSheetsOnly(array_values(array_intersect([self::SHEET, self::CATALOG, self::ORDERS], $names)));
+        $reader->setLoadSheetsOnly(array_values(array_intersect([self::ORDERS, self::PRODUCTS], $names)));
         $book = $reader->load($path);
-        $sheet = $book->getSheetByName(self::SHEET);
-        $catalog = $this->catalog($book->getSheetByName(self::CATALOG));
 
         $now = now();
-        $rows = [];
-        foreach ($sheet->getRowIterator(3) as $row) {
-            $i = $row->getRowIndex();
-            $name = trim((string) $sheet->getCell("H$i")->getValue());
-            $batch = trim((string) $sheet->getCell("K$i")->getValue());
-            if ($name === '' || $batch === '') {
-                continue;
-            }
-            $info = $catalog[ManualLabelCatalog::key($name)] ?? [];
-            $rows[$batch . '|' . $name] = [
-                'kind' => strtoupper(trim((string) $sheet->getCell("F$i")->getValue())) ?: null,
-                'item_code' => trim((string) $sheet->getCell("G$i")->getValue()) ?: null,
-                'name' => $name,
-                'scientific_name' => $info['scientific_name'] ?? null,
-                'part_used' => $info['part_used'] ?? null,
-                'origin_code' => trim((string) $sheet->getCell("I$i")->getValue()) ?: null,
-                'origin' => $info['origin'] ?? null,
-                'registration' => trim((string) $sheet->getCell("R$i")->getValue()) ?: null,
-                'batch' => $batch,
-                'mfg_date' => $this->date($sheet->getCell("L$i")->getValue()),
-                'exp_date' => $this->date($sheet->getCell("M$i")->getValue()),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
+        $products = $this->readProducts($book->getSheetByName(self::PRODUCTS), $now);
+        $orders = $this->readOrders($book->getSheetByName(self::ORDERS), $now);
+
+        foreach (array_chunk($products, 500) as $chunk) {
+            ManualLabelProduct::upsert($chunk, ['name_key'], ['name', 'category', 'scientific_name', 'standard', 'origin', 'part_used', 'registration', 'updated_at']);
+        }
+        foreach (array_chunk($orders, 500) as $chunk) {
+            ManualLabelProductionOrder::upsert($chunk, ['label_code'], ['order_date', 'production_order', 'name', 'batch', 'mfg_date', 'exp_date', 'pack_spec', 'quantity', 'label_count', 'updated_at']);
         }
 
-        foreach (array_chunk(array_values($rows), 500) as $chunk) {
-            ManualLabelSource::upsert($chunk, ['batch', 'name'], ['kind', 'item_code', 'scientific_name', 'part_used', 'origin_code', 'origin', 'registration', 'mfg_date', 'exp_date', 'updated_at']);
+        $known = array_flip(array_column($products, 'name_key'));
+        $unmatched = count(array_filter($orders, fn ($o) => ! isset($known[ManualLabelProduct::key($o['name'])])));
+        $msg = 'Đã đọc ' . count($orders) . ' lệnh sản xuất và ' . count($products) . ' mã hàng.';
+        if ($unmatched) {
+            $msg .= " Có {$unmatched} lệnh có tên hàng chưa khớp sheet " . self::PRODUCTS . ' (thiếu tên khoa học, SĐK…).';
         }
 
-        $this->saveCatalog($catalog, $now);
-        $orderLines = $this->saveOrders($book->getSheetByName(self::ORDERS), $now, $rows);
-
-        $matched = count(array_filter($rows, fn ($r) => $r['scientific_name'] || $r['origin']));
-
-        return redirect()->route('manual-labels.import.form')->with('success', 'Đã đọc ' . count($rows) . ' dòng từ sheet ' . self::SHEET . ' (' . $matched . ' dòng khớp danh mục sheet ' . self::CATALOG . ') và ' . $orderLines . ' dòng đơn hàng từ sheet ' . self::ORDERS . '.');
-    }
-
-    private function catalog($sheet): array
-    {
-        $map = [];
-        if (! $sheet) {
-            return $map;
-        }
-        foreach ($sheet->getRowIterator(4) as $row) {
-            $i = $row->getRowIndex();
-            $name = trim((string) $sheet->getCell("C$i")->getValue());
-            if ($name === '') {
-                continue;
-            }
-            $map[ManualLabelCatalog::key($name)] ??= [
-                'name' => $name,
-                'scientific_name' => trim((string) $sheet->getCell("D$i")->getValue()) ?: null,
-                'part_used' => trim((string) $sheet->getCell("F$i")->getValue()) ?: null,
-                'origin' => trim((string) $sheet->getCell("G$i")->getValue()) ?: null,
-            ];
-        }
-
-        return $map;
-    }
-
-    private function saveCatalog(array $catalog, $now): void
-    {
-        $rows = [];
-        foreach ($catalog as $key => $info) {
-            $rows[] = ['name_key' => $key, 'name' => $info['name'], 'scientific_name' => $info['scientific_name'], 'part_used' => $info['part_used'], 'origin' => $info['origin'], 'created_at' => $now, 'updated_at' => $now];
-        }
-        foreach (array_chunk($rows, 500) as $chunk) {
-            ManualLabelCatalog::upsert($chunk, ['name_key'], ['name', 'scientific_name', 'part_used', 'origin', 'updated_at']);
-        }
-    }
-
-    private function saveOrders($sheet, $now, array $pknRows = []): int
-    {
-        if (! $sheet) {
-            return 0;
-        }
-        $dates = [];
-        foreach ($pknRows as $r) {
-            $dates[$r['batch']] ??= [$r['mfg_date'], $r['exp_date']];
-        }
-        $num = fn ($v) => is_numeric($v) ? (float) $v : null;
-        $text = fn ($c) => trim((string) $sheet->getCell($c)->getValue()) ?: null;
-        $rows = [];
-        foreach ($sheet->getRowIterator(4) as $row) {
-            $i = $row->getRowIndex();
-            $code = $text("J$i");
-            $name = $text("B$i");
-            if (! $code || ! $name) {
-                continue;
-            }
-            $delivery = $sheet->getCell("T$i")->getValue();
-            $rows[] = [
-                'order_code' => $code,
-                'order_type' => strtoupper((string) $text("N$i")) ?: strtoupper(substr($code, 0, 2)),
-                'customer' => $text("K$i"),
-                'customer_type' => $text("S$i"),
-                'received_date' => $this->date($sheet->getCell("L$i")->getValue()),
-                'delivery_date' => is_numeric($delivery) ? ($this->date($delivery) ? \Carbon\Carbon::parse($this->date($delivery))->format('d/m/Y') : null) : (trim((string) $delivery) ?: null),
-                'line_no' => is_numeric($sheet->getCell("A$i")->getValue()) ? (int) $sheet->getCell("A$i")->getValue() : null,
-                'name' => $name,
-                'unit' => $text("C$i"),
-                'origin_code' => $text("D$i"),
-                'quantity' => $num($sheet->getCell("E$i")->getValue()),
-                'pack_weight' => $num($sheet->getCell("F$i")->getValue()),
-                'pack_count' => ($n = $num($sheet->getCell("G$i")->getValue())) !== null ? (int) ceil($n) : null,
-                'processing' => $text("H$i"),
-                'note' => $text("I$i"),
-                'batch' => $text("P$i"),
-                'mfg_date' => $this->date($sheet->getCell("U$i")->getValue()) ?? ($dates[$text("P$i")][0] ?? null),
-                'exp_date' => $this->date($sheet->getCell("V$i")->getValue()) ?? ($dates[$text("P$i")][1] ?? null),
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }
-
-        ManualLabelOrderLine::query()->delete();
-        foreach (array_chunk($rows, 500) as $chunk) {
-            ManualLabelOrderLine::insert($chunk);
-        }
-
-        return count($rows);
+        return redirect()->route('manual-labels.import.form')->with('success', $msg);
     }
 
     public function destroyAll()
     {
         $this->authorizePrinting();
-        ManualLabelSource::query()->delete();
+        ManualLabelProductionOrder::query()->delete();
+        ManualLabelProduct::query()->delete();
 
         return redirect()->route('manual-labels.import.form')->with('success', 'Đã xóa toàn bộ dữ liệu đã tải lên.');
+    }
+
+    private function readProducts($sheet, $now): array
+    {
+        $rows = [];
+        if (! $sheet) {
+            return $rows;
+        }
+        $text = fn ($c) => trim((string) $sheet->getCell($c)->getValue()) ?: null;
+        for ($i = 3, $max = $sheet->getHighestDataRow(); $i <= $max; $i++) {
+            $name = $text("B$i");
+            if (! $name) {
+                continue;
+            }
+            $rows[ManualLabelProduct::key($name)] = [
+                'name_key' => ManualLabelProduct::key($name),
+                'name' => $name,
+                'category' => $text("C$i"),
+                'scientific_name' => $text("D$i"),
+                'standard' => $text("E$i"),
+                'origin' => $text("F$i"),
+                'part_used' => $text("G$i"),
+                'registration' => $text("H$i"),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        return array_values($rows);
+    }
+
+    private function readOrders($sheet, $now): array
+    {
+        $rows = [];
+        $text = fn ($c) => trim((string) $sheet->getCell($c)->getValue()) ?: null;
+        for ($i = 4, $max = $sheet->getHighestDataRow(); $i <= $max; $i++) {
+            $code = $text("A$i");
+            $name = $text("D$i");
+            if (! $code || ! $name) {
+                continue;
+            }
+            $batch = $text("E$i");
+            [$mfg, $exp] = $this->lotDates($batch);
+            $count = $sheet->getCell("J$i")->getValue();
+            $rows[$code] = [
+                'label_code' => $code,
+                'order_date' => $this->date($sheet->getCell("B$i")->getValue()),
+                'production_order' => $text("C$i"),
+                'name' => $name,
+                'batch' => $batch,
+                'mfg_date' => $this->date($sheet->getCell("F$i")->getValue()) ?? $mfg,
+                'exp_date' => $this->date($sheet->getCell("G$i")->getValue()) ?? $exp,
+                'pack_spec' => $text("H$i"),
+                'quantity' => $text("I$i"),
+                'label_count' => is_numeric($count) ? (int) ceil($count) : null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        return array_values($rows);
+    }
+
+    // Số lô dạng DDMMYY + mã; HSD = NSX + 2 năm - 1 ngày (theo công thức trong Excel)
+    private function lotDates(?string $batch): array
+    {
+        if (! $batch || ! preg_match('/^(\d{2})(\d{2})(\d{2})/', $batch, $m) || ! checkdate((int) $m[2], (int) $m[1], 2000 + (int) $m[3])) {
+            return [null, null];
+        }
+        $mfg = Carbon::create(2000 + (int) $m[3], (int) $m[2], (int) $m[1]);
+
+        return [$mfg->format('Y-m-d'), $mfg->copy()->addYearsNoOverflow(2)->subDay()->format('Y-m-d')];
     }
 
     private function date($value): ?string
@@ -211,9 +169,9 @@ class ManualLabelSourceController extends Controller
         if (is_numeric($value) && $value > 20000) {
             return Date::excelToDateTimeObject($value)->format('Y-m-d');
         }
-        if (is_string($value) && trim($value) !== '') {
+        if (is_string($value) && preg_match('#^\d{1,2}/\d{1,2}/\d{4}$#', trim($value))) {
             try {
-                return \Carbon\Carbon::createFromFormat('d/m/Y', trim($value))->format('Y-m-d');
+                return Carbon::createFromFormat('d/m/Y', trim($value))->format('Y-m-d');
             } catch (\Throwable) {
                 return null;
             }

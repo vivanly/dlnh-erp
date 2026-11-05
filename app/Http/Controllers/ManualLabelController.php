@@ -27,40 +27,19 @@ class ManualLabelController extends Controller
 
         return view('manual-labels.create', [
             'labelTypes' => self::LABEL_TYPES,
-            'hasSources' => \App\Models\ManualLabelSource::exists(),
-            'prefill' => $this->prefillFromOrderLine(),
+            'hasSources' => \App\Models\ManualLabelProductionOrder::exists(),
+            'prefill' => $this->prefillFromProductionOrder(),
         ]);
     }
 
-    private function prefillFromOrderLine(): array
+    private function prefillFromProductionOrder(): array
     {
-        if (! request()->filled('line')) {
+        if (! request()->filled('order')) {
             return [];
         }
 
-        $line = \App\Models\ManualLabelOrderLine::findOrFail(request()->query('line'));
-        $info = \App\Models\ManualLabelCatalog::where('name_key', \App\Models\ManualLabelCatalog::key($line->name))->first();
-
-        return [
-            'label_type' => $line->labelType(),
-            'product_name' => $line->name,
-            'scientific_name' => $info?->scientific_name,
-            'part_used' => $info?->part_used,
-            'batch' => $line->batch,
-            'mfg_date' => $line->mfg_date?->format('d/m/Y'),
-            'exp_date' => $line->exp_date?->format('d/m/Y'),
-            'origin' => $info?->origin ?: match (strtoupper(trim((string) $line->origin_code))) {
-                'B' => 'Trung Quốc',
-                'N' => 'Việt Nam',
-                default => (string) $line->origin_code,
-            },
-            'net_weight' => $line->netWeight() ?: null,
-            'registration' => \App\Models\ManualLabelSource::where('batch', $line->batch)->whereNotNull('registration')->value('registration'),
-            'copies_count' => max(1, (int) $line->pack_count),
-            'order_code' => $line->order_code,
-        ];
+        return \App\Models\ManualLabelProductionOrder::findOrFail(request()->query('order'))->toFormArray();
     }
-
     public function store(Request $request)
     {
         $this->authorizePrinting();
@@ -83,6 +62,7 @@ class ManualLabelController extends Controller
             'copies_count' => ['required', 'integer', 'min:1', 'max:1000'],
             'note' => ['nullable', 'string', 'max:255'],
             'order_code' => ['nullable', 'string', 'max:32'],
+            'label_code' => ['nullable', 'string', 'max:32'],
         ]);
 
         $data['traditional_medicine_name'] = $data['label_type'] === 'vt' && $request->boolean('traditional_medicine_name');
@@ -101,23 +81,32 @@ class ManualLabelController extends Controller
         return $this->renderPrint($manualLabel, true);
     }
 
-    public function history()
+    public function history(Request $request)
     {
         $this->authorizePrinting();
+        $q = trim((string) $request->query('q'));
+        $status = (string) $request->query('status');
+        $like = '%' . addcslashes($q, '%_\\') . '%';
+
         $prints = ManualLabelPrint::with(['printedBy', 'deliveries.deliveredBy'])
+            ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x->where('product_name', 'like', $like)->orWhere('batch', 'like', $like)
+                ->orWhere('order_code', 'like', $like)->orWhere('label_code', 'like', $like)->orWhere('customer', 'like', $like)))
+            ->when($status === 'stock', fn ($w) => $w->whereRaw('copies_count - delivered_count + returned_count > 0'))
+            ->when($status === 'empty', fn ($w) => $w->whereRaw('copies_count - delivered_count + returned_count <= 0'))
             ->latest()
-            ->paginate($this->perPage(request()))
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
-        $totals = [
-            'printed' => (int) ManualLabelPrint::sum('copies_count'),
-            'delivered' => (int) ManualLabelPrint::sum('delivered_count'),
-        ];
+        $printed = (int) ManualLabelPrint::sum('copies_count');
+        $delivered = (int) ManualLabelPrint::sum('delivered_count');
+        $returned = (int) ManualLabelPrint::sum('returned_count');
 
         return view('manual-labels.history', [
             'prints' => $prints,
             'labelTypes' => self::LABEL_TYPES,
-            'totals' => $totals,
+            'q' => $q,
+            'status' => $status,
+            'totals' => ['printed' => $printed, 'delivered' => $delivered, 'returned' => $returned, 'stock' => max(0, $printed - $delivered + $returned)],
         ]);
     }
 
@@ -125,32 +114,41 @@ class ManualLabelController extends Controller
     {
         $this->authorizePrinting();
         $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1', 'max:1000'],
+            'kind' => ['nullable', 'in:out,return'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:100000'],
+            'customer' => ['nullable', 'string', 'max:255'],
             'received_by' => ['nullable', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
+        $kind = $data['kind'] ?? 'out';
 
-        DB::transaction(function () use ($manualLabel, $data) {
+        DB::transaction(function () use ($manualLabel, $data, $kind) {
             $locked = ManualLabelPrint::whereKey($manualLabel->id)->lockForUpdate()->firstOrFail();
-            if ($data['quantity'] > $locked->remaining_count) {
+            $limit = $kind === 'out' ? $locked->remaining_count : $locked->returnable_count;
+            if ($data['quantity'] > $limit) {
                 throw ValidationException::withMessages([
-                    'quantity' => "Số lượng giao vượt số nhãn còn lại ({$locked->remaining_count}).",
+                    'quantity' => $kind === 'out'
+                        ? "Số lượng xuất vượt số nhãn tồn ({$limit})."
+                        : "Số lượng trả vượt số nhãn đã xuất chưa trả ({$limit}).",
                 ]);
             }
             ManualLabelDelivery::create([
                 'manual_label_print_id' => $locked->id,
                 'quantity' => $data['quantity'],
+                'kind' => $kind,
                 'received_by' => $data['received_by'] ?? null,
                 'note' => $data['note'] ?? null,
                 'delivered_by' => auth()->id(),
                 'delivered_at' => now(),
             ]);
-            $locked->increment('delivered_count', $data['quantity']);
+            $locked->increment($kind === 'out' ? 'delivered_count' : 'returned_count', $data['quantity']);
+            if (! empty($data['customer'])) {
+                $locked->update(['customer' => $data['customer']]);
+            }
         });
 
-        return redirect()->route('manual-labels.history')->with('success', 'Đã ghi nhận giao nhãn.');
+        return redirect()->route('manual-labels.history')->with('success', $kind === 'out' ? 'Đã ghi nhận xuất nhãn.' : 'Đã ghi nhận nhãn trả.');
     }
-
     public function destroy(ManualLabelPrint $manualLabel)
     {
         $this->authorizePrinting();
