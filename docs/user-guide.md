@@ -29,6 +29,8 @@ Tài liệu này mô tả cách sử dụng các màn hình nghiệp vụ đang 
 4. Sau khi lưu hoặc duyệt, đọc thông báo thành công/lỗi và kiểm tra lại trạng thái mới. Lỗi xác thực thường được hiển thị ngay trên màn hình; sửa trường được nêu rồi gửi lại.
 5. Sử dụng các bộ lọc và phân trang để tìm hồ sơ cũ. Mã đơn, mã lô và mã lệnh là các thông tin tra cứu hữu ích nhất.
 
+Nút **Thông báo** trên thanh đầu trang tổng hợp số việc theo quyền và dẫn tới màn hình xử lý. QA nhận thông báo lệnh chờ gán lô; Kho nhận thông báo lệnh đã có lô chờ xuất nguyên liệu, lệnh chờ xác nhận hoàn tất và đơn đã đóng chờ xác nhận gửi. Số trên chuông là tổng các mục công việc, không nhất thiết là số hồ sơ duy nhất. Nếu tải lỗi, mở lại chuông hoặc tải lại trang.
+
 ### Trạng thái cần phân biệt
 
 - **Nháp / Draft:** hồ sơ chưa gửi duyệt; có thể còn chỉnh sửa.
@@ -47,12 +49,14 @@ Menu có thể thay đổi theo quyền. Bảng dưới đây mô tả nơi thư
 |---|---|
 | Ban Giám Đốc / người duyệt | Duyệt đơn mua, duyệt đơn bán, duyệt kế hoạch sản xuất/tháng và BOM theo quyền tài khoản. Hàng đợi chỉ thao tác được khi controller xác nhận quyền; menu có thể không hiện đồng nhất với quyền được cấp. |
 | Kinh doanh | Quản lý khách hàng, nhà cung cấp, đơn bán và đơn mua; theo dõi trạng thái và phản hồi từ bước duyệt. |
-| QA | Cập nhật số lô NCC/COA cho dược liệu thô; tạo mã lô thành phẩm nội bộ và lượng dự kiến độc lập với sản lượng/lệnh; phân bổ lô cho đơn; theo dõi sản lượng hoàn thành riêng. |
+| QA | Cập nhật số lô NCC/COA cho dược liệu thô; gán số lô thành phẩm cho từng lệnh đã duyệt trước khi sản xuất; theo dõi và phân bổ lô sau khi đáp ứng điều kiện chất lượng. |
 | Kế hoạch | Lập kế hoạch theo đơn và kế hoạch sản xuất tháng; nhập sản lượng tháng thủ công; quản lý BOM. MRP là màn tính dựa trên BOM sản phẩm đã duyệt. |
 | Sản xuất | Xem lệnh sản xuất, chốt sản lượng và nguyên liệu trả; xác nhận đóng gói; xem/in nhãn. |
 | Kho | Nhận đơn mua, lập phiếu nhận; kiểm tra tồn đơn bán; xuất nguyên liệu sản xuất; nhập thành phẩm; đóng hàng và xác nhận gửi. |
 | QC | Kết luận đạt/không đạt cho lô dược liệu thô, phụ liệu và cập nhật PKN cho lô thành phẩm theo quyền. |
 | IT / Quản trị kỹ thuật | Tạo/cấp và quản lý tài khoản, là nhóm duy nhất được xem danh sách nhân sự, quản lý phòng ban; có quyền hỗ trợ một số màn hình theo controller. **IT không phải một bước phê duyệt nghiệp vụ.** |
+
+Trong menu **Kho**, các chức năng được nhóm theo luồng: **Mua hàng** (nhận và trả nhà cung cấp), **Sản xuất** (xuất/nhận lại nguyên liệu và nhập thành phẩm), **Đơn bán** (kiểm tra tồn, xuất và giao hàng), và **Tồn kho** (tra cứu tồn).
 
 > Đây là mô tả nhóm công việc, không phải bảng cấp quyền. Controller có thể cho phép Giám đốc/Kế hoạch/IT theo từng thao tác; menu sidebar hiện tại có một số mục (đặc biệt BOM) không hiển thị cho mọi tài khoản được controller cho phép. Nếu không thấy mục, xác nhận quyền và URL với quản trị hệ thống; không suy ra rằng chức năng đã bị vô hiệu.
 
@@ -197,7 +201,7 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 1. Mở chi tiết đơn đang chờ QA từ danh sách đơn bán.
 2. Đối chiếu nhu cầu từng sản phẩm, lượng Kho xác nhận và các lô QC đạt còn khả dụng. Chỉ chọn lô phù hợp với sản phẩm, hạn dùng và hồ sơ chất lượng.
 3. Gán lượng từ lô đã nhập kho hoặc lượng dự kiến của lô QA vừa tạo độc lập. Lượng đang chờ Kho nhập vẫn được tính vào khả năng phân bổ và được giữ cho đơn; không được phân bổ vượt lượng QA khai báo.
-4. Có thể chốt phân bổ dù tổng lô được giữ chưa đủ. Phần thiếu được đưa sang kế hoạch sản xuất; QA có thể tạo thêm mã lô và lượng dự kiến độc lập để phân bổ cho đơn, không lấy lượng từ sản lượng hoàn thành hoặc gắn mã lô vào lệnh.
+4. Có thể chốt phân bổ dù tổng lô được giữ chưa đủ. Phần thiếu được đưa sang Kế hoạch tổng hợp; sau khi lệnh sản xuất được duyệt, QA gán số lô trước khi Kho xuất nguyên liệu. Không tạo mã lô sản xuất độc lập sau khi mẻ đã chạy.
 5. Nếu đã giữ đủ nhu cầu bằng lô đã nhập và lô QA vừa tạo, đơn chuyển sang **Chờ Kho nhập lô thành phẩm**. Chưa thể đóng gói hoặc giao dựa trên lượng đang chờ nhập; Kho phải nhập đủ lượng đã giữ trước.
 6. Kiểm tra trạng thái và số lượng đã gán sau khi lưu. Không gán lô NCC đang chờ QC, bị từ chối hoặc không khả dụng.
 
@@ -247,40 +251,40 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 2. Nhập sản lượng dự kiến, chọn PPCB nếu phù hợp và ghi chú nếu cần. Hiện tại sản lượng do Kế hoạch nhập thủ công; các dòng kế hoạch tháng không còn bắt buộc phải gắn BOM. Không nhầm PPCB với BOM.
 3. Lưu dự thảo, rà soát rồi chọn **Gửi duyệt**. Mỗi tháng chỉ có một kế hoạch; mở kế hoạch hiện có để sửa thay vì tạo trùng.
 4. Người có quyền mở **Ban Giám Đốc → Duyệt kế hoạch tháng**, xem tháng, sản phẩm, sản lượng và PPCB (nếu có); chọn duyệt hoặc trả lại với lý do.
-5. Khi duyệt, hệ thống tạo các lệnh sản xuất độc lập với đơn bán và không cấp trước mã lô thành phẩm. Lệnh hiển thị nguồn là kế hoạch tháng.
+5. Khi duyệt, hệ thống tạo các lệnh sản xuất độc lập với đơn bán. QA gán số lô cho từng lệnh trước khi Kho xuất nguyên liệu. Lệnh hiển thị nguồn là kế hoạch tháng.
 6. Gợi ý sản lượng tự động dựa trên lịch sử đơn bán là chức năng dự kiến phát triển sau; hiện tại hệ thống không tự tính hoặc tự thay đổi sản lượng đã nhập.
 
 ## 8. Lệnh sản xuất và nhập thành phẩm
 
 ### 8.1. Kho xuất nguyên liệu
 
-1. Mở **Kho → Xuất nguyên liệu** (danh sách lệnh sản xuất), tìm lệnh đã được duyệt và mở lệnh.
-2. Đọc sản phẩm, nguồn kế hoạch/đơn bán, lượng kế hoạch và lượng nguyên liệu gợi ý theo BOM. Lệnh không có mã lô thành phẩm trước.
+1. Sau khi kế hoạch/lệnh được duyệt, QA mở **QA → Gán số lô cho lệnh sản xuất**, chọn lệnh và gán **một số lô thành phẩm** theo SOP. Mã lô phải được gán trước khi bắt đầu mẻ.
+2. Mở **Kho → Xuất / nhận lại NL sản xuất**, tìm lệnh đã được duyệt và mở lệnh. Kho chỉ xuất được khi lệnh đã có lô được QA gán.
 3. Với thành phần là sản phẩm/dược liệu, chọn lô NCC đạt QC còn khả dụng. Với dược liệu thô/phụ liệu catalog, chọn loại, mặt hàng và lô tồn tương ứng. Nhập lượng xuất cho từng lô; không vượt khả dụng của lô đã chọn.
 4. Kiểm tra tổng lượng theo từng nguyên liệu và lô, sau đó chọn **Lập phiếu xuất và trừ kho**. Đây là giao dịch xuất kho thực tế.
 5. Nếu thiếu tồn ở bất kỳ nguồn nào, dừng thao tác và phối hợp QA/Kế hoạch; không chọn mặt hàng khác hoặc lô chưa được QC chấp nhận. Xuất theo lệnh ghi nhận ledger tương ứng với loại hàng.
 
 ### 8.2. Sản xuất chốt sản lượng và trả nguyên liệu
 
-1. Sau khi sản xuất xong, mở lệnh ở trạng thái đã xuất nguyên liệu.
+1. Sau khi sản xuất xong, mở **Sản xuất → Lệnh sản xuất**, chọn lệnh ở trạng thái đã xuất nguyên liệu.
 2. Nhập **Sản lượng thực tế Sản xuất**, **Ngày sản xuất** và lượng nguyên liệu chưa dùng trả kho theo từng dòng/lô đã xuất.
 3. Số lượng trả không vượt lượng đã xuất từ lô đó. Lượng tiêu hao theo truy xuất được xác định bằng lượng xuất trừ lượng trả.
-4. Chọn **Chốt sản lượng sản xuất**. Kiểm tra trạng thái lệnh và lượng thành phẩm chờ nhập.
-5. Sau khi chốt, sản lượng thực tế và phần sản lượng còn theo dõi được ghi trên lệnh sản xuất. Đây là số liệu sản xuất riêng, không tự tạo lô hoặc quyết định lượng lô QA khai báo.
+4. Chọn **Gửi xác nhận sản lượng**. Kiểm tra trạng thái lệnh và lượng thành phẩm chờ nhập.
+5. Sau khi báo cáo sản lượng, số thực tế được gắn vào lô đã cấp trước cho lệnh. Kho mở lại **Kho → Xuất / nhận lại NL sản xuất**, chọn **Xác nhận nguyên liệu trả** để xác nhận hoàn thành, rồi nhập thành phẩm theo số thực tế.
 
-### 8.3. QA tạo mã lô nội bộ và cập nhật PKN
+### 8.3. QA quản lý mã lô sản xuất và cập nhật PKN
 
-1. Mở **QA → Quản lý lô nội bộ → Tạo lô**. Không cần chọn lệnh sản xuất hoặc đối chiếu lô với lượng hoàn thành của lệnh.
-2. Chọn sản phẩm, nhập mã lô, **số lượng dự kiến có thể phân bổ/nhập kho**, ngày sản xuất/hạn dùng và thông tin cần thiết. Hệ thống tạo lô độc lập, ghi lượng dự kiến là lượng chờ Kho nhập.
-3. Mở đơn đang chờ QA và phân bổ lượng từ lô vừa tạo. Hệ thống giữ lượng đã phân bổ để không dùng trùng cho đơn khác; đơn có thể được phân bổ trước khi Kho nhập.
-4. Lượng dự kiến của lô do QA khai báo, không tự lấy theo sản lượng hoàn thành. Nếu cần thêm lô, tạo mã lô mới và nhập lượng dự kiến riêng.
-5. Sau khi lô đã phân bổ, đơn chờ Kho nhập đủ lượng đã giữ rồi mới chuyển sang đóng gói. Kho nhập số lượng thực tế theo từng lần, không vượt lượng dự kiến; sau khi nhập kho, mở **QC → Phiếu kiểm nghiệm (PKN)** để bổ sung PKN theo mục 5.2.
+1. Với lô sản xuất mới, QA vào **QA → Gán số lô cho lệnh sản xuất** để gán số lô cho lệnh đã duyệt **trước khi Kho xuất nguyên liệu**. Một lệnh/mẻ chỉ có một số lô; nếu cần chia thành nhiều lô sản xuất, phải lập các lệnh/mẻ riêng trước khi bắt đầu.
+2. Khi Sản xuất báo cáo và Kho xác nhận hoàn thành, hệ thống ghi sản lượng thực tế vào đúng lô đã gán, đồng thời giữ liên kết lô với lệnh, các lô nguyên liệu đầu vào và lượng tiêu hao/trả.
+3. Kho nhập lô theo sản lượng thực tế. Cỡ lô ghi nhận không thấp hơn lượng thực tế; nếu sản lượng vượt kế hoạch, hệ thống cập nhật sức chứa lô theo lượng báo cáo. Không dùng mã lô đó cho đầu ra của một lệnh khác.
+4. Lô mới nhập vẫn phải qua QC và có PKN theo quy trình chất lượng. Trạng thái chờ QC/không đạt không được dùng để xuất giao.
+5. Lô độc lập không gắn lệnh sản xuất chỉ dùng cho dữ liệu tồn/lô được QA kiểm soát theo quy trình riêng, không dùng thay lô của mẻ sản xuất mới.
 
 ### 8.4. Kho nhập thành phẩm
 
 1. Mở **Kho → Nhập thành phẩm**. Tìm lô đang chờ nhập theo mã lô, sản phẩm hoặc lệnh (nếu có).
-2. Kiểm tra mã lô, nguồn lô, lượng dự kiến, lượng đã nhập và lượng còn chờ.
-3. Nhập **SL nhận thực tế** không vượt lượng dự kiến QA đã khai báo và lượng còn chờ, rồi chọn **Nhập kho**. Không cần đợi đơn bán đóng gói để nhập kho.
+2. Kiểm tra mã lô, nguồn lô, lượng sản xuất thực tế, lượng đã nhập và lượng còn chờ.
+3. Nhập **SL nhận thực tế** không vượt lượng còn chờ theo báo cáo sản xuất, rồi chọn **Nhập kho**. Không cần đợi đơn bán đóng gói để nhập kho.
 4. Có thể nhập thành nhiều lần cho đến khi nhận đủ. Khi Kho đã nhập đủ lượng lô đang giữ cho đơn, hệ thống tự chuyển đơn sang trạng thái chờ đóng gói/giao.
 5. PKN đang chờ không nhất thiết chặn thao tác nhập, nhưng lô chưa đạt QC không được coi là đã đạt để xuất hàng.
 
@@ -314,7 +318,7 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 
 ### 10.1. Kiểm tra tồn
 
-Mở **Kho → Kiểm tra tồn kho tổng** để xem số liệu kho. Đối chiếu tồn thực tế, trạng thái QC, lượng đã giữ và lượng khả dụng theo lô. Tồn khả dụng có thể thấp hơn tồn thực tế vì đã giữ cho đơn khác; không dùng tổng tồn để hứa giao khi chưa kiểm tra lượng có thể phân bổ.
+Mở **Kho → Tồn kho dược liệu / thành phẩm** để xem số liệu kho. Đối chiếu tồn thực tế, trạng thái QC, lượng đã giữ và lượng khả dụng theo lô. Tồn khả dụng có thể thấp hơn tồn thực tế vì đã giữ cho đơn khác; không dùng tổng tồn để hứa giao khi chưa kiểm tra lượng có thể phân bổ.
 
 ### 10.1.1. Tồn dược liệu thô/phụ liệu
 

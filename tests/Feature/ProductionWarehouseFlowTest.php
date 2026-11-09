@@ -105,7 +105,7 @@ class ProductionWarehouseFlowTest extends TestCase
     {
         Storage::fake('local');
         $warehouseUser = User::factory()->create(['role' => 'warehouse']);
-        $productionUser = User::factory()->create(['role' => 'production']);
+        $productionUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $qaUser = User::factory()->create(['role' => 'qa']);
         $qcUser = User::factory()->create(['role' => 'qc']);
         $customer = Customer::create(['code' => 'PROD-WH-CUST', 'name' => 'Production Warehouse Customer', 'type' => 'Retail']);
@@ -145,6 +145,7 @@ class ProductionWarehouseFlowTest extends TestCase
             'order_item_id' => $orderItem->id,
             'product_id' => $finishedProduct->id,
             'planned_quantity' => 8,
+            'provisional_batch_number' => 'PROD-WH-FIN-LOT-1',
             'unit' => 'kg',
             'yield_rate' => 1,
             'status' => 'released',
@@ -212,7 +213,7 @@ class ProductionWarehouseFlowTest extends TestCase
         $this->assertEquals(12, InventoryMovement::where('movement_type', 'EXPORT_PRODUCTION')->sum('quantity'));
 
         $this->actingAs($productionUser)
-            ->get(route('production-orders.show', $productionOrder))
+            ->get(route('production.work-orders.show', $productionOrder))
             ->assertOk()
             ->assertSee('reported_returned_materials['.$firstAllocation->id.']', false);
 
@@ -226,7 +227,7 @@ class ProductionWarehouseFlowTest extends TestCase
                 'reported_returned_materials' => [$firstAllocation->id => '0.6789', $secondAllocation->id => '0'],
                 'mfg_date' => today()->toDateString(),
             ])
-            ->assertRedirect(route('production-orders.show', $productionOrder));
+            ->assertRedirect(route('production.work-orders.show', $productionOrder));
 
         $this->assertSame('production_reported', $productionOrder->fresh()->status);
         $this->actingAs($productionUser)
@@ -241,29 +242,14 @@ class ProductionWarehouseFlowTest extends TestCase
         $finishedBatches = ProductionFinishedBatch::orderBy('id')->get();
         $finishedBatch = $finishedBatches->first();
         $this->assertCount(1, $finishedBatches);
-        $this->assertEquals(3, $finishedBatch->pending_warehouse_quantity);
-        $this->assertEquals(5, $productionOrder->fresh()->pending_finished_quantity);
+        $this->assertEquals(8, $finishedBatch->planned_quantity);
+        $this->assertEquals(8, $finishedBatch->initial_quantity);
+        $this->assertEquals(8, $finishedBatch->pending_warehouse_quantity);
+        $this->assertEquals(0, $productionOrder->fresh()->pending_finished_quantity);
         $this->assertSame(0, InventoryMovement::where('movement_type', 'RECEIVE_PRODUCTION')->count());
-        $this->assertEquals(4.2454, ProductionBatchInput::sum('consumed_quantity'));
+        $this->assertEquals(11.3211, ProductionBatchInput::sum('consumed_quantity'));
         $this->assertEquals(11.3211, $material->fresh()->consumed_quantity);
         $this->assertSame('completed', $productionOrder->fresh()->status);
-
-        $this->actingAs($qaUser)
-            ->post(route('qa.internal-lots.store'), [
-                'product_id' => $finishedProduct->id,
-                'batch_number' => 'PROD-WH-FIN-LOT-2',
-                'planned_quantity' => 5,
-            ])
-            ->assertRedirect(route('qa.internal-lots.index'))
-            ->assertSessionHas('success');
-        $finishedBatches = ProductionFinishedBatch::orderBy('id')->get();
-        $finishedBatch = $finishedBatches->first();
-        $this->assertCount(2, $finishedBatches);
-        $this->assertEquals(5, $productionOrder->fresh()->pending_finished_quantity);
-        $this->assertEquals(5, $finishedBatches[1]->pending_warehouse_quantity);
-        $this->assertNull($finishedBatches[1]->production_order_id);
-        $this->assertSame(0, $finishedBatches[1]->inputs()->count());
-        $this->assertEquals(4.2454, ProductionBatchInput::sum('consumed_quantity'));
 
         $this->actingAs($warehouseUser)
             ->get(route('warehouse.production-batches'))
@@ -294,8 +280,8 @@ class ProductionWarehouseFlowTest extends TestCase
         }
         $finishedBatches = ProductionFinishedBatch::orderBy('id')->get();
         $finishedBatch = $finishedBatches->first();
-        $this->assertEquals(3, $finishedBatch->current_quantity);
-        $this->assertEquals(5, $finishedBatches[1]->fresh()->current_quantity);
+        $this->assertCount(1, $finishedBatches);
+        $this->assertEquals(8, $finishedBatch->current_quantity);
         $this->assertEquals(0, $finishedBatch->pending_warehouse_quantity);
         $this->assertEquals(8, InventoryMovement::where('movement_type', 'RECEIVE_PRODUCTION')->sum('quantity'));
 
@@ -305,7 +291,6 @@ class ProductionWarehouseFlowTest extends TestCase
                     'id' => $orderItem->id,
                     'allocations' => [
                         ['lot' => 'finished:'.$finishedBatches[0]->id],
-                        ['lot' => 'finished:'.$finishedBatches[1]->id],
                     ],
                 ]],
             ])
@@ -335,12 +320,12 @@ class ProductionWarehouseFlowTest extends TestCase
             ->assertOk()
             ->assertSee('Lô nguyên liệu NCC cấu thành lô thành phẩm')
             ->assertSee('PROD-WH-RAW-1')
-            ->assertSee('4.2454')
+            ->assertSee('11.3211')
             ->assertSee('MO-PROD-WH-TEST');
 
         $this->assertSame('ready_to_ship', $order->fresh()->status);
         $this->assertNotNull($order->fresh()->production_packaged_at);
-        $this->assertSame(2, $orderItem->lotAllocations()->where('status', 'reserved')->count());
+        $this->assertSame(1, $orderItem->lotAllocations()->where('status', 'reserved')->count());
 
         $qcQueueBatch = ProductionFinishedBatch::where('batch_number', 'PROD-WH-FIN-LOT-1')->sole();
         $this->assertSame('active', $qcQueueBatch->status);
@@ -398,7 +383,7 @@ class ProductionWarehouseFlowTest extends TestCase
             ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('Cache-Control', 'no-store, private');
 
-        $this->assertEquals(3, $finishedBatch->fresh()->current_quantity);
+        $this->assertEquals(8, $finishedBatch->fresh()->current_quantity);
         $this->assertEquals(0, $finishedBatch->fresh()->pending_warehouse_quantity);
 
         $closeCandidate = ProductionFinishedBatch::create([

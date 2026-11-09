@@ -201,12 +201,16 @@ Route::middleware('auth')->group(function () {
     Route::delete('/qa/internal-lots/{productionFinishedBatch}', [ProductionController::class, 'destroyInternalLot'])->name('qa.internal-lots.destroy');
     Route::patch('/qa/internal-lots/{productionFinishedBatch}/close', [ProductionController::class, 'closeFinishedBatch'])->name('qa.internal-lots.close');
     Route::get('/qa/production-batches', [ProductionController::class, 'qaFinishedBatches'])->name('qa.production-batches.index');
-    Route::get('/qa/production-output-lots', [ProductionController::class, 'qaLotsNeeded'])->name('qa.production-output-lots.index');
+    Route::get('/qa/production-batch-assignments', [ProductionController::class, 'batchAssignmentQueue'])->name('qa.production-batch-assignments.index');
+    Route::get('/qa/production-batch-assignments/{productionOrder}', [ProductionController::class, 'show'])->name('qa.production-batch-assignments.show');
     Route::post('/qa/production-batches/{productionFinishedBatch}/approve', [ProductionController::class, 'approveFinishedBatch'])->name('qa.production-batches.approve');
     Route::get('/production/packaging', [ProductionController::class, 'packagingQueue'])->name('production.packaging.index');
     Route::post('/production/packaging/{order}/confirm', [ProductionController::class, 'confirmOrderPackaged'])->name('production.packaging.confirm');
     Route::get('/production-orders/{productionOrder}', [ProductionController::class, 'show'])->name('production-orders.show');
+    Route::get('/production/work-orders/{productionOrder}', [ProductionController::class, 'show'])->name('production.work-orders.show');
+    Route::get('/warehouse/production-issues/{productionOrder}', [ProductionController::class, 'show'])->name('warehouse.production-issues.show');
     Route::post('/production-orders/{productionOrder}/issue-materials', [ProductionController::class, 'issueMaterials'])->name('production-orders.issue-materials');
+    Route::post('/production-orders/{productionOrder}/assign-batch-number', [ProductionController::class, 'assignBatchNumber'])->name('production-orders.assign-batch-number');
     Route::post('/production-orders/{productionOrder}/report-output', [ProductionController::class, 'reportProductionOutput'])->name('production-orders.report-output');
     Route::post('/production-orders/{productionOrder}/confirm-completion', [ProductionController::class, 'confirmProductionCompletion'])->name('production-orders.confirm-completion');
 

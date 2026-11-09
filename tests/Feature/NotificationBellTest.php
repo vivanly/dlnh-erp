@@ -173,6 +173,8 @@ class NotificationBellTest extends TestCase
 
         $qaResponse = $this->actingAs($qaUser)->getJson(route('notifications.summary'))->assertOk();
         $this->assertContains('Lệnh sản xuất hoàn tất chờ phân bổ lô', collect($qaResponse->json('items'))->pluck('label')->all());
+        $this->assertSame(route('qa.internal-lots.create'), collect($qaResponse->json('items'))->firstWhere('label', 'Lệnh sản xuất hoàn tất chờ phân bổ lô')['url']);
+        $this->get(route('qa.internal-lots.create'))->assertOk()->assertSee('MO-NOTIFY-1');
         $productionOrder->update(['pending_finished_quantity' => 0]);
         $qaResponse = $this->actingAs($qaUser)->getJson(route('notifications.summary'))->assertOk();
         $this->assertNotContains('Lệnh sản xuất hoàn tất chờ phân bổ lô', collect($qaResponse->json('items'))->pluck('label')->all());
@@ -186,12 +188,125 @@ class NotificationBellTest extends TestCase
             'pending_warehouse_quantity' => 5,
         ]);
         $qcResponse = $this->actingAs($qcUser)->getJson(route('notifications.summary'))->assertOk();
-        $this->assertNotContains('Lô thành phẩm chờ phiếu kiểm nghiệm', collect($qcResponse->json('items'))->pluck('label')->all());
+        $this->assertContains('Lô thành phẩm chờ phiếu kiểm nghiệm', collect($qcResponse->json('items'))->pluck('label')->all());
 
         $batch->update(['pending_warehouse_quantity' => 0]);
         $qcResponse = $this->actingAs($qcUser)->getJson(route('notifications.summary'))->assertOk();
         $this->assertContains('Lô thành phẩm chờ phiếu kiểm nghiệm', collect($qcResponse->json('items'))->pluck('label')->all());
 
         $this->assertSame(0.0, (float) $productionOrder->fresh()->pending_finished_quantity);
+    }
+
+    public function test_production_notifications_follow_batch_assignment_issue_and_warehouse_confirmation(): void
+    {
+        $qa = $this->user('QA');
+        $warehouse = $this->user('KHO');
+        $production = $this->user('SAN-XUAT');
+        $product = Product::create(['name' => 'Flow herb', 'slug' => 'notify-flow-herb', 'sku' => 'NOTIFY-FLOW', 'unit' => 'kg', 'classification' => 'VT']);
+        $order = ProductionOrder::create([
+            'production_code' => 'MO-NOTIFY-FLOW',
+            'product_id' => $product->id,
+            'planned_quantity' => 10,
+            'unit' => 'kg',
+            'yield_rate' => 1,
+            'status' => 'released',
+        ]);
+        $qaItems = collect($this->actingAs($qa)->getJson(route('notifications.summary'))->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')->json('items'));
+        $notice = $qaItems->firstWhere('label', 'Lệnh sản xuất chờ QA gán số lô');
+        $this->assertSame(1, $notice['count']);
+        $this->assertSame(route('qa.production-batch-assignments.index'), $notice['url']);
+        $this->assertSame(array_sum($qaItems->pluck('count')->all()), $this->getJson(route('notifications.summary'))->json('total'));
+        $this->get($notice['url'])->assertOk()->assertSee('MO-NOTIFY-FLOW');
+        $this->assertNotContains('Lệnh sản xuất chờ Kho xuất nguyên liệu', $this->labels($warehouse));
+
+        $this->actingAs($qa)->post(route('production-orders.assign-batch-number', $order), ['batch_number' => 'NOTIFY-FLOW-BATCH'])->assertSessionHas('success');
+        $batch = ProductionFinishedBatch::where('production_order_id', $order->id)->sole();
+        $this->assertNotContains('Lệnh sản xuất chờ QA gán số lô', $this->labels($qa));
+        $items = collect($this->actingAs($warehouse)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $notice = $items->firstWhere('label', 'Lệnh sản xuất chờ Kho xuất nguyên liệu');
+        $this->assertSame(1, $notice['count']);
+        $this->assertSame(route('warehouse.production-issues'), $notice['url']);
+        $this->get($notice['url'])->assertOk()->assertSee('MO-NOTIFY-FLOW')->assertSee('Xuất nguyên liệu');
+
+        $order->update(['status' => 'materials_issued']);
+        $this->assertNotContains('Lệnh sản xuất chờ Kho xuất nguyên liệu', $this->labels($warehouse));
+        $this->assertContains('Lệnh sản xuất cần báo sản lượng', $this->labels($production));
+
+        $order->update(['status' => 'production_reported', 'actual_quantity' => 10]);
+        $batch->update(['status' => 'pending_qa', 'initial_quantity' => 10, 'pending_warehouse_quantity' => 10]);
+        $items = collect($this->actingAs($warehouse)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $notice = $items->firstWhere('label', 'Lệnh sản xuất chờ Kho xác nhận hoàn tất');
+        $this->assertSame(route('warehouse.production-issues'), $notice['url']);
+        $this->get($notice['url'])->assertOk()->assertSee('MO-NOTIFY-FLOW')->assertSee('Xác nhận nguyên liệu trả');
+        $this->assertNull($items->firstWhere('label', 'Lô thành phẩm chờ Kho nhập'));
+
+        $order->update(['status' => 'completed']);
+        $items = collect($this->actingAs($warehouse)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertNull($items->firstWhere('label', 'Lệnh sản xuất chờ Kho xác nhận hoàn tất'));
+        $notice = $items->firstWhere('label', 'Lô thành phẩm chờ Kho nhập');
+        $this->assertSame(1, $notice['count']);
+        $this->assertSame(route('warehouse.production-batches'), $notice['url']);
+        $this->get($notice['url'])->assertOk()->assertSee('NOTIFY-FLOW-BATCH');
+
+        $batch->update(['status' => 'active', 'warehouse_received_at' => now(), 'pending_warehouse_quantity' => 5]);
+        $qc = $this->user('QC');
+        $items = collect($this->actingAs($qc)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $notice = $items->firstWhere('label', 'Lô thành phẩm chờ phiếu kiểm nghiệm');
+        $this->assertSame(1, $notice['count']);
+        $this->get($notice['url'])->assertOk()->assertSee('NOTIFY-FLOW-BATCH');
+        $batch->update(['qc_result' => 'passed', 'qc_test_report_file' => 'reports/passed.pdf']);
+        $this->assertNotContains('Lô thành phẩm chờ phiếu kiểm nghiệm', $this->labels($qc));
+    }
+
+    public function test_warehouse_notifications_distinguish_packing_from_confirming_shipment(): void
+    {
+        $warehouse = $this->user('KHO');
+        $customer = Customer::create(['code' => 'SHIP-NOTIFY', 'name' => 'Shipment customer', 'type' => 'Retail']);
+        $order = Order::create([
+            'order_code' => 'SHIP-NOTIFY-ORDER',
+            'customer_id' => $customer->id,
+            'order_type' => 'VT',
+            'order_date' => today(),
+            'delivery_date' => today(),
+            'province_city' => 'Hà Nội',
+            'status' => 'ready_to_ship',
+            'qa_confirmed_at' => now(),
+        ]);
+        $items = collect($this->actingAs($warehouse)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertSame(1, $items->firstWhere('label', 'Đơn hàng chờ Kho đóng hàng')['count']);
+        $this->assertNull($items->firstWhere('label', 'Đơn hàng chờ Kho xác nhận gửi'));
+
+        $order->update(['warehouse_packed_at' => now()]);
+        $items = collect($this->actingAs($warehouse)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertNull($items->firstWhere('label', 'Đơn hàng chờ Kho đóng hàng'));
+        $notice = $items->firstWhere('label', 'Đơn hàng chờ Kho xác nhận gửi');
+        $this->assertSame(1, $notice['count']);
+        $this->assertSame(route('warehouse.sales-orders'), $notice['url']);
+        $this->get($notice['url'])->assertOk()->assertSee('SHIP-NOTIFY-ORDER');
+        $order->update(['status' => 'completed', 'warehouse_confirmed_at' => now()]);
+        $this->assertNotContains('Đơn hàng chờ Kho xác nhận gửi', $this->labels($warehouse));
+    }
+
+    public function test_independent_lot_with_receipt_capacity_is_included_in_warehouse_notifications(): void
+    {
+        $warehouse = $this->user('KHO');
+        $product = Product::create(['name' => 'Independent lot', 'slug' => 'independent-notice', 'sku' => 'INDEPENDENT-NOTICE', 'unit' => 'kg', 'classification' => 'VT']);
+        $batch = ProductionFinishedBatch::create([
+            'product_id' => $product->id,
+            'batch_number' => 'INDEPENDENT-NOTIFY',
+            'planned_quantity' => 10,
+            'initial_quantity' => 0,
+            'current_quantity' => 0,
+            'pending_warehouse_quantity' => 0,
+            'unit' => 'kg',
+            'status' => 'pending_qa',
+        ]);
+        $items = collect($this->actingAs($warehouse)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $notice = $items->firstWhere('label', 'Lô thành phẩm chờ Kho nhập');
+        $this->assertSame(1, $notice['count']);
+        $this->get($notice['url'])->assertOk()->assertSee('INDEPENDENT-NOTIFY');
+        $batch->update(['status' => 'closed']);
+        $this->assertNotContains('Lô thành phẩm chờ Kho nhập', $this->labels($warehouse));
     }
 }

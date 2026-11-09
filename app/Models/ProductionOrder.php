@@ -3,9 +3,28 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class ProductionOrder extends Model
 {
+    public function scopeAwaitingBatchAssignment(Builder $query): void
+    {
+        $query->where('status', 'released')
+            ->whereNull('materials_issued_at')
+            ->whereDoesntHave('materials.lots', fn ($lots) => $lots->where('issued_quantity', '>', 0))
+            ->whereDoesntHave('finishedBatches')
+            ->whereDoesntHave('allocatedFinishedBatches');
+    }
+
+    public function scopeReadyForMaterialIssue(Builder $query): void
+    {
+        $query->where('status', 'released')
+            ->whereNotNull('provisional_batch_number')
+            ->whereHas('finishedBatches', fn ($batches) => $batches
+                ->where('status', 'planned')
+                ->whereColumn('production_finished_batches.batch_number', 'production_orders.provisional_batch_number'));
+    }
+
     protected $fillable = [
         'production_code',
         'order_id',
@@ -74,6 +93,12 @@ class ProductionOrder extends Model
     public function finishedBatches()
     {
         return $this->hasMany(ProductionFinishedBatch::class);
+    }
+
+    public function hasPreassignedBatch(): bool
+    {
+        return (bool) $this->provisional_batch_number
+            && $this->finishedBatches->contains(fn ($batch) => $batch->status === 'planned' && $batch->batch_number === $this->provisional_batch_number);
     }
 
     public function batchAllocations()

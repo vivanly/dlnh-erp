@@ -52,7 +52,8 @@ class NotificationService
 
         if ($user->isQADepartment()) {
             $add('Đơn hàng cần chốt lô', Order::where('status', 'pending_qa')->count(), 'qa.order-batches');
-            $add('Lệnh sản xuất hoàn tất chờ phân bổ lô', ProductionOrder::where('status', 'completed')->where('pending_finished_quantity', '>', 0)->count(), 'qa.production-output-lots.index');
+            $add('Lệnh sản xuất chờ QA gán số lô', ProductionOrder::awaitingBatchAssignment()->count(), 'qa.production-batch-assignments.index');
+            $add('Lệnh sản xuất hoàn tất chờ phân bổ lô', ProductionOrder::where('status', 'completed')->where('pending_finished_quantity', '>', 0)->count(), 'qa.internal-lots.create');
             $add('Lô NCC chờ QA cập nhật COA', SupplierBatch::where('status', 'pending_qa')->where(fn ($q) => $q->whereNull('coa_file')->orWhereNull('mfg_date')->orWhereNull('exp_date'))->count(), 'qa.batches.index');
             $add('Lô dược liệu thô chờ QA cập nhật lô/COA', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'raw_material')->where(fn ($q) => $q->whereNull('batch_number')->orWhereNull('coa_file'))->count(), 'material-lots.index', ['type' => 'raw_material', 'status' => 'pending_qa']);
         }
@@ -68,18 +69,16 @@ class NotificationService
         }
 
         if ($user->isQCDepartment()) {
-            $add('Lô thành phẩm chờ phiếu kiểm nghiệm', ProductionFinishedBatch::where('status', 'active')
-                ->whereNotNull('warehouse_received_at')
-                ->where('pending_warehouse_quantity', '<=', 0.000001)
-                ->where(fn ($query) => $query->whereNull('qc_test_report_file')->orWhere('qc_result', 'failed'))
-                ->count(), 'qa.production-batches.index');
+            $add('Lô thành phẩm chờ phiếu kiểm nghiệm', ProductionFinishedBatch::awaitingQualityReport()->count(), 'qa.production-batches.index');
         }
 
         if ($user->isWarehouseDepartment()) {
             $add('Đơn dược liệu thô cần xuất kho', Order::where('status', 'pending_material_issue')->count(), 'warehouse.material-issues');
-            $add('Lệnh sản xuất chờ Kho xuất nguyên liệu', ProductionOrder::where('status', 'released')->count(), 'warehouse.production-issues');
-            $add('Lệnh sản xuất chờ Kho xác nhận hoàn tất', ProductionOrder::where('status', 'production_reported')->count(), 'production-orders.index');
-            $add('Lô thành phẩm chờ Kho nhập', ProductionFinishedBatch::whereIn('status', ['pending_qa', 'active'])->where('pending_warehouse_quantity', '>', 0)->count(), 'warehouse.production-batches');
+            $add('Lệnh sản xuất chờ Kho xuất nguyên liệu', ProductionOrder::readyForMaterialIssue()->count(), 'warehouse.production-issues');
+            $add('Lệnh sản xuất chờ Kho xác nhận hoàn tất', ProductionOrder::where('status', 'production_reported')->count(), 'warehouse.production-issues');
+            $add('Lô thành phẩm chờ Kho nhập', ProductionFinishedBatch::awaitingWarehouseReceipt()
+                ->where(fn ($query) => $query->whereNull('production_order_id')->orWhereHas('productionOrder', fn ($order) => $order->where('status', 'completed')))
+                ->count(), 'warehouse.production-batches');
             $add('Đơn hàng cần xác nhận tồn kho', Order::where('status', 'pending_warehouse_check')->whereNotNull('sales_approved_at')->count(), 'warehouse.sales-order-stock-checks');
             $add('Đơn hàng chờ Kho đóng hàng', Order::where('status', 'ready_to_ship')
                 ->whereNotNull('qa_confirmed_at')
@@ -91,6 +90,11 @@ class NotificationService
                             ->where('status', 'reserved')
                             ->whereNotNull('production_finished_batch_id'));
                 })
+                ->count(), 'warehouse.sales-orders');
+            $add('Đơn hàng chờ Kho xác nhận gửi', Order::where('status', 'ready_to_ship')
+                ->whereNotNull('qa_confirmed_at')
+                ->whereNull('warehouse_confirmed_at')
+                ->whereNotNull('warehouse_packed_at')
                 ->count(), 'warehouse.sales-orders');
             $add('Đơn mua chờ nhận hàng', PurchaseOrder::where('status', 'approved')->count(), 'warehouse.purchase-orders');
         }

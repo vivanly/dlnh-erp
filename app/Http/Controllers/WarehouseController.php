@@ -331,14 +331,7 @@ class WarehouseController extends Controller
         $batches = ProductionFinishedBatch::with(['product', 'productionOrder.order', 'productionOrder.monthlyPlanLine.plan', 'orderAllocations.productionOrder'])
             ->withCount(['salesOrderAllocations', 'inputs', 'inventoryMovements', 'orderAllocations'])
             ->withSum(['inventoryMovements as received_quantity' => fn ($query) => $query->where('direction', 'in')], 'quantity')
-            ->where(function ($query) {
-                $query->where('pending_warehouse_quantity', '>', 0)
-                    ->orWhere(function ($independentLots) {
-                        $independentLots->whereNull('production_order_id')
-                            ->whereRaw('planned_quantity > COALESCE((SELECT SUM(quantity) FROM inventory_movements WHERE inventory_movements.production_finished_batch_id = production_finished_batches.id AND inventory_movements.direction = ?), CASE WHEN warehouse_received_at IS NOT NULL THEN initial_quantity ELSE 0 END)', ['in']);
-                    });
-            })
-            ->whereIn('status', ['pending_qa', 'active'])
+            ->awaitingWarehouseReceipt()
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
                 $query->where(function ($subQuery) use ($search) {
@@ -422,6 +415,9 @@ class WarehouseController extends Controller
                     ?? ($existingBatchOrderIds->count() === 1 ? $existingBatchOrderIds->first() : null);
                 if (! $productionOrderId) {
                     throw new DomainException('Phải chọn lệnh sản xuất cho lô trước khi nhập thành phẩm.');
+                }
+                if ($batch->production_order_id && (int) $productionOrderId !== (int) $batch->production_order_id) {
+                    throw new DomainException('Số lô đã được gán trước sản xuất cho một lệnh khác; không thể gộp đầu ra từ nhiều lệnh vào cùng lô.');
                 }
                 $productionOrder = ProductionOrder::whereKey($productionOrderId)
                     ->lockForUpdate()
@@ -661,8 +657,8 @@ class WarehouseController extends Controller
     {
         $this->ensureWarehouseViewAccess();
 
-        $productionOrders = \App\Models\ProductionOrder::with(['order.customer', 'product'])
-            ->whereIn('status', ['released', 'materials_issued'])
+        $productionOrders = \App\Models\ProductionOrder::with(['order.customer', 'product', 'finishedBatches'])
+            ->whereIn('status', ['released', 'materials_issued', 'production_reported'])
             ->latest()
             ->paginate(20);
 

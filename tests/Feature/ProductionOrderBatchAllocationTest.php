@@ -76,6 +76,7 @@ class ProductionOrderBatchAllocationTest extends TestCase
         $warehouse = User::factory()->create(['role' => 'warehouse']);
         $this->actingAs($warehouse)->post(route('warehouse.production-batches.receive', $combinedLot), [
             'received_quantity' => 20,
+            'production_order_id' => $firstOrder->id,
         ])->assertRedirect()->assertSessionHas('success');
         $thirdOrder = $this->completedOrder($product, 'MO-ALLOC-3', 50);
         $this->actingAs($qa)->post(route('qa.internal-lots.allocate-production-order', $combinedLot), [

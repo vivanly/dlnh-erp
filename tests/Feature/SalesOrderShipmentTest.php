@@ -381,7 +381,7 @@ class SalesOrderShipmentTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertEquals(100, $batch->fresh()->current_quantity);
-        $this->assertEquals(100, $batch->fresh()->pending_warehouse_quantity);
+        $this->assertEquals(0, $batch->fresh()->pending_warehouse_quantity);
 
         $this->actingAs($warehouseUser)
             ->post(route('warehouse.sales-orders.ship', $order))
@@ -389,11 +389,53 @@ class SalesOrderShipmentTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertEquals(0, $batch->fresh()->current_quantity);
-        $this->assertEquals(100, $batch->fresh()->pending_warehouse_quantity);
+        $this->assertEquals(0, $batch->fresh()->pending_warehouse_quantity);
         $this->assertEquals(100, $batch->fresh()->inventoryMovements()->where('direction', 'in')->sum('quantity'));
         $this->assertEquals(100, $batch->fresh()->inventoryMovements()->where('direction', 'out')->sum('quantity'));
         $this->assertSame('shipped', SalesOrderLotAllocation::sole()->status);
         $this->assertEquals(100, SalesOrderLotAllocation::sole()->shipped_quantity);
+
+        $this->actingAs($warehouseUser)
+            ->post(route('warehouse.production-batches.receive', $batch), ['received_quantity' => 1])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+        $this->assertEquals(0, $batch->fresh()->current_quantity);
+
+        $additionalProductionOrder = ProductionOrder::create([
+            'production_code' => 'MO-LOT-CAPACITY-FLOW-2',
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'product_bom_id' => $bom->id,
+            'product_id' => $product->id,
+            'planned_quantity' => 100,
+            'actual_quantity' => 100,
+            'pending_finished_quantity' => 100,
+            'unit' => 'kg',
+            'yield_rate' => 1,
+            'status' => 'completed',
+        ]);
+
+        $this->actingAs($warehouseUser)
+            ->post(route('warehouse.production-batches.receive', $batch), [
+                'production_order_id' => $additionalProductionOrder->id,
+                'received_quantity' => 101,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('error');
+        $this->assertEquals(0, $batch->fresh()->current_quantity);
+        $this->assertEquals(100, $additionalProductionOrder->fresh()->pending_finished_quantity);
+
+        $this->actingAs($warehouseUser)
+            ->post(route('warehouse.production-batches.receive', $batch), [
+                'production_order_id' => $additionalProductionOrder->id,
+                'received_quantity' => 100,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+        $this->assertEquals(100, $batch->fresh()->current_quantity);
+        $this->assertEquals(0, $batch->fresh()->pending_warehouse_quantity);
+        $this->assertEquals(200, $batch->fresh()->inventoryMovements()->where('direction', 'in')->sum('quantity'));
+        $this->assertEquals(0, $additionalProductionOrder->fresh()->pending_finished_quantity);
     }
 
     public function test_qa_can_create_and_assign_a_standalone_lot_before_warehouse_receipt(): void
@@ -569,7 +611,7 @@ class SalesOrderShipmentTest extends TestCase
     public function test_stock_is_decremented_only_after_shipment_is_confirmed(): void
     {
         $warehouseUser = User::factory()->create(['role' => 'warehouse']);
-        $productionUser = User::factory()->create(['role' => 'production']);
+        $productionUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'SHIP-CUSTOMER', 'name' => 'Shipment Test Customer', 'type' => 'Retail']);
         $product = Product::create([
             'name' => 'Shipment test product',
@@ -609,6 +651,13 @@ class SalesOrderShipmentTest extends TestCase
             'reserved_quantity' => 6,
             'status' => 'reserved',
         ]);
+
+        $unauthorizedProductionUser = User::factory()->create(['role' => 'production', 'can_print_labels' => false]);
+        $this->actingAs($unauthorizedProductionUser)
+            ->post(route('labels.orders.print-direct', $order), [
+                'additional' => [$allocation->id => 0],
+            ])
+            ->assertForbidden();
 
         $this->actingAs($productionUser)
             ->post(route('labels.orders.print-direct', $order), [
@@ -800,7 +849,7 @@ class SalesOrderShipmentTest extends TestCase
         $qaUser = User::factory()->create(['role' => 'qa']);
         $salesUser = User::factory()->create(['role' => 'sales']);
         $warehouseUser = User::factory()->create(['role' => 'warehouse']);
-        $productionUser = User::factory()->create(['role' => 'production']);
+        $productionUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'QA-SHIP-CUSTOMER', 'name' => 'QA Shipment Test Customer', 'type' => 'Retail']);
         $product = Product::create([
             'name' => 'QA shipment product',
@@ -960,7 +1009,7 @@ class SalesOrderShipmentTest extends TestCase
         $qaUser = User::factory()->create(['role' => 'qa']);
         $qcUser = User::factory()->create(['role' => 'qc']);
         $warehouseUser = User::factory()->create(['role' => 'warehouse']);
-        $productionUser = User::factory()->create(['role' => 'production']);
+        $productionUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'PKN-GATE-CUSTOMER', 'name' => 'PKN Gate Customer', 'type' => 'Retail']);
         $product = Product::create([
             'name' => 'PKN gate finished product',
@@ -1147,7 +1196,7 @@ class SalesOrderShipmentTest extends TestCase
         $qaUser = User::factory()->create(['role' => 'qa']);
         $qcUser = User::factory()->create(['role' => 'qc']);
         $warehouseUser = User::factory()->create(['role' => 'warehouse']);
-        $productionUser = User::factory()->create(['role' => 'production']);
+        $productionUser = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $customer = Customer::create(['code' => 'WIP-PKN-CUSTOMER', 'name' => 'WIP PKN Customer', 'type' => 'Retail']);
         $product = Product::create([
             'name' => 'WIP PKN product',

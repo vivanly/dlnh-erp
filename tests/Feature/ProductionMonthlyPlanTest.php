@@ -17,7 +17,7 @@ class ProductionMonthlyPlanTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_monthly_plan_creates_independent_order_and_finished_lot_is_created_after_production(): void
+    public function test_monthly_plan_order_gets_batch_number_before_issue_and_tracks_output_in_same_lot(): void
     {
         $planner = User::factory()->create(['role' => 'planning']);
         $director = User::factory()->create(['role' => 'general_director']);
@@ -107,112 +107,71 @@ class ProductionMonthlyPlanTest extends TestCase
 
         $this->assertSame(0, ProductionOrderMaterial::count());
         $this->assertNull($productionOrder->product_bom_id);
+        $this->actingAs($qa)
+            ->post(route('production-orders.assign-batch-number', $productionOrder), [
+                'batch_number' => 'MONTHLY-FIN-LOT-1',
+            ])
+            ->assertRedirect(route('qa.production-batch-assignments.show', $productionOrder))
+            ->assertSessionHas('success');
+        $finishedBatch = ProductionFinishedBatch::sole();
+        $this->assertSame($productionOrder->id, $finishedBatch->production_order_id);
+        $this->assertSame('planned', $finishedBatch->status);
+
         $this->actingAs($warehouse)
             ->post(route('production-orders.issue-materials', $productionOrder), ['lots' => [$rawBatch->id => 5]])
             ->assertRedirect()
             ->assertSessionHas('success');
-        $this->actingAs($qa)
-            ->post(route('qa.internal-lots.store'), [
-                'product_id' => $finishedProduct->id,
-                'batch_number' => 'MONTHLY-FIN-LOT-1',
-                'planned_quantity' => 8,
-                'mfg_date' => today()->toDateString(),
-            ])
-            ->assertRedirect(route('qa.internal-lots.index'))
-            ->assertSessionHas('success');
-
-        $finishedBatch = ProductionFinishedBatch::sole();
-        $this->assertNull($finishedBatch->production_order_id);
         $this->actingAs($warehouse)
             ->get(route('production-orders.show', $productionOrder))
             ->assertOk()
             ->assertDontSee('name="finished_batch_id"', false)
-            ->assertDontSee('MONTHLY-FIN-LOT-1');
+            ->assertSee('MONTHLY-FIN-LOT-1');
         $this->actingAs($production)
             ->post(route('production-orders.report-output', $productionOrder), [
                 'actual_quantity' => 5,
                 'mfg_date' => today()->toDateString(),
             ])
-            ->assertRedirect(route('production-orders.show', $productionOrder))
+            ->assertRedirect(route('production.work-orders.show', $productionOrder))
             ->assertSessionHas('success');
         $this->actingAs($warehouse)
             ->post(route('production-orders.confirm-completion', $productionOrder), [])
             ->assertRedirect(route('warehouse.production-batches'))
             ->assertSessionHas('success');
 
-        $this->actingAs($qa)
-            ->get(route('qa.production-output-lots.index'))
-            ->assertOk()
-            ->assertSee($productionOrder->production_code)
-            ->assertSee('Tạo lô theo lệnh')
-            ->assertSee('5.0000');
-        $this->get(route('qa.internal-lots.create', ['production_order_id' => $productionOrder->id]))
-            ->assertOk()
-            ->assertSee('Đang tạo lô từ lệnh sản xuất')
-            ->assertSee('value="'.$finishedProduct->id.'"', false)
-            ->assertSee('value="5.0000"', false);
-
         $finishedBatch->refresh();
         $this->assertSame('pending_qa', $finishedBatch->status);
-        $this->assertEquals(8, $finishedBatch->pending_warehouse_quantity);
-        $this->assertNull($finishedBatch->production_order_id);
-        $this->assertEquals(5, $productionOrder->fresh()->pending_finished_quantity);
-        $this->assertEquals(0, $finishedBatch->inputs()->sum('consumed_quantity'));
-
-        $secondProductionOrder = ProductionOrder::create([
-            'production_code' => 'MO-MONTHLY-SHARED-LOT-2',
-            'order_id' => $productionOrder->order_id,
-            'order_item_id' => $productionOrder->order_item_id,
-            'product_bom_id' => $productionOrder->product_bom_id,
-            'product_id' => $finishedProduct->id,
-            'planned_quantity' => 3,
-            'actual_quantity' => 3,
-            'pending_finished_quantity' => 3,
-            'unit' => $productionOrder->unit,
-            'yield_rate' => 1,
-            'status' => 'completed',
-        ]);
+        $this->assertEquals(5, $finishedBatch->pending_warehouse_quantity);
+        $this->assertSame($productionOrder->id, $finishedBatch->production_order_id);
+        $this->assertEquals(0, $productionOrder->fresh()->pending_finished_quantity);
+        $this->assertEquals(5, $finishedBatch->inputs()->sum('consumed_quantity'));
+        $this->assertSame($rawBatch->id, $finishedBatch->inputs()->first()->materialLot->supplier_batch_id);
 
         $this->actingAs($warehouse)
             ->get(route('warehouse.production-batches'))
             ->assertOk()
-            ->assertSee('name="production_order_id"', false)
+            ->assertSee('MONTHLY-FIN-LOT-1')
             ->assertSee($productionOrder->production_code);
         $this->actingAs($warehouse)
             ->post(route('warehouse.production-batches.receive', $finishedBatch), [
                 'received_quantity' => 5,
-                'production_order_id' => $productionOrder->id,
             ])
             ->assertRedirect()
             ->assertSessionHas('success');
 
         $finishedBatch->refresh();
-        $this->assertNull($finishedBatch->production_order_id);
         $this->assertDatabaseHas('production_order_batch_allocations', [
             'production_order_id' => $productionOrder->id,
             'production_finished_batch_id' => $finishedBatch->id,
             'quantity' => 5,
             'received_quantity' => 5,
-            'is_receipt_linked' => 1,
         ]);
         $this->assertEquals(5, $finishedBatch->inputs()->sum('consumed_quantity'));
         $this->assertSame($rawBatch->id, $finishedBatch->inputs()->first()->materialLot->supplier_batch_id);
         $this->assertEquals(0, $productionOrder->fresh()->pending_finished_quantity);
         $this->assertEquals(5, $finishedBatch->fresh()->current_quantity);
         $this->assertSame('active', $finishedBatch->fresh()->status);
-        $this->assertEquals(3, $finishedBatch->fresh()->pending_warehouse_quantity);
-        $this->assertEquals(5, InventoryMovement::where('movement_type', 'RECEIVE_PRODUCTION')->sum('quantity'));
-        $this->actingAs($warehouse)
-            ->post(route('warehouse.production-batches.receive', $finishedBatch), [
-                'received_quantity' => 3,
-                'production_order_id' => $secondProductionOrder->id,
-            ])
-            ->assertRedirect()
-            ->assertSessionHas('success');
-        $this->assertSame(2, $finishedBatch->orderAllocations()->count());
-        $this->assertEquals(0, $secondProductionOrder->fresh()->pending_finished_quantity);
         $this->assertEquals(0, $finishedBatch->fresh()->pending_warehouse_quantity);
-        $this->assertEquals(8, InventoryMovement::where('movement_type', 'RECEIVE_PRODUCTION')->sum('quantity'));
+        $this->assertEquals(5, InventoryMovement::where('movement_type', 'RECEIVE_PRODUCTION')->sum('quantity'));
         $this->assertEquals(15, $rawBatch->fresh()->current_quantity);
         $this->actingAs($warehouse)
             ->get(route('traceability.index', ['search' => $rawBatch->batch_number]))

@@ -150,7 +150,7 @@ class AuthorizationEdgeCasesTest extends TestCase
             'warehouse.stock',
             'qa.internal-lots.index',
             'qa.production-batches.index',
-            'qa.production-output-lots.index',
+            'qa.production-batch-assignments.index',
             'qa.batches.index',
             'qa.coas.index',
             'product-regulatory-documents.index',

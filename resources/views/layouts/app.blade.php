@@ -167,7 +167,9 @@
                 var badge = document.getElementById('erp-bell-badge');
                 var list = document.getElementById('erp-bell-list');
                 var emptyText = @json(__('Không có việc nào cần xử lý.'));
+                var errorText = @json(__('Không thể tải thông báo. Vui lòng thử lại.'));
                 var lastTotal = null;
+                var loading = false;
 
                 function render(data) {
                     badge.textContent = data.total > 99 ? '99+' : data.total;
@@ -200,16 +202,32 @@
                 }
 
                 function load() {
-                    if (document.hidden) return;
+                    if (document.hidden || loading) return;
+                    loading = true;
                     fetch(bell.dataset.url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
-                        .then(function (r) { return r.ok ? r.json() : null; })
-                        .then(function (data) { if (data) render(data); })
-                        .catch(function () {});
+                        .then(function (r) {
+                            if (!r.ok) throw new Error('Notification request failed: ' + r.status);
+                            return r.json();
+                        })
+                        .then(render)
+                        .catch(function (error) {
+                            console.error('Unable to load notifications:', error);
+                            badge.hidden = true;
+                            lastTotal = null;
+                            list.innerHTML = '';
+                            var message = document.createElement('div');
+                            message.className = 'erp-bell-empty';
+                            message.setAttribute('role', 'alert');
+                            message.textContent = errorText;
+                            list.appendChild(message);
+                        })
+                        .finally(function () { loading = false; });
                 }
 
                 load();
                 setInterval(load, 15000);
                 document.addEventListener('visibilitychange', load);
+                bell.addEventListener('toggle', function () { if (bell.open) load(); });
                 document.addEventListener('click', function (e) { if (!bell.contains(e.target)) bell.removeAttribute('open'); });
             })();
         </script>

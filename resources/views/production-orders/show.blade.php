@@ -13,7 +13,11 @@
                     · Sản lượng kế hoạch {{ number_format($productionOrder->planned_quantity, 4) }} {{ $productionOrder->unit }}
                 </p>
             </div>
-            <a href="{{ route('production-orders.index') }}" class="px-3 py-1.5 bg-slate-200 text-xs font-bold uppercase text-slate-700 hover:bg-slate-300">Quay lại</a>
+            <a href="{{ match ($workArea) {
+                'qa' => route('qa.production-batch-assignments.index'),
+                'warehouse' => route('warehouse.production-issues'),
+                default => route('production-orders.index'),
+            } }}" class="px-3 py-1.5 bg-slate-200 text-xs font-bold uppercase text-slate-700 hover:bg-slate-300">Quay lại</a>
         </div>
     </x-slot>
 
@@ -23,22 +27,53 @@
             @if(session('error'))<div class="p-3 bg-rose-50 border-l-4 border-rose-600 text-xs text-rose-900">{{ session('error') }}</div>@endif
             @if($errors->any())<div class="p-3 bg-rose-50 border-l-4 border-rose-600 text-xs text-rose-900"><ul class="list-disc pl-4">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 
+            <div class="border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+                {{ match ($workArea) {
+                    'qa' => 'QA · Gán số lô cho lệnh sản xuất',
+                    'warehouse' => 'Kho · Xuất và xác nhận nguyên liệu sản xuất',
+                    'production' => 'Sản xuất · Theo dõi lệnh và báo sản lượng',
+                    default => 'Tổng quan lệnh sản xuất',
+                } }}
+            </div>
+            <div class="border border-slate-300 bg-white p-3 text-xs text-slate-700">
+                Trạng thái lệnh: <strong>{{ [
+                    'pending_director_approval' => 'Chờ duyệt',
+                    'released' => 'Đã duyệt · Chờ QA gán lô hoặc Kho xuất nguyên liệu',
+                    'materials_issued' => 'Đã xuất nguyên liệu · Đang sản xuất',
+                    'production_reported' => 'Đã báo sản lượng · Chờ Kho xác nhận',
+                    'completed' => 'Hoàn thành',
+                ][$productionOrder->status] ?? $productionOrder->status }}</strong>
+            </div>
+
             <section class="border border-slate-300 bg-white">
                 <div class="border-b border-slate-300 bg-slate-100 p-3">
                     <h3 class="text-xs font-bold uppercase text-slate-700">Lô thành phẩm</h3>
-                    <p class="mt-1 text-[10px] text-slate-500">Mã lô chưa được tạo trước khi sản xuất. Sau khi chốt sản lượng, QA cấp một hoặc nhiều mã lô cho lượng hoàn thành; Kho nhập theo từng mã.</p>
+                    <p class="mt-1 text-[10px] text-slate-500">Mỗi lệnh sản xuất/mẻ gắn với một số lô đã được QA cấp trước khi xuất nguyên liệu. Lô chỉ được nhập kho sau khi mẻ hoàn thành và vẫn phải qua QC.</p>
                 </div>
                 <div class="divide-y divide-slate-200">
                     @forelse($productionOrder->allFinishedBatches as $finishedBatch)
                         <div class="flex flex-wrap items-center justify-between gap-2 p-3 text-xs">
                             <strong class="font-mono">{{ $finishedBatch->batch_number }}</strong>
-                            <span>Cỡ lô {{ number_format((float) $finishedBatch->planned_quantity, 4) }} {{ $finishedBatch->unit }} · Đã xếp nhập {{ number_format((float) $finishedBatch->initial_quantity, 4) }} · {{ $finishedBatch->status }}</span>
+                            <span>Kế hoạch {{ number_format((float) $finishedBatch->planned_quantity, 4) }} {{ $finishedBatch->unit }} · Sản lượng ghi nhận {{ number_format((float) $finishedBatch->initial_quantity, 4) }} · {{ ['planned' => 'Đã gán số lô', 'pending_qa' => 'Chờ xử lý chất lượng', 'active' => 'Đã nhập kho', 'closed' => 'Đã đóng lô'][$finishedBatch->status] ?? $finishedBatch->status }}</span>
                         </div>
                     @empty
-                        <div class="p-3 text-xs text-slate-500">Chưa có lô thành phẩm. QA sẽ cấp mã sau khi lệnh hoàn thành.</div>
+                        <div class="p-3 text-xs text-slate-500">Chưa gán số lô. Kho không thể xuất nguyên liệu cho đến khi QA hoàn tất bước này.</div>
                     @endforelse
                 </div>
-                @if($productionOrder->materials->isNotEmpty())
+                @if($workArea === 'qa' && $canManageLots && $productionOrder->status === 'released' && !$productionOrder->materials_issued_at && $productionOrder->allFinishedBatches->isEmpty())
+                    <form method="POST" action="{{ route('production-orders.assign-batch-number', $productionOrder) }}" class="flex flex-wrap items-end gap-2 border-t border-slate-200 bg-blue-50 p-3">
+                        @csrf
+                        <label class="min-w-64 flex-1 text-xs font-semibold text-slate-700">QA gán số lô theo SOP đã phê duyệt
+                            <input name="batch_number" value="{{ old('batch_number') }}" required maxlength="255" autocomplete="off" class="mt-1 block w-full border-slate-300 font-mono text-xs" placeholder="Nhập số lô sản xuất">
+                        </label>
+                        <button class="bg-blue-700 px-3 py-2 text-xs font-bold uppercase text-white hover:bg-blue-800">Gán số lô trước sản xuất</button>
+                    </form>
+                @endif
+            </section>
+
+            @if($productionOrder->materials->isNotEmpty())
+                <section class="border border-slate-300 bg-white">
+                    <h3 class="border-b border-slate-300 bg-slate-100 p-3 text-xs font-bold uppercase text-slate-700">Nguyên liệu đã xuất</h3>
                     <div class="divide-y divide-slate-200">
                         @foreach($productionOrder->materials as $material)
                             <div class="flex items-center justify-between gap-3 p-3 text-xs">
@@ -47,10 +82,24 @@
                             </div>
                         @endforeach
                     </div>
-                @endif
-            </section>
+                </section>
+            @endif
 
-            @if($canIssueMaterials && in_array($productionOrder->status, ['released', 'materials_issued'], true))
+            @if($workArea === 'overview')
+                <section class="border border-slate-300 bg-white p-3 text-xs">
+                    <h3 class="font-bold uppercase text-slate-700">Thao tác theo bộ phận</h3>
+                    <div class="mt-2 flex flex-wrap gap-2">
+                        @if($canManageLots)<a class="border border-blue-300 px-3 py-2 text-blue-800 hover:bg-blue-50" href="{{ route('qa.production-batch-assignments.show', $productionOrder) }}">QA · Gán số lô</a>@endif
+                        @if($canIssueMaterials)<a class="border border-amber-300 px-3 py-2 text-amber-900 hover:bg-amber-50" href="{{ route('warehouse.production-issues.show', $productionOrder) }}">Kho · Nguyên liệu</a>@endif
+                        @if($canWorkInProduction)<a class="border border-emerald-300 px-3 py-2 text-emerald-800 hover:bg-emerald-50" href="{{ route('production.work-orders.show', $productionOrder) }}">Sản xuất · Báo sản lượng</a>@endif
+                    </div>
+                </section>
+            @endif
+
+            @if($workArea === 'warehouse' && $canIssueMaterials && in_array($productionOrder->status, ['released', 'materials_issued'], true) && !$hasAssignedBatch)
+                <div class="border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">Chờ QA gán số lô thành phẩm hợp lệ trước khi xuất nguyên liệu.</div>
+            @endif
+            @if($workArea === 'warehouse' && $canIssueMaterials && in_array($productionOrder->status, ['released', 'materials_issued'], true) && $hasAssignedBatch)
                 <form method="POST" action="{{ route('production-orders.issue-materials', $productionOrder) }}" class="bg-white border border-slate-300" onsubmit="return confirm('Xác nhận phiếu xuất nguyên liệu theo số lượng thực tế?');">
                     @csrf
                     <div class="p-3 bg-amber-50 border-b border-amber-200">
@@ -102,7 +151,7 @@
                 </form>
             @endif
 
-            @if($canWorkInProduction && $productionOrder->status === 'materials_issued')
+            @if($workArea === 'production' && $canWorkInProduction && $productionOrder->status === 'materials_issued')
                 <form method="POST" action="{{ route('production-orders.report-output', $productionOrder) }}" class="space-y-3 border border-slate-300 bg-white p-4" onsubmit="return confirm('Xác nhận sản lượng thực tế và nguyên liệu dự kiến trả kho?');">
                     @csrf
                     <div class="border-b border-slate-200 bg-emerald-50 p-3">
@@ -137,7 +186,7 @@
                     <div class="flex justify-end border-t border-slate-200 pt-3"><button class="bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Gửi xác nhận sản lượng</button></div>
                 </form>
             @endif
-            @if($canIssueMaterials && $productionOrder->status === 'production_reported')
+            @if($workArea === 'warehouse' && $canIssueMaterials && $productionOrder->status === 'production_reported')
                 <form method="POST" action="{{ route('production-orders.confirm-completion', $productionOrder) }}" class="bg-white border border-slate-300 p-4 space-y-3" onsubmit="return confirm('Xác nhận lượng nguyên liệu trả kho và hoàn thành lệnh sản xuất?');">
                     @csrf
                     <div class="border-b border-slate-200 p-3">
@@ -177,27 +226,4 @@
         </div>
     </div>
 
-    @push('scripts')
-    <script>
-        document.addEventListener('click', function (event) {
-            if (event.target.closest('.add-qa-lot')) {
-                const rows = document.querySelector('.qa-lot-rows');
-                const template = rows.querySelector('.qa-lot-row');
-                const rowIndex = Number(rows.dataset.nextIndex || 0);
-                const newRow = template.cloneNode(true);
-                newRow.querySelectorAll('input').forEach(function (inputField) {
-                    inputField.name = inputField.name.replace(/finished_lots\[\d+\]/, 'finished_lots[' + rowIndex + ']');
-                    inputField.value = '';
-                });
-                rows.append(newRow);
-                rows.dataset.nextIndex = String(rowIndex + 1);
-            }
-
-            if (event.target.closest('.remove-qa-lot')) {
-                const rows = event.target.closest('.qa-lot-rows');
-                if (rows.querySelectorAll('.qa-lot-row').length > 1) event.target.closest('.qa-lot-row').remove();
-            }
-        });
-    </script>
-    @endpush
 </x-app-layout>

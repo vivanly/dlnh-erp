@@ -5,7 +5,7 @@
                 <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-700">QA · Quản lý lô</p>
                 <h2 class="mt-1 text-sm font-bold uppercase tracking-wide text-slate-800">Tạo mã lô nội bộ</h2>
             </div>
-            <a href="{{ $sourceProductionOrder ? route('qa.production-output-lots.index') : route('qa.internal-lots.index') }}" class="shrink-0 border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Quay lại</a>
+            <a href="{{ route('qa.internal-lots.index') }}" class="shrink-0 border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Quay lại</a>
         </div>
     </x-slot>
 
@@ -39,7 +39,7 @@
                             <div class="min-w-0 flex-1">
                                 <p class="text-xs font-bold uppercase tracking-wide text-blue-900">Đang tạo lô từ lệnh sản xuất</p>
                                 <p class="mt-1 text-sm text-blue-900"><span class="font-mono font-bold">{{ $sourceProductionOrder->production_code }}</span><span class="mx-1 text-blue-400">·</span>{{ $sourceProductionOrder->product->name }}</p>
-                                <p class="mt-1 text-xs text-blue-800">Sản lượng chưa phân bổ: <strong>{{ number_format((float) $sourceProductionOrder->pending_finished_quantity, 4) }} {{ $sourceProductionOrder->unit }}</strong>. Có thể gộp sản lượng từ nhiều lệnh cùng sản phẩm vào một lô.</p>
+                                <p class="mt-1 text-xs text-blue-800">Đây là lệnh cũ chưa có lô gắn trước sản xuất. Chỉ tiếp tục nếu được QA phê duyệt theo quy trình chuyển đổi hồ sơ; không gộp đầu ra từ nhiều lệnh vào cùng một lô.</p>
                             </div>
                         </div>
                     </div>
@@ -49,7 +49,7 @@
                     <section>
                         <div class="mb-3 border-b border-slate-100 pb-2">
                             <h3 class="text-xs font-bold uppercase tracking-wide text-slate-800">Thông tin sản phẩm và lô</h3>
-                            <p class="mt-1 text-xs text-slate-500">Chọn đúng sản phẩm trước khi khai báo số lô và thông tin truy xuất.</p>
+                            <p class="mt-1 text-xs text-slate-500">Chỉ dùng biểu mẫu này cho lô độc lập theo SOP hoặc xử lý lệnh cũ chưa gắn lô. Lô của lệnh sản xuất mới phải được gán trước khi xuất nguyên liệu.</p>
                         </div>
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <label class="text-xs font-semibold text-slate-700">Lọc theo phân loại
@@ -134,7 +134,7 @@
                 </div>
 
                 <div class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:justify-end sm:px-6">
-                    <a href="{{ $sourceProductionOrder ? route('qa.production-output-lots.index') : route('qa.internal-lots.index') }}" class="border border-slate-300 bg-white px-4 py-2.5 text-center text-xs font-semibold text-slate-700 hover:bg-slate-100">Hủy</a>
+                    <a href="{{ route('qa.internal-lots.index') }}" class="border border-slate-300 bg-white px-4 py-2.5 text-center text-xs font-semibold text-slate-700 hover:bg-slate-100">Hủy</a>
                     <button type="submit" class="erp-action-create px-5 py-2.5 text-xs font-bold uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">Tạo lô nội bộ</button>
                 </div>
             </form>

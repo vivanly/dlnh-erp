@@ -216,8 +216,11 @@ class RawMaterialFlowTest extends TestCase
         $in('accessory', $acc->id, null, 20);
         $product = Product::create(['name' => 'TP', 'slug' => 'tp-6', 'sku' => 'TP6', 'unit' => 'kg', 'classification' => 'VT']);
         $mo = \App\Models\ProductionOrder::create(['production_code' => 'MO-NL-6', 'product_id' => $product->id, 'planned_quantity' => 5, 'unit' => 'kg', 'yield_rate' => 1, 'status' => 'released']);
+        $this->actingAs($user)->post(route('production-orders.assign-batch-number', $mo), [
+            'batch_number' => 'LOT-MO-NL-6',
+        ])->assertSessionHas('success');
 
-        $this->actingAs($user)->get(route('production-orders.show', $mo))->assertOk()->assertSee('NCC-A')->assertSee('PL6');
+        $this->actingAs($user)->get(route('warehouse.production-issues.show', $mo))->assertOk()->assertSee('NCC-A')->assertSee('PL6');
 
         $this->actingAs($user)->post(route('production-orders.issue-materials', $mo), ['material_lots' => [
             ['type' => 'raw_material', 'id' => $raw->id, 'batch' => 'NCC-A', 'quantity' => 11],
@@ -278,5 +281,5 @@ class RawMaterialFlowTest extends TestCase
 
     public function test_warehouse_production_issue_list_loads(): void
     {
-        $this->actingAs($this->itUser())->get(route('warehouse.production-issues'))->assertOk()->assertSee('Xuất nguyên liệu');
+        $this->actingAs($this->itUser())->get(route('warehouse.production-issues'))->assertOk()->assertSee('Xuất và xác nhận nguyên liệu');
     }}

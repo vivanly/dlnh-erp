@@ -14,6 +14,6 @@ class NotificationController extends Controller
         return response()->json([
             'total' => array_sum(array_column($items, 'count')),
             'items' => $items,
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 }
