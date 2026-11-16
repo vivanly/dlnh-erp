@@ -9,7 +9,10 @@ use App\Models\Ppcb;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
 
 class QaCatalogExcelTest extends TestCase
@@ -65,11 +68,11 @@ class QaCatalogExcelTest extends TestCase
             'name' => 'Atiso',
             'slug' => 'atiso-return',
             'sku' => 'SKU-RETURN',
-            'classification' => 'DL',
+            'classification' => 'Dược Liệu',
         ]);
         $query = [
             'search' => 'Atiso',
-            'classification' => 'DL',
+            'classification' => 'Dược Liệu',
             'per_page' => 500,
             'page' => 1,
         ];
@@ -77,13 +80,16 @@ class QaCatalogExcelTest extends TestCase
         $this->actingAs($qaUser)
             ->get(route('products.index', $query))
             ->assertOk()
-            ->assertSee(route('products.edit', $product->id) . '?search=Atiso&amp;classification=DL&amp;per_page=500&amp;page=1', false);
+            ->assertSee('name="return_search" value="Atiso"', false)
+            ->assertSee('name="return_classification" value="Dược Liệu"', false)
+            ->assertSee('name="return_per_page" value="500"', false)
+            ->assertSee('name="return_page" value="1"', false);
 
         $this->actingAs($qaUser)
             ->get(route('products.edit', ['product' => $product->id] + $query))
             ->assertOk()
             ->assertSee('name="return_search" value="Atiso"', false)
-            ->assertSee('name="return_classification" value="DL"', false)
+            ->assertSee('name="return_classification" value="Dược Liệu"', false)
             ->assertSee('name="return_per_page" value="500"', false)
             ->assertSee('name="return_page" value="1"', false);
 
@@ -91,13 +97,89 @@ class QaCatalogExcelTest extends TestCase
             ->put(route('products.update', $product), [
                 'name' => 'Atiso',
                 'sku' => 'SKU-RETURN',
-                'classification' => 'DL',
+                'classification' => 'Dược Liệu',
                 'return_search' => 'Atiso',
-                'return_classification' => 'DL',
+                'return_classification' => 'Dược Liệu',
                 'return_per_page' => 500,
                 'return_page' => 1,
             ])
             ->assertRedirect(route('products.index', $query) . '#product-' . $product->id);
+    }
+
+    public function test_catalog_uses_one_edit_form_and_one_raw_material_query(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        foreach (range(1, 5) as $number) {
+            Product::create(['name' => "Product $number", 'slug' => "product-$number", 'sku' => "SKU-$number", 'classification' => 'Dược Liệu']);
+        }
+
+        $rawMaterialQueries = 0;
+        DB::listen(function ($query) use (&$rawMaterialQueries) {
+            if (str_contains(strtolower($query->sql), 'from "raw_materials"') || str_contains(strtolower($query->sql), 'from `raw_materials`')) {
+                $rawMaterialQueries++;
+            }
+        });
+
+        $response = $this->actingAs($qaUser)->get(route('products.index'));
+        $response->assertOk()->assertSee('id="product-edit-modal"', false);
+        $this->assertSame(1, substr_count($response->getContent(), 'id="product-edit-modal"'));
+        $this->assertSame(1, $rawMaterialQueries);
+    }
+
+    public function test_edit_returns_to_the_new_page_when_sort_position_changes(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        foreach (range(1, 100) as $number) {
+            Product::create(['name' => sprintf('Product %03d', $number), 'slug' => "product-$number", 'sku' => "SKU-$number", 'classification' => 'Dược Liệu']);
+        }
+        $product = Product::create(['name' => 'Product 101', 'slug' => 'product-101', 'sku' => 'SKU-101', 'classification' => 'Dược Liệu']);
+
+        $this->actingAs($qaUser)->put(route('products.update', $product), [
+            'name' => 'A product',
+            'sku' => $product->sku,
+            'classification' => 'Dược Liệu',
+            'return_classification' => 'Dược Liệu',
+            'return_per_page' => 100,
+            'return_page' => 2,
+        ])->assertRedirect(route('products.index', ['classification' => 'Dược Liệu', 'per_page' => 100, 'page' => 1]) . '#product-' . $product->id);
+    }
+
+    public function test_edit_adjusts_filters_if_the_product_no_longer_matches(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        $product = Product::create(['name' => 'Atiso', 'slug' => 'atiso', 'sku' => 'SKU-AT', 'classification' => 'Dược Liệu']);
+
+        $this->actingAs($qaUser)->put(route('products.update', $product), [
+            'name' => 'Cam thảo',
+            'sku' => $product->sku,
+            'classification' => 'Vị Thuốc Cổ Truyền',
+            'return_search' => 'Atiso',
+            'return_classification' => 'Dược Liệu',
+            'return_page' => 1,
+        ])->assertRedirect(route('products.index', ['classification' => 'VTCT', 'page' => 1]) . '#product-' . $product->id)
+            ->assertSessionHas('warning');
+    }
+
+    public function test_invalid_edit_restores_only_the_edit_form_and_its_return_filters(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        $product = Product::create(['name' => 'Atiso', 'slug' => 'atiso', 'sku' => 'SKU-AT', 'classification' => 'Dược Liệu']);
+        $url = route('products.index', ['classification' => 'Dược Liệu', 'page' => 1]);
+
+        $this->actingAs($qaUser)->from($url)->put(route('products.update', $product), [
+            '_product_modal' => 'edit',
+            '_product_id' => $product->id,
+            'name' => 'Tên chưa lưu',
+            'sku' => '',
+            'classification' => 'Dược Liệu',
+            'return_classification' => 'Dược Liệu',
+            'return_page' => 1,
+        ])->assertRedirect($url)->assertSessionHasErrors('sku');
+
+        $response = $this->get($url)->assertOk()
+            ->assertSee('value="Tên chưa lưu"', false)
+            ->assertSee('name="return_classification" value="Dược Liệu"', false);
+        $this->assertSame(1, substr_count($response->getContent(), '<div data-product-errors '));
     }
 
     public function test_qa_can_import_and_export_products_with_matching_columns(): void
@@ -162,7 +244,7 @@ class QaCatalogExcelTest extends TestCase
         $file = UploadedFile::fake()->createWithContent(
             'products.csv',
             "phan_loai,ma_hang_sku,ten_hang_hoa,dvt,nguon_goc,bo_phan_dung,ma_ppcb,ten_khoa_hoc,ghi_chu,gtin,tai_lieu_tham_khao\n"
-            . "Thuốc,SKU-1,Atiso,Kg,Đà Lạt,Lá,P01,Cynara,Ghi chú,GTIN-1,Tài liệu\n"
+            . "TCT,SKU-1,Atiso,Kg,Đà Lạt,Lá,P01,Cynara,Ghi chú,GTIN-1,Tài liệu\n"
         );
 
         $this->actingAs($qaUser)
@@ -172,6 +254,7 @@ class QaCatalogExcelTest extends TestCase
 
         $product = Product::where('sku', 'SKU-1')->firstOrFail();
         $this->assertSame($ppcb->id, $product->ppcb_id);
+        $this->assertSame('TCT', $product->classification);
 
         $this->actingAs($qaUser)
             ->get(route('products.edit', $product))
@@ -244,6 +327,34 @@ class QaCatalogExcelTest extends TestCase
         });
     }
 
+    public function test_product_import_skips_blank_rows_but_reports_a_row_missing_sku(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->fromArray(['phan_loai', 'ma_hang_sku', 'ten_hang_hoa'], null, 'A1');
+        foreach (range(1, 85) as $number) {
+            $sheet->fromArray(['Dược Liệu', "SKU-$number", "Product $number"], null, 'A' . ($number + 1));
+        }
+        $sheet->fromArray(['Dược Liệu', null, 'Missing SKU'], null, 'A87');
+        $sheet->setCellValue('A88', '   ');
+        $sheet->getStyle('A415')->getFont()->setBold(true);
+
+        ob_start();
+        (new Xlsx($spreadsheet))->save('php://output');
+        $contents = ob_get_clean();
+        $spreadsheet->disconnectWorksheets();
+        $file = UploadedFile::fake()->createWithContent('products.xlsx', $contents);
+
+        $this->actingAs($qaUser)
+            ->post(route('products.import'), ['file' => $file])
+            ->assertRedirect(route('products.import.form'))
+            ->assertSessionHas('warning', 'Đã import 85 sản phẩm; bỏ qua 1 dòng không hợp lệ.')
+            ->assertSessionHas('import_errors', fn ($errors) => count($errors) === 1 && $errors[0]['row'] === 87);
+
+        $this->assertDatabaseCount('products', 85);
+    }
+
     public function test_duplicate_product_skus_are_skipped_and_reported(): void
     {
         $qaUser = User::factory()->create(['role' => 'qa']);
@@ -264,6 +375,20 @@ class QaCatalogExcelTest extends TestCase
             ->assertSessionHas('import_errors');
 
         $this->assertDatabaseCount('products', 1);
+    }
+
+    public function test_product_import_reports_zero_only_rows_as_invalid(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        $file = UploadedFile::fake()->createWithContent(
+            'products.csv',
+            "phan_loai,ma_hang_sku,ten_hang_hoa\n,0,\n"
+        );
+
+        $this->actingAs($qaUser)
+            ->post(route('products.import'), ['file' => $file])
+            ->assertRedirect(route('products.import.form'))
+            ->assertSessionHas('warning', 'Đã import 0 sản phẩm; bỏ qua 1 dòng không hợp lệ.');
     }
 
     public function test_products_with_unknown_processing_method_are_skipped_and_reported(): void

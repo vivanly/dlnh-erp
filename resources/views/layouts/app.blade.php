@@ -27,6 +27,7 @@
             .erp-bell > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border: 1px solid #e2e8f0; border-radius: 9999px; background: #fff; color: #475569; }
             .erp-bell > summary::-webkit-details-marker { display: none; }
             .erp-bell > summary:hover { background: #f1f5f9; }
+            .erp-bell.has-new > summary { border-color: #2563eb; color: #1d4ed8; }
             .erp-bell-badge { position: absolute; top: -.35rem; right: -.35rem; min-width: 1.1rem; height: 1.1rem; padding: 0 .25rem; border-radius: 9999px; background: #dc2626; color: #fff; font-size: .65rem; font-weight: 700; line-height: 1.1rem; text-align: center; }
             .erp-bell-badge[hidden] { display: none; }
             .erp-bell-panel { position: absolute; right: 0; top: 2.5rem; z-index: 60; width: 20rem; max-height: 24rem; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; box-shadow: 0 8px 24px rgb(15 23 42 / 15%); }
@@ -35,6 +36,8 @@
             .erp-bell-item:hover { background: #eff6ff; color: #1d4ed8; }
             .erp-bell-count { flex-shrink: 0; min-width: 1.4rem; padding: .05rem .4rem; border-radius: 9999px; background: #fee2e2; color: #b91c1c; font-weight: 700; text-align: center; }
             .erp-bell-empty { padding: 1rem .75rem; font-size: .75rem; color: #64748b; text-align: center; }
+            body.director-read-only form[method="POST"]:not(.director-approval-action):not([action$="/logout"]),
+            body.director-read-only form[method="post"]:not(.director-approval-action):not([action$="/logout"]) { pointer-events: none; opacity: .6; }
         </style>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
         <script src="{{ asset('js/ajax-autocomplete.js') }}"></script>
@@ -42,7 +45,7 @@
         <!-- Điểm đón các file CSS từ trang con -->
         @stack('styles')
     </head>
-    <body class="erp-shell font-sans antialiased bg-slate-100 text-slate-800 text-sm m-0 p-0">
+    <body class="erp-shell font-sans antialiased bg-slate-100 text-slate-800 text-sm m-0 p-0 {{ auth()->user()?->isExecutiveBoardMember() ? 'director-read-only' : '' }}">
         @php
             $workspaceLabel = match (true) {
                 request()->routeIs('dashboard') => __('Tổng quan'),
@@ -174,6 +177,10 @@
                 function render(data) {
                     badge.textContent = data.total > 99 ? '99+' : data.total;
                     badge.hidden = data.total === 0;
+                    if (!bell.open && lastTotal !== null && data.total > lastTotal) {
+                        bell.classList.add('has-new');
+                    }
+                    lastTotal = data.total;
                     list.innerHTML = '';
                     if (!data.items.length) {
                         var empty = document.createElement('div');
@@ -195,10 +202,6 @@
                         link.appendChild(count);
                         list.appendChild(link);
                     });
-                    if (lastTotal !== null && data.total > lastTotal) {
-                        bell.classList.add('has-new');
-                    }
-                    lastTotal = data.total;
                 }
 
                 function load() {
@@ -227,7 +230,12 @@
                 load();
                 setInterval(load, 15000);
                 document.addEventListener('visibilitychange', load);
-                bell.addEventListener('toggle', function () { if (bell.open) load(); });
+                bell.addEventListener('toggle', function () {
+                    if (bell.open) {
+                        bell.classList.remove('has-new');
+                        load();
+                    }
+                });
                 document.addEventListener('click', function (e) { if (!bell.contains(e.target)) bell.removeAttribute('open'); });
             })();
         </script>

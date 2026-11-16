@@ -20,6 +20,10 @@ class UserController extends Controller implements HasMiddleware
     {
         return [
             new Middleware(function ($request, $next) {
+                if (auth()->check() && auth()->user()->isExecutiveBoardMember() && $request->isMethodSafe()) {
+                    return $next($request);
+                }
+
                 if (!auth()->check() || !auth()->user()->isITDepartment()) {
                     abort(403, 'Bạn không có quyền thực hiện hành động này. Chỉ bộ phận IT mới được phép.');
                 }

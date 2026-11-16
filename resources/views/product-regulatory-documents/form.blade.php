@@ -31,7 +31,7 @@
             <option value="">-- Chọn sản phẩm --</option>
             @foreach($products as $product)
                 <option value="{{ $product->id }}" data-classification="{{ $product->classification ?? '' }}" @selected((string) old('product_id', $document?->product_id ?? ($selectedProductId ?? null)) === (string) $product->id)>
-                    {{ $product->name }} - {{ $product->sku }} ({{ $product->classification ?: 'Chưa phân loại' }}) - Nguồn gốc: {{ $product->origin ?: 'Chưa có' }}
+                    {{ $product->name }} - {{ $product->sku }} ({{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }}) - Nguồn gốc: {{ $product->origin ?: 'Chưa có' }}
                 </option>
             @endforeach
         </select>

@@ -78,7 +78,7 @@
 
                     <!-- 2. Nút Duyệt / Từ chối (Dành cho Giám đốc khi ở trạng thái pending) -->
                     @if($purchaseOrder->status == 'pending')
-                        <form action="{{ route('purchase-orders.approve', $purchaseOrder->id) }}" method="POST">
+                        <form action="{{ route('purchase-orders.approve', $purchaseOrder->id) }}" method="POST" class="director-approval-action">
                             @csrf
                             <button type="submit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-none">
                                 Phê Duyệt Đơn
@@ -95,7 +95,7 @@
 
             <!-- Form từ chối ẩn (hiện khi bấm nút Từ chối) -->
             <div id="reject-form" class="hidden bg-rose-50 border border-rose-300 p-3 rounded-none">
-                <form action="{{ route('purchase-orders.reject', $purchaseOrder->id) }}" method="POST" class="space-y-2">
+                <form action="{{ route('purchase-orders.reject', $purchaseOrder->id) }}" method="POST" class="director-approval-action space-y-2">
                     @csrf
                     <label class="block font-bold text-xs text-rose-900 uppercase">Lý do từ chối đơn hàng:</label>
                     <textarea name="rejection_reason" rows="2" class="w-full text-xs border-rose-300 rounded-none focus:border-rose-500 focus:ring-0" placeholder="Nhập lý do để nhân viên biết đường sửa lại..." required></textarea>

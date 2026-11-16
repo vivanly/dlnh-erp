@@ -136,6 +136,19 @@ class User extends Authenticatable
             || in_array($this->role, ['director', 'sales_director', 'bidding_director'], true);
     }
 
+    public function isExecutiveBoardMember(): bool
+    {
+        return in_array(strtolower(trim((string) $this->role)), [
+            'director',
+            'sales_director',
+            'bidding_director',
+            'general_director',
+        ], true) || in_array(mb_strtolower(trim((string) $this->position)), [
+            mb_strtolower('Giám Đốc'),
+            mb_strtolower('Tổng Giám Đốc'),
+        ], true);
+    }
+
     public function isITDepartment()
     {
         return $this->isDepartment('IT') || $this->role === 'it';
@@ -230,22 +243,17 @@ class User extends Authenticatable
     // Kiểm tra quyền duyệt đơn mua hàng (Giám đốc Kinh doanh, Tổng GĐ hoặc IT)
     public function canApprovePurchaseOrder()
     {
-        return $this->isSalesDirector() || $this->isGeneralDirector() || $this->isITDepartment();
+        return $this->isExecutiveBoardMember() || $this->isITDepartment();
     }
 
     public function canApproveSalesOrder(): bool
     {
-        return $this->isSalesDirector()
-            || $this->isBiddingDirector()
-            || $this->isGeneralDirector()
-            || $this->isITDepartment();
+        return $this->isExecutiveBoardMember() || $this->isITDepartment();
     }
 
     public function canApproveProductionPlan(): bool
     {
-        return $this->isGeneralDirector()
-            || $this->position === 'Giám Đốc'
-            || in_array($this->role ?? '', ['director', 'sales_director', 'general_director'], true);
+        return $this->isExecutiveBoardMember() || $this->isITDepartment();
     }
 
     public function canApproveMonthlyPlan(): bool
@@ -255,10 +263,7 @@ class User extends Authenticatable
 
     public function canApproveBom(): bool
     {
-        return $this->isITDepartment()
-            || $this->isGeneralDirector()
-            || ($this->position ?? '') === 'Giám Đốc'
-            || in_array($this->role ?? '', ['director', 'general_director'], true);
+        return $this->isITDepartment() && ! $this->isExecutiveBoardMember();
     }
 
     // Kiểm tra quyền xác nhận nhà cung cấp đã giao hàng

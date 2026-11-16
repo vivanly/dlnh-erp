@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <div><h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Tồn kho dược liệu thô &amp; phụ liệu</h2>@if($selectedItemId && $rows->isNotEmpty())<p class="mt-1 text-xs text-slate-500">Đang xem mã <strong class="font-mono text-blue-700">{{ $rows->first()->item->sku }}</strong> · <a href="{{ route('warehouse.material-stock', array_filter(['search' => $search, 'type' => $type])) }}" class="text-blue-700 hover:underline">Quay lại danh sách tồn kho</a></p>@endif</div>
+        <div><h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Tồn kho nguyên liệu, phụ liệu, tá dược &amp; bao bì</h2>@if($selectedItemId && $rows->isNotEmpty())<p class="mt-1 text-xs text-slate-500">Đang xem mã <strong class="font-mono text-blue-700">{{ $rows->first()->item->sku }}</strong> · <a href="{{ route('warehouse.material-stock', array_filter(['search' => $search, 'type' => $type])) }}" class="text-blue-700 hover:underline">Quay lại danh sách tồn kho</a></p>@endif</div>
     </x-slot>
 
     <div class="py-2">
@@ -11,7 +11,9 @@
                 <select name="type" class="text-xs border-slate-300">
                     <option value="">Tất cả loại</option>
                     <option value="raw_material" @selected($type === 'raw_material')>Dược liệu thô</option>
-                    <option value="accessory" @selected($type === 'accessory')>Phụ liệu</option>
+                    <option value="excipient" @selected($type === 'excipient')>Tá dược</option>
+                    <option value="packaging" @selected($type === 'packaging')>Bao bì</option>
+                    <option value="accessory" @selected($type === 'accessory')>Nguyên liệu / phụ liệu</option>
                 </select>
                 <button class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold uppercase">Lọc</button>
                 <a href="{{ route('warehouse.material-stock') }}" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs font-bold uppercase">Xóa lọc</a>
@@ -25,7 +27,7 @@
                             <th class="p-2.5 border-r">Mã</th>
                             <th class="p-2.5 border-r">Tên</th>
                             <th class="p-2.5 border-r">Nguồn gốc</th>
-                            <th class="p-2.5 border-r">Lô NCC (dược liệu thô) / phụ liệu quản lý theo tổng</th>
+                            <th class="p-2.5 border-r">Lô NCC / tồn tổng</th>
                             <th class="p-2.5 border-r text-right">Đã nhập</th>
                             <th class="p-2.5 border-r text-right">Đã xuất</th>
                             <th class="p-2.5 text-right">Tồn</th>
@@ -34,7 +36,7 @@
                     <tbody class="divide-y divide-slate-200">
                         @forelse($rows as $row)
                             <tr>
-                                <td class="p-2.5 border-r">{{ $row->type === 'accessory' ? 'Phụ liệu' : 'Dược liệu thô' }}</td>
+                                <td class="p-2.5 border-r">{{ \App\Models\CatalogItem::labelForType($row->type) }}</td>
                                 <td class="p-2.5 border-r font-mono"><a class="font-semibold text-blue-700 hover:underline" href="{{ route('warehouse.material-stock', ['type' => $row->type, 'item_id' => $row->item->id, 'search' => $search]) }}">{{ $row->item->sku }}</a></td>
                                 <td class="p-2.5 border-r font-medium">{{ $row->item->name }}</td>
                                 <td class="p-2.5 border-r">{{ $row->item->origin ?: 'Chưa khai báo' }}</td>
@@ -52,7 +54,7 @@
                                             @endif
                                         </span>
                                     @empty
-                                        <span class="text-slate-400">{{ $row->type === 'accessory' ? 'Theo tổng khối lượng' : '---' }}</span>
+                                        <span class="text-slate-400">{{ $row->type === 'raw_material' ? '---' : 'Theo tổng khối lượng' }}</span>
                                     @endforelse
                                 </td>
                                 <td class="p-2.5 border-r text-right font-mono">{{ number_format($row->in, 2) }} {{ $row->item->unit }}</td>

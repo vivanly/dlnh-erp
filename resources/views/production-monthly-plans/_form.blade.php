@@ -34,7 +34,7 @@
                     <select name="lines[{{ $index }}][product_id]" required class="mt-1 w-full border-slate-300 text-xs">
                         <option value="">Chọn sản phẩm</option>
                         @foreach($products as $product)
-                            <option value="{{ $product->id }}" {{ (string) ($line['product_id'] ?? '') === (string) $product->id ? 'selected' : '' }}>{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ?: 'Chưa phân loại' }} · {{ $product->unit }}</option>
+                            <option value="{{ $product->id }}" {{ (string) ($line['product_id'] ?? '') === (string) $product->id ? 'selected' : '' }}>{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }} · {{ $product->unit }}</option>
                         @endforeach
                     </select>
                 </label>
@@ -62,7 +62,7 @@
                 <select data-name="product_id" required class="mt-1 w-full border-slate-300 text-xs">
                     <option value="">Chọn sản phẩm</option>
                     @foreach($products as $product)
-                        <option value="{{ $product->id }}">{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ?: 'Chưa phân loại' }} · {{ $product->unit }}</option>
+                        <option value="{{ $product->id }}">{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }} · {{ $product->unit }}</option>
                     @endforeach
                 </select>
             </label>

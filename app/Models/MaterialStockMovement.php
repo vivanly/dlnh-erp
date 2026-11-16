@@ -14,9 +14,7 @@ class MaterialStockMovement extends Model
 
     public function getCatalogItemAttribute()
     {
-        return $this->material_type === 'accessory'
-            ? Accessory::find($this->material_id)
-            : RawMaterial::find($this->material_id);
+        return CatalogItem::findByType($this->material_type, (int) $this->material_id);
     }
 
     public static function lotBalances(string $type, int $id, bool $onlyPositive = true)

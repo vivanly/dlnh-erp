@@ -15,7 +15,7 @@ class BomApprovalTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_planning_submits_bom_and_only_director_or_it_can_approve_it(): void
+    public function test_planning_submits_bom_and_only_it_can_approve_it(): void
     {
         $planningUser = User::factory()->create(['role' => 'production_planner']);
         $qaUser = User::factory()->create(['role' => 'qa']);
@@ -67,7 +67,7 @@ class BomApprovalTest extends TestCase
         $this->actingAs($itUser)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Kế hoạch nguyên liệu');
+            ->assertSee('Nhu cầu nguyên liệu');
 
         $this->actingAs($directorUser)
             ->get(route('boms.index'))
@@ -75,7 +75,7 @@ class BomApprovalTest extends TestCase
             ->assertDontSee('Duyệt định mức BOM')
             ->assertDontSee('Định mức sản xuất (BOM)')
             ->assertDontSee('Nhu cầu nguyên liệu')
-            ->assertSee('Duyệt BOM')
+            ->assertDontSee('Duyệt BOM')
             ->assertDontSee('Tạo phiên bản BOM')
             ->assertDontSee('Tính nhu cầu MRP');
         $this->get(route('boms.create'))->assertForbidden();
@@ -105,17 +105,23 @@ class BomApprovalTest extends TestCase
 
         $this->actingAs($directorUser)
             ->post(route('boms.approve', $bom))
+            ->assertForbidden();
+
+        $this->assertSame('pending_approval', $bom->fresh()->status);
+        $this->actingAs($itUser)
+            ->post(route('boms.approve', $bom))
             ->assertRedirect();
 
         $this->assertSame('approved', $bom->fresh()->status);
         $this->assertTrue($bom->fresh()->is_active);
-        $this->assertSame($directorUser->id, $bom->fresh()->approved_by);
+        $this->assertSame($itUser->id, $bom->fresh()->approved_by);
     }
 
     public function test_rejected_bom_is_not_available_for_mrp(): void
     {
         $planningUser = User::factory()->create(['role' => 'production_planner']);
         $directorUser = User::factory()->create(['role' => 'director']);
+        $itUser = User::factory()->create(['role' => 'it']);
         $finishedProduct = Product::create([
             'name' => 'BOM rejection finished product',
             'slug' => 'bom-rejection-finished-product',
@@ -146,6 +152,10 @@ class BomApprovalTest extends TestCase
         $bom = ProductBom::sole();
         $this->actingAs($directorUser)
             ->post(route('boms.reject', $bom), ['reason' => 'Cần cập nhật định mức hao hụt'])
+            ->assertForbidden();
+
+        $this->actingAs($itUser)
+            ->post(route('boms.reject', $bom), ['reason' => 'Cần cập nhật định mức hao hụt'])
             ->assertRedirect();
 
         $this->assertSame('rejected', $bom->fresh()->status);
@@ -160,6 +170,7 @@ class BomApprovalTest extends TestCase
     {
         $planningUser = User::factory()->create(['role' => 'production_planner']);
         $directorUser = User::factory()->create(['role' => 'general_director']);
+        $itUser = User::factory()->create(['role' => 'it']);
         $finishedProduct = Product::create([
             'name' => 'BOM catalog finished product',
             'slug' => 'bom-catalog-finished-product',
@@ -213,7 +224,8 @@ class BomApprovalTest extends TestCase
         $this->assertNull($bom->items[0]->component_product_id);
         $this->assertSame(PackagingMaterial::class, $bom->items[1]->component_type);
 
-        $this->actingAs($directorUser)->post(route('boms.approve', $bom))->assertRedirect();
+        $this->actingAs($directorUser)->post(route('boms.approve', $bom))->assertForbidden();
+        $this->actingAs($itUser)->post(route('boms.approve', $bom))->assertRedirect();
         $this->actingAs($planningUser)
             ->get(route('boms.plan', ['product_id' => $finishedProduct->id, 'quantity' => 20]))
             ->assertOk()

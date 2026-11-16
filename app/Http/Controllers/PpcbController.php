@@ -23,6 +23,9 @@ class PpcbController extends Controller implements HasMiddleware
                 abort_unless(auth()->check(), 403, 'Vui lòng đăng nhập.');
 
                 $user = auth()->user();
+                if ($user->isExecutiveBoardMember() && $request->isMethodSafe()) {
+                    return $next($request);
+                }
 
                 $isQA =
                     (method_exists($user, 'isQADepartment') && $user->isQADepartment()) ||

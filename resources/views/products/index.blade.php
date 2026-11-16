@@ -52,13 +52,14 @@
                 
                 <!-- FORM TÌM KIẾM & LỌC ĐÃ TỐI ƯU -->
                 <form method="GET" action="{{ route('products.index') }}" class="p-3 border-b border-slate-300 bg-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
+                    @if(request()->filled('per_page'))<input type="hidden" name="per_page" value="{{ request('per_page') }}">@endif
                     <div class="w-full sm:w-96">
                         <input type="search" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên sản phẩm..." aria-label="Tìm theo tên sản phẩm" class="w-full text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0 shadow-none py-1.5">
                     </div>
                     <select name="classification" aria-label="Lọc theo phân loại" class="w-full sm:w-56 text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0" onchange="this.form.submit()">
                         <option value="">Tất cả phân loại</option>
-                        @foreach($classifications as $classification)
-                            <option value="{{ $classification }}" @selected(request('classification') === $classification)>{{ $classification }}</option>
+                        @foreach($classifications as $classificationCode => $classification)
+                            <option value="{{ $classificationCode }}" @selected(\App\Models\Product::classificationCode((string) request('classification')) === $classificationCode)>{{ $classificationCode }} · {{ $classification }}</option>
                         @endforeach
                     </select>
                     
@@ -104,7 +105,7 @@
                                     <td class="py-2 px-3 border-r border-slate-200 text-center font-mono text-slate-600">
                                         {{ $products->firstItem() + $index }}
                                     </td>
-                                    <td class="py-2 px-3 border-r border-slate-200 text-slate-700">{{ $product->classification ?? '---' }}</td>
+                                    <td class="py-2 px-3 border-r border-slate-200 text-slate-700">{{ $product->classification ? $product->classification . ' · ' . $product->classification_label : '---' }}</td>
                                     <td class="py-2 px-3 border-r border-slate-200 font-mono text-slate-700">{{ $product->sku ?? '---' }}</td>
                                     <td class="py-2 px-3 border-r border-slate-200 font-bold text-slate-900">{{ $product->name }}</td>
                                     <td class="py-2 px-3 border-r border-slate-200 text-center font-semibold text-blue-700">{{ $product->unit ?? '---' }}</td>
@@ -127,7 +128,9 @@
                                     @if(auth()->user()->isQADepartment() || auth()->user()->isITDepartment())
                                         <td class="py-2 px-3 text-center space-x-2 whitespace-nowrap">
                                             <a href="{{ route('product-regulatory-documents.index', ['product_id' => $product->id]) }}" class="text-emerald-600 hover:text-emerald-900 font-bold">Hồ sơ</a>
-                                            <button type="button" onclick="document.getElementById('product-edit-modal-{{ $product->id }}').showModal()" class="erp-action-text text-blue-600 hover:text-blue-900 font-bold">Sửa</button>
+                                            <button type="button" class="product-edit-button erp-action-text text-blue-600 hover:text-blue-900 font-bold"
+                                                data-update-url="{{ route('products.update', $product) }}"
+                                                data-product="{{ json_encode($product->only(['id', 'classification', 'sku', 'name', 'unit', 'origin', 'raw_material_id', 'part_used', 'ppcb_id', 'scientific_name', 'gtin', 'scientific_name_reference', 'note']), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) }}">Sửa</button>
                                             <form action="{{ route('products.destroy', $product->id) }}" method="POST" class="inline-block" onsubmit="return confirm('Bạn có chắc chắn muốn xóa sản phẩm này không?');">
                                                 @csrf
                                                 @method('DELETE')
@@ -157,19 +160,51 @@
                 @if($canManageProducts)
                     <dialog id="product-create-modal" class="erp-form-modal w-[min(64rem,calc(100%-2rem))] max-h-[90vh] p-0">
                         <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><div><p class="text-[11px] uppercase tracking-wider text-blue-700">Danh mục hàng hóa</p><h3 class="text-base font-bold">Thêm sản phẩm</h3></div><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border bg-white px-3 py-1 text-lg">×</button></div>
-                        <form action="{{ route('products.store') }}" method="POST" class="space-y-4 p-5">@csrf<input type="hidden" name="_product_modal" value="create">@include('products.partials.fields', ['product' => null])
+                        <form action="{{ route('products.store') }}" method="POST" class="space-y-4 p-5">@csrf<input type="hidden" name="_product_modal" value="create">@include('products.partials.fields', ['product' => null, 'modal' => 'create'])
                             <div class="flex justify-end gap-2 border-t pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu sản phẩm</button></div>
                         </form>
                     </dialog>
-                    @foreach($products as $product)
-                        <dialog id="product-edit-modal-{{ $product->id }}" class="erp-form-modal w-[min(64rem,calc(100%-2rem))] max-h-[90vh] p-0">
-                            <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><div><p class="text-[11px] uppercase tracking-wider text-blue-700">Danh mục hàng hóa</p><h3 class="text-base font-bold">Sửa sản phẩm · {{ $product->name }}</h3></div><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border bg-white px-3 py-1 text-lg">×</button></div>
-                            <form action="{{ route('products.update', $product) }}" method="POST" class="space-y-4 p-5">@csrf @method('PUT')<input type="hidden" name="_product_modal" value="edit"><input type="hidden" name="_product_id" value="{{ $product->id }}">@include('products.partials.fields', ['product' => $product])
-                                <div class="flex justify-end gap-2 border-t pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu thay đổi</button></div>
-                            </form>
-                        </dialog>
-                    @endforeach
-                    @if(old('_product_modal'))<script>document.addEventListener('DOMContentLoaded',()=>{const id=@json(old('_product_modal'))==='create'?'product-create-modal':`product-edit-modal-${@json(old('_product_id'))}`;document.getElementById(id)?.showModal();});</script>@endif
+                    <dialog id="product-edit-modal" class="erp-form-modal w-[min(64rem,calc(100%-2rem))] max-h-[90vh] p-0">
+                        <div class="flex items-center justify-between border-b border-blue-200 bg-blue-50 px-5 py-3"><div><p class="text-[11px] uppercase tracking-wider text-blue-700">Danh mục hàng hóa</p><h3 class="product-edit-title text-base font-bold">Sửa sản phẩm</h3></div><button type="button" aria-label="Đóng" onclick="this.closest('dialog').close()" class="border bg-white px-3 py-1 text-lg">×</button></div>
+                        <form method="POST" class="space-y-4 p-5">@csrf @method('PUT')
+                            <input type="hidden" name="_product_modal" value="edit">
+                            <input type="hidden" name="_product_id" value="{{ old('_product_id') }}">
+                            @foreach(['search', 'classification', 'per_page', 'page'] as $filter)
+                                <input type="hidden" name="return_{{ $filter }}" value="{{ old('return_' . $filter, request($filter)) }}">
+                            @endforeach
+                            @include('products.partials.fields', ['product' => null, 'modal' => 'edit'])
+                            <div class="flex justify-end gap-2 border-t pt-3"><button type="button" onclick="this.closest('dialog').close()" class="border px-4 py-2 text-xs">Hủy</button><button class="border border-blue-700 bg-blue-600 px-4 py-2 text-xs font-bold text-white">Lưu thay đổi</button></div>
+                        </form>
+                    </dialog>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', () => {
+                            const modal = document.getElementById('product-edit-modal');
+                            const form = modal.querySelector('form');
+                            const updateUrl = @json(route('products.update', ['product' => '__PRODUCT__']));
+                            document.querySelectorAll('.product-edit-button').forEach(button => {
+                                button.addEventListener('click', () => {
+                                    const product = JSON.parse(button.dataset.product);
+                                    form.action = button.dataset.updateUrl;
+                                    form.elements.namedItem('_product_id').value = product.id;
+                                    Object.entries(product).forEach(([name, value]) => {
+                                        const field = form.elements.namedItem(name);
+                                        if (field) field.value = value ?? '';
+                                    });
+                                    modal.querySelector('.product-edit-title').textContent = `Sửa sản phẩm · ${product.name}`;
+                                    const errors = form.querySelector('[data-product-errors]');
+                                    if (errors) errors.remove();
+                                    modal.showModal();
+                                });
+                            });
+                            const oldModal = @json(old('_product_modal'));
+                            if (oldModal === 'edit') {
+                                form.action = updateUrl.replace('__PRODUCT__', encodeURIComponent(@json(old('_product_id'))));
+                                modal.showModal();
+                            } else if (oldModal === 'create') {
+                                document.getElementById('product-create-modal').showModal();
+                            }
+                        });
+                    </script>
                 @endif
                 <!-- Footer phân trang -->
                 <div class="p-3 border-t border-slate-300 bg-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">

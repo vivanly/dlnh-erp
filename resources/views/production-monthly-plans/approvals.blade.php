@@ -27,8 +27,8 @@
                     </div>
                     @if($canApprovePlans)
                         <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 p-3">
-                            <form method="POST" action="{{ route('production-monthly-plans.reject', $plan) }}" class="flex flex-1 gap-2 sm:flex-none">@csrf<textarea name="reason" required maxlength="1000" placeholder="Lý do trả lại (bắt buộc)" class="min-w-64 border-slate-300 text-xs"></textarea><button class="border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">Trả lại</button></form>
-                            <form method="POST" action="{{ route('production-monthly-plans.approve', $plan) }}" onsubmit="return confirm('Duyệt kế hoạch và tạo các lệnh sản xuất?');">@csrf<button class="bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Duyệt kế hoạch</button></form>
+                            <form method="POST" action="{{ route('production-monthly-plans.reject', $plan) }}" class="director-approval-action flex flex-1 gap-2 sm:flex-none">@csrf<textarea name="reason" required maxlength="1000" placeholder="Lý do trả lại (bắt buộc)" class="min-w-64 border-slate-300 text-xs"></textarea><button class="border border-rose-300 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">Trả lại</button></form>
+                            <form method="POST" action="{{ route('production-monthly-plans.approve', $plan) }}" class="director-approval-action" onsubmit="return confirm('Duyệt kế hoạch và tạo các lệnh sản xuất?');">@csrf<button class="bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Duyệt kế hoạch</button></form>
                         </div>
                     @endif
                 </section>

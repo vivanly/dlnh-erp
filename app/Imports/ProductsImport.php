@@ -16,8 +16,21 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
 
     private int $importedCount = 0;
 
-    public function model(array $row): Product
+    public function prepareForValidation(array $row, int $index): array
     {
+        $row['_empty_product_row'] = collect($row)->every(
+            fn ($value) => $value === null || (is_string($value) && trim($value) === '')
+        );
+
+        return $row;
+    }
+
+    public function model(array $row): ?Product
+    {
+        if ($row['_empty_product_row']) {
+            return null;
+        }
+
         $name = trim($row['ten_hang_hoa']);
         $sku = trim($row['ma_hang_sku']);
         $ppcbCode = trim((string) ($row['ma_ppcb'] ?? ''));
@@ -32,7 +45,7 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
             'ppcb_id' => $ppcbId,
             'origin' => $row['nguon_goc'] ?? null,
             'unit' => $row['dvt'] ?? null,
-            'classification' => $row['phan_loai'] ?? null,
+            'classification' => Product::classificationCode($row['phan_loai']),
             'scientific_name' => $row['ten_khoa_hoc'] ?? null,
             'scientific_name_reference' => $row['tai_lieu_tham_khao'] ?? null,
             'note' => $row['ghi_chu'] ?? null,
@@ -45,12 +58,12 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
 
     public function rules(): array
     {
-        return [
+        $rules = [
             '*.ma_hang_sku' => 'required|string|max:255|unique:products,sku',
             '*.ten_hang_hoa' => 'required|string|max:255',
             '*.gtin' => 'nullable|string|max:255|unique:products,gtin',
             '*.ma_ppcb' => 'nullable|string|exists:ppcb,ma',
-            '*.phan_loai' => 'required|in:Dược Liệu,Dược Liệu Sơ Chế,Vị Thuốc Cổ Truyền,Thuốc Cổ Truyền,Thực Phẩm Chức Năng',
+            '*.phan_loai' => 'required|in:' . implode(',', Product::classificationValues()),
             '*.ten_khoa_hoc' => 'nullable|string|max:255',
             '*.nguon_goc' => 'nullable|string|max:255',
             '*.bo_phan_dung' => 'nullable|string|max:255',
@@ -58,6 +71,8 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
             '*.tai_lieu_tham_khao' => 'nullable|string|max:255',
             '*.ghi_chu' => 'nullable|string',
         ];
+
+        return array_map(fn ($rule) => 'exclude_if:*._empty_product_row,true|' . $rule, $rules);
     }
 
     public function importedCount(): int

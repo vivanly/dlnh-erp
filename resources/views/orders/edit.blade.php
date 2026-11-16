@@ -76,8 +76,12 @@
                             <label class="block text-xs font-semibold text-slate-800 mb-1">Loại Đơn Hàng <span class="text-rose-600">*</span></label>
                             <select name="order_type" required {{ !$canEditGeneralInfo ? 'disabled' : '' }} class="w-full text-xs border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 bg-white {{ !$canEditGeneralInfo ? 'bg-slate-50 text-slate-600' : '' }}">
                                 <option value="">-- Chọn loại đơn hàng --</option>
-                                <option value="DL" {{ old('order_type', $order->order_type) == 'DL' ? 'selected' : '' }}>Dược Liệu</option>
-                                <option value="VT" {{ old('order_type', $order->order_type) == 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
+                                <option value="DL" {{ old('order_type', $order->order_type) == 'DL' ? 'selected' : '' }}>DL · Dược Liệu</option>
+                                <option value="DLSC" {{ old('order_type', $order->order_type) == 'DLSC' ? 'selected' : '' }}>DLSC · Dược Liệu Sơ Chế</option>
+                                <option value="VTCT" {{ old('order_type', $order->order_type) == 'VTCT' ? 'selected' : '' }}>VTCT · Vị Thuốc Cổ Truyền</option>
+                                <option value="VT" {{ old('order_type', $order->order_type) == 'VT' ? 'selected' : '' }}>VT · Vị Thuốc</option>
+                                <option value="TCT" {{ old('order_type', $order->order_type) == 'TCT' ? 'selected' : '' }}>TCT · Thuốc Cổ Truyền</option>
+                                <option value="TPCN" {{ old('order_type', $order->order_type) == 'TPCN' ? 'selected' : '' }}>TPCN · Thực Phẩm Chức Năng</option>
                             </select>
                         </div>
 
@@ -257,7 +261,7 @@
                         url: '{{ route("api.customers.search") }}',
                         dataType: 'json',
                         delay: 250,
-                        data: params => ({ q: params.term }),
+                        data: params => ({ q: params.term, order_type: $('select[name=order_type]').val() }),
                         processResults: function (data) {
                             let resultsArray = Array.isArray(data) ? data : [data];
                             return {
@@ -315,7 +319,7 @@
                         url: '{{ route("api.products.search") ?? "#" }}',
                         dataType: 'json',
                         delay: 250,
-                        data: params => ({ q: params.term }),
+                        data: params => ({ q: params.term, order_type: $('select[name=order_type]').val() }),
                         processResults: function (data) {
                             let resultsArray = Array.isArray(data) ? data : [data];
                             return {
@@ -340,6 +344,10 @@
                     row.find('.item-origin').text(data.origin || '-');
                 });
             }
+
+            $('select[name=order_type]').on('change', function () {
+                $('#items-tbody .ajax-autocomplete-clear').trigger('click');
+            });
 
             function initPpcbSelect(element) {
                 element.autocompleteSelect({

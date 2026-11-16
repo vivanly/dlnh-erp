@@ -10,7 +10,11 @@ class LabelPermissionController extends Controller
 {
     private function ensureItAccess(): void
     {
-        abort_unless(auth()->user()?->isITDepartment(), 403);
+        $user = auth()->user();
+        abort_unless(
+            $user && ($user->isITDepartment() || ($user->isExecutiveBoardMember() && request()->isMethodSafe())),
+            403
+        );
     }
 
     public function index()

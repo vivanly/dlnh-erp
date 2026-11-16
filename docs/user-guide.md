@@ -68,7 +68,7 @@ Chỉ người được giao quản lý dữ liệu chuẩn mới nên tạo ho�
 
 1. Mở **Kinh doanh → Sản phẩm** (mục sản phẩm có thể nằm ngoài nhóm tùy bố trí menu).
 2. Chọn **Thêm mới**.
-3. Nhập tối thiểu **Mã hàng (SKU)** và **Tên hàng hóa**. Điền thêm **Phân loại**, **Đơn vị tính**, **Nguồn gốc**, **Bộ phận dùng**, **PPCB**, **Tên khoa học**, **Mã GTIN**, tài liệu tham khảo và ghi chú khi có dữ liệu được xác nhận.
+3. Nhập tối thiểu **Mã hàng (SKU)** và **Tên hàng hóa**. Chọn phân loại theo mã: **DL** (Dược Liệu), **DLSC** (Dược Liệu Sơ Chế), **VTCT** (Vị Thuốc Cổ Truyền), **VT** (Vị Thuốc), **TCT** (Thuốc Cổ Truyền) hoặc **TPCN** (Thực Phẩm Chức Năng). Điền thêm **Đơn vị tính**, **Nguồn gốc**, **Bộ phận dùng**, **PPCB**, **Tên khoa học**, **Mã GTIN**, tài liệu tham khảo và ghi chú khi có dữ liệu được xác nhận.
 4. Chọn **Lưu sản phẩm**. Nếu nhập sai hoặc trùng mã, đọc thông báo lỗi, sửa dữ liệu rồi lưu lại.
 5. Khi cần nạp/cập nhật danh mục hàng loạt, dùng chức năng **Import/Export** nếu tài khoản được cấp quyền. Kiểm tra cấu trúc mẫu và dữ liệu trước khi nhập.
 
@@ -91,12 +91,12 @@ Chỉ người được giao quản lý dữ liệu chuẩn mới nên tạo ho�
 
 PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đơn bán. Người có quyền quản trị danh mục có thể mở **PPCB** để tạo/sửa hoặc import/export theo menu. Chỉ chọn mã PPCB đã được xác nhận; không tự suy đoán quy trình bào chế từ tên gần giống.
 
-### 3.5. Dược liệu thô, phụ liệu, tá dược và bao bì
+### 3.5. Dược liệu thô, nguyên liệu, phụ liệu, tá dược và bao bì
 
 1. Mở **QA → Dược liệu thô**, **Phụ liệu**, **Tá dược** hoặc **Bao bì**, chọn tạo mới hoặc import theo mẫu do màn hình cung cấp.
 2. Các danh mục dùng chung trường SKU, tên, đơn vị tính, nguồn gốc, bộ phận dùng, tên khoa học, tài liệu tham khảo và ghi chú; có thể lọc, sửa, xóa, import và export như Phụ liệu.
 3. Tá dược và bao bì có thể được chọn làm thành phần khi tạo BOM. Đơn vị thành phần phải trùng đơn vị gốc đã khai báo trên danh mục.
-4. Theo dõi nhập/xuất và tồn kho hiện áp dụng cho dược liệu thô và phụ liệu; không chỉnh số tồn bằng cách sửa danh mục. Phụ liệu hiện được theo dõi tồn tổng, không quản lý số lô NCC/COA như dược liệu thô. Dược liệu thô cần có số lô, ngày sản xuất, hạn dùng và COA trước khi QC duyệt nhập tồn.
+4. Không chỉnh số tồn bằng cách sửa danh mục. Dược liệu thô, nguyên liệu/phụ liệu, tá dược và bao bì được theo dõi qua phiếu nhận/QC và giao dịch kho. Nguyên liệu/phụ liệu, tá dược và bao bì theo dõi tồn tổng; dược liệu thô cần số lô, ngày sản xuất, hạn dùng và COA trước khi QC duyệt nhập tồn.
 
 ### 3.6. Hồ sơ, tiêu chuẩn và bảo quản sản phẩm
 
@@ -107,11 +107,11 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 
 ## 4. Mua hàng và nhận hàng
 
-### 4.1. Lập đơn mua dược liệu thô/phụ liệu (Kinh doanh)
+### 4.1. Lập đơn mua (Kinh doanh)
 
 1. Mở **Kinh doanh → Đơn mua hàng**, chọn tạo đơn mới.
-2. Chọn **Loại hàng đặt mua** là **Dược liệu thô** hoặc **Phụ liệu**, nhập mã PO, nhà cung cấp, ngày đặt và ngày giao dự kiến.
-3. Thêm từng dòng từ danh mục tương ứng. Chọn hàng hóa, nhập số lượng và đơn giá; đơn vị lấy theo danh mục. Không trộn hai loại hàng trong cùng PO.
+2. Chọn **Loại hàng đặt mua**: **DLT** (Dược liệu thô), **NL** (Nguyên liệu), **PL** (Phụ liệu), **BB** (Bao bì) hoặc **TD** (Tá dược); nhập mã PO, nhà cung cấp, ngày đặt và ngày giao dự kiến.
+3. Thêm từng dòng từ danh mục tương ứng. Trường **Hàng hóa** gợi ý theo loại hàng đã chọn; **Nguyên liệu** và **Phụ liệu** dùng chung danh mục/tồn kho Phụ liệu. Chọn hàng hóa, nhập số lượng và đơn giá; đơn vị lấy theo danh mục. Không trộn nhiều loại hàng trong cùng PO.
 4. Nhập ghi chú nếu cần, kiểm tra tiền hàng, thuế và tổng thanh toán.
 5. Lưu PO, mở lại chi tiết, rà soát rồi gửi duyệt.
 6. Theo dõi trạng thái ở danh sách đơn mua. Nếu bị từ chối, đọc lý do, sửa đơn (trạng thái nháp/từ chối hoặc khi có quyền sửa đơn khóa) và gửi duyệt lại.
@@ -124,19 +124,19 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 4. Nếu không đồng ý, mở vùng **Từ Chối**, nhập **Lý do từ chối đơn hàng** (bắt buộc) rồi xác nhận. Người lập đơn cần nhận được lý do để sửa.
 5. Duyệt PO chỉ cho phép theo dõi giao hàng; chưa ghi nhận hàng về kho.
 
-### 4.3. Kho xác nhận hàng đến và nhập nguyên liệu/phụ liệu
+### 4.3. Kho xác nhận hàng đến và nhập nguyên liệu
 
-1. Mở **Kho → Nhận đơn mua (NL thô / phụ liệu)**. Với PO đã duyệt, chọn **Xác nhận đợt giao đến**; thao tác này chuyển PO sang trạng thái hàng đã đến và mở bước nhập kho.
+1. Mở **Kho → Nhận đơn mua nguyên liệu**. Với PO đã duyệt, chọn **Xác nhận đợt giao đến**; thao tác này chuyển PO sang trạng thái hàng đã đến và mở bước nhập kho.
 2. Mở nhập kho PO, đối chiếu từng dòng, số lượng PO và **Còn xử lý**. Nhập **SL nhập kho**, **SL trả lại** và ghi chú theo số thực tế.
 3. Tổng số nhập và trả của mỗi dòng không được vượt lượng PO còn lại. Có thể xử lý PO qua nhiều đợt; trạng thái PO cập nhật theo lượng đã xử lý.
-4. Lưu nhập kho. Hàng nhập được tạo thành lô đang **Chờ QC**, chưa được cộng tồn khả dụng. Với dược liệu thô, QA cần bổ sung số lô NCC, NSX/HSD và COA trước khi QC có thể duyệt. Phụ liệu không cần số lô/COA.
+4. Lưu nhập kho. Hàng nhập được tạo thành lô đang **Chờ QC**, chưa được cộng tồn khả dụng. Với dược liệu thô, QA cần bổ sung số lô NCC, NSX/HSD và COA trước khi QC có thể duyệt. Các loại còn lại không yêu cầu thông tin lô/COA.
 
-> Đây là luồng cho dược liệu thô/phụ liệu. Luồng phiếu nhận dược liệu cũ (nếu còn được bật trong môi trường triển khai) là màn hình riêng; không dùng các bước trên để kết luận trạng thái lô dược liệu.
+> Đây là luồng cho dược liệu thô, nguyên liệu/phụ liệu, tá dược và bao bì. Luồng phiếu nhận dược liệu cũ (nếu còn được bật trong môi trường triển khai) là màn hình riêng; không dùng các bước trên để kết luận trạng thái lô dược liệu.
 
-### 4.4. Trả hàng nhà cung cấp (nguyên liệu/phụ liệu)
+### 4.4. Trả hàng nhà cung cấp (nguyên liệu)
 
 1. Mở **Kho → Trả hàng nhà cung cấp** và tìm dòng PO đã nhập.
-2. Chọn đúng lô/đợt nhập còn tồn để trả. Với dược liệu thô chọn số lô NCC; phụ liệu không quản lý số lô nên chọn theo dòng hàng.
+2. Chọn đúng lô/đợt nhập còn tồn để trả. Với dược liệu thô chọn số lô NCC; nguyên liệu/phụ liệu, tá dược và bao bì theo dõi theo dòng hàng, không yêu cầu số lô NCC.
 3. Nhập số lượng trả, số phiếu kiểm nghiệm, ngày kiểm nghiệm và lý do. Số trả không được vượt số lượng đã nhận còn trả được hoặc tồn lô hiện có.
 4. Lập đơn trả sẽ ghi giảm tồn ngay và tạo mã trả ở trạng thái chờ giao. Sau khi hàng thực sự được giao NCC, dùng **Xác nhận giao trả** để hoàn tất trạng thái.
 5. Nếu hàng vừa nhập nhưng QC chưa duyệt hoặc chưa có số lô/COA, trao đổi với QA/QC để xử lý kết luận chất lượng trước; không xem hàng chờ QC là tồn khả dụng.
@@ -145,7 +145,7 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 
 ### 5.1. COA và quyết định QC
 
-1. Với dược liệu thô/phụ liệu mới, dùng **QC → Kiểm tra lô NCC / Kiểm tra phụ liệu** theo mục 5.3. Đây là luồng nhập PO mới.
+1. Với dược liệu thô hoặc các nhóm nguyên liệu mới, dùng **QC → Kiểm tra lô NCC / Kiểm tra nguyên liệu** theo mục 5.3. Đây là luồng nhập PO mới.
 2. Nếu môi trường còn dùng màn hình **QA → Kiểm tra lô NCC** (`qa.batches`), màn hình đó là luồng lô dược liệu cũ. Tìm theo lô/sản phẩm, kiểm tra COA và lượng khả dụng theo chính giao diện đang triển khai.
 3. Lô nguyên liệu mới chỉ cộng tồn sau khi QC xác nhận đạt ở mục 5.3. Với luồng dược liệu cũ, kiểm tra trạng thái và hướng dẫn trên màn hình; không áp quy tắc/mã trạng thái của hai loại lô qua lại.
 4. Trả NCC cho raw materials/accessories thực hiện tại **Kho → Trả hàng nhà cung cấp** (mục 4.4). Không ghi nhận một phiếu trả chỉ bằng cách thay trạng thái lô.
@@ -159,13 +159,13 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 4. Chọn **Ghi nhận PKN đạt** hoặc **Ghi nhận PKN không đạt** đúng theo kết quả phê duyệt; không chọn thay cho kết quả thử nghiệm.
 5. Tệp PKN và trạng thái sẽ gắn với lô để tra cứu. Một số luồng nhập kho có thể cho nhập trước khi PKN hoàn tất; điều đó không đồng nghĩa lô đã đạt hoặc được phép giao/bán.
 
-### 5.3. QC dược liệu thô và phụ liệu
+### 5.3. QC dược liệu thô và các nhóm nguyên liệu
 
-1. Mở **QC → Kiểm tra lô NCC** hoặc **QC → Kiểm tra phụ liệu**.
+1. Mở **QC → Kiểm tra lô NCC** hoặc **QC → Kiểm tra nguyên liệu**.
 2. Với dược liệu thô đang chờ QC, QA mở thông tin lô, nhập **Số lô NCC**, **NSX**, **HSD** và tải COA PDF. Lô không thể được QC duyệt nếu còn thiếu các thông tin bắt buộc hoặc COA.
-3. Với phụ liệu, lô được theo dõi tổng hợp và không có số lô/COA trong hệ thống.
+3. Với nguyên liệu/phụ liệu, tá dược và bao bì, lô được theo dõi tổng hợp và không có số lô/COA trong hệ thống.
 4. QC chọn **QC xác nhận đạt** để ghi nhận giao dịch nhập tồn. Nếu không đạt, nhập lý do và kết luận **Không đạt**; lượng đó không được cộng vào tồn.
-5. Sau khi duyệt, kiểm tra tại **Kho → Tồn dược liệu thô / phụ liệu**. Lưu ý màn hình COA chỉ cho người dùng có quyền phù hợp và phải đăng nhập.
+5. Sau khi duyệt, kiểm tra tại **Kho → Tồn nguyên liệu / phụ liệu / bao bì / tá dược**. Lưu ý màn hình COA chỉ cho người dùng có quyền phù hợp và phải đăng nhập.
 
 ## 6. Lập đơn bán và xử lý đơn hàng
 
@@ -173,8 +173,8 @@ PPCB là dữ liệu chọn được trên danh mục sản phẩm và dòng đ�
 
 1. Mở **Kinh doanh → Đơn bán hàng**, chọn **Lên đơn mới**.
 2. Nhập **Mã đơn hàng**, chọn khách hàng; kiểm tra mã và địa chỉ khách hàng tự hiển thị.
-3. Chọn **Loại đơn hàng**: **Dược liệu**, **Vị thuốc** hoặc **Dược Liệu Thô**; nhập ngày nhận đơn, ngày dự kiến giao, tỉnh/thành và thông tin liên hệ.
-4. Với đơn Dược liệu/Vị thuốc, thêm sản phẩm, nhập **Số lượng**, **QCĐG**, chọn PPCB nếu áp dụng và ghi chú. Với đơn Dược Liệu Thô, danh sách hàng lấy từ catalog dược liệu thô; không áp dụng PPCB/QCĐG thành phẩm.
+3. Chọn **Loại đơn hàng**: **DLT** (Dược liệu thô), **DL** (Dược liệu), **DLSC** (Dược liệu sơ chế), **VTCT** (Vị thuốc cổ truyền), **VT** (Vị thuốc), **TCT** (Thuốc cổ truyền) hoặc **TPCN** (Thực phẩm chức năng); nhập ngày nhận đơn, ngày dự kiến giao, tỉnh/thành và thông tin liên hệ.
+4. Danh sách hàng gợi ý theo loại đơn; các loại thành phẩm lọc theo mã phân loại tương ứng trong danh mục, còn **DLT** lấy từ danh mục dược liệu thô. Với thành phẩm, nhập **Số lượng**, **QCĐG**, chọn PPCB nếu áp dụng và ghi chú. Đơn **DLT** không áp dụng PPCB/QCĐG thành phẩm.
 5. Thành phẩm dự kiến được tính từ số lượng yêu cầu và QCĐG khi có giá trị QCĐG hợp lệ. Rà soát kết quả từng dòng, đơn vị, lô/ghi chú và ngày giao.
 6. Chọn **Lưu Đơn Hàng Mới**. Mở chi tiết đơn và gửi/đưa đơn qua phê duyệt theo nút và trạng thái được hiển thị.
 7. Danh sách đơn hỗ trợ tìm theo mã đơn, khách hàng hoặc số lô và lọc theo trạng thái. Các trạng thái thường gặp: chờ duyệt, chờ Kho xác nhận tồn, chờ QA chốt lô, chờ hoạch định, chờ sản xuất, chờ Kho nhập lô thành phẩm, chờ xuất giao và hoàn thành.

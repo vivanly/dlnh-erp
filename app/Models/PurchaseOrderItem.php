@@ -44,6 +44,16 @@ class PurchaseOrderItem extends Model
         return $this->belongsTo(Accessory::class, 'material_id');
     }
 
+    public function excipient()
+    {
+        return $this->belongsTo(Excipient::class, 'material_id');
+    }
+
+    public function packagingMaterial()
+    {
+        return $this->belongsTo(PackagingMaterial::class, 'material_id');
+    }
+
     public function materialLots()
     {
         return $this->hasMany(MaterialLot::class, 'purchase_order_item_id');
@@ -51,29 +61,28 @@ class PurchaseOrderItem extends Model
 
     public static function catalogExists(string $type, int $id): bool
     {
-        return match ($type) {
-            'product' => Product::whereKey($id)->exists(),
-            'raw_material' => RawMaterial::whereKey($id)->exists(),
-            'accessory' => Accessory::whereKey($id)->exists(),
-            default => false,
-        };
+        if ($type === 'product') {
+            return Product::whereKey($id)->exists();
+        }
+
+        $model = CatalogItem::modelForType($type);
+
+        return $model !== null && $model::whereKey($id)->exists();
     }
 
     public static function catalogColumns(string $type, int $id): array
     {
         return $type === 'product'
             ? ['product_id' => $id, 'material_type' => null, 'material_id' => null]
-            : ['product_id' => null, 'material_type' => $type, 'material_id' => $id];
+            : ['product_id' => null, 'material_type' => CatalogItem::codeForType($type), 'material_id' => $id];
     }
 
-    // Hàng hóa của dòng đơn mua: sản phẩm, dược liệu thô hoặc phụ liệu
+    // Resolve the catalog behind a purchase-order line.
     public function getCatalogItemAttribute()
     {
-        return match ($this->material_type) {
-            'raw_material' => $this->rawMaterial,
-            'accessory' => $this->accessory,
-            default => $this->product,
-        };
+        return $this->material_type
+            ? CatalogItem::findByType($this->material_type, (int) $this->material_id)
+            : $this->product;
     }
 
     public function getItemTypeAttribute(): string
@@ -83,11 +92,9 @@ class PurchaseOrderItem extends Model
 
     public function getItemTypeLabelAttribute(): string
     {
-        return match ($this->item_type) {
-            'raw_material' => 'Dược Liệu Thô',
-            'accessory' => 'Phụ Liệu',
-            default => 'Dược liệu / Sản phẩm',
-        };
+        return $this->material_type
+            ? CatalogItem::labelForType($this->item_type)
+            : 'Dược liệu / Sản phẩm';
     }
 
     // Lượng đã xử lý (đạt + trả) của dòng hàng, kể cả dược liệu thô/phụ liệu
@@ -95,6 +102,7 @@ class PurchaseOrderItem extends Model
     {
         if ($this->material_type) {
             return (float) MaterialStockMovement::where('purchase_order_item_id', $this->id)
+                ->where('material_type', CatalogItem::normalizeType($this->material_type))
                 ->whereIn('movement_type', ['RECEIVE_PURCHASE', 'REJECT_PURCHASE'])
                 ->sum('quantity')
                 + (float) MaterialLot::where('purchase_order_item_id', $this->id)->where('status', 'pending_qa')->sum('quantity');

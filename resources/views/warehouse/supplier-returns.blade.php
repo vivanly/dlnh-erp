@@ -50,7 +50,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="p-5 text-center text-slate-500">Chưa có dược liệu thô/phụ liệu nào được nhập kho.</td></tr>
+                            <tr><td colspan="6" class="p-5 text-center text-slate-500">Chưa có nguyên liệu nào được nhập kho.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

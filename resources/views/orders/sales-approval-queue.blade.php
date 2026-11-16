@@ -21,9 +21,13 @@
                     <label for="sales-order-type" class="mb-1 block text-[11px] font-semibold text-slate-600">Loại đơn</label>
                     <select id="sales-order-type" name="order_type" style="height:36px; width:100%; box-sizing:border-box; padding:4px 10px; font-size:13px;" class="rounded-md border-slate-300 focus:border-blue-600 focus:ring-blue-600">
                         <option value="">Tất cả loại đơn</option>
-                        <option value="DL" {{ request('order_type') === 'DL' ? 'selected' : '' }}>Dược liệu</option>
-                        <option value="VT" {{ request('order_type') === 'VT' ? 'selected' : '' }}>Vị thuốc</option>
-                        <option value="NL" {{ request('order_type') === 'NL' ? 'selected' : '' }}>Dược liệu thô</option>
+                        <option value="DLT" {{ request('order_type') === 'DLT' ? 'selected' : '' }}>DLT · Dược liệu thô</option>
+                        <option value="DL" {{ request('order_type') === 'DL' ? 'selected' : '' }}>DL · Dược liệu</option>
+                        <option value="DLSC" {{ request('order_type') === 'DLSC' ? 'selected' : '' }}>DLSC · Dược liệu sơ chế</option>
+                        <option value="VTCT" {{ request('order_type') === 'VTCT' ? 'selected' : '' }}>VTCT · Vị thuốc cổ truyền</option>
+                        <option value="VT" {{ request('order_type') === 'VT' ? 'selected' : '' }}>VT · Vị thuốc</option>
+                        <option value="TCT" {{ request('order_type') === 'TCT' ? 'selected' : '' }}>TCT · Thuốc cổ truyền</option>
+                        <option value="TPCN" {{ request('order_type') === 'TPCN' ? 'selected' : '' }}>TPCN · Thực phẩm chức năng</option>
                     </select>
                 </div>
                 <div style="display:flex; gap:8px; flex:0 0 auto;">
@@ -38,7 +42,7 @@
                         <div>
                             <a href="{{ route('orders.show', $order) }}" class="font-mono text-sm font-bold text-blue-700 hover:underline">{{ $order->order_code }}</a>
                             <p class="mt-1 text-sm font-semibold text-slate-800">{{ $order->customer->name ?? '—' }} · {{ $order->province_city ?: '—' }}</p>
-                            <p class="text-sm text-slate-600">Ngày đặt {{ date('d/m/Y', strtotime($order->order_date)) }} · Hẹn giao {{ date('d/m/Y', strtotime($order->delivery_date)) }} · Loại đơn hàng {{ ['DL' => 'Dược liệu', 'VT' => 'Vị thuốc', 'NL' => 'Dược liệu thô'][$order->order_type] ?? $order->order_type }}</p>
+                            <p class="text-sm text-slate-600">Ngày đặt {{ date('d/m/Y', strtotime($order->order_date)) }} · Hẹn giao {{ date('d/m/Y', strtotime($order->delivery_date)) }} · Loại đơn hàng {{ $order->order_type_label }}</p>
                         </div>
                         <div class="text-right text-xs"><span class="block text-[10px] uppercase text-slate-500">Tổng dòng hàng</span><strong>{{ $order->items->count() }}</strong></div>
                     </div>
@@ -62,12 +66,12 @@
                     </div>
                     @if($canApproveSalesOrders)
                         <div class="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-end lg:justify-between">
-                            <form method="POST" action="{{ route('orders.reject-sales', $order) }}" class="flex w-full flex-col gap-2 sm:flex-row lg:max-w-2xl">
+                            <form method="POST" action="{{ route('orders.reject-sales', $order) }}" class="director-approval-action flex w-full flex-col gap-2 sm:flex-row lg:max-w-2xl">
                                 @csrf
                                 <input name="reason" required maxlength="1000" placeholder="Lý do từ chối bắt buộc" class="w-full rounded-md border-slate-300 text-xs focus:border-blue-600 focus:ring-blue-600">
                                 <button class="shrink-0 rounded-md bg-rose-700 px-4 py-2 text-xs font-bold uppercase text-white transition hover:bg-rose-800">Từ chối</button>
                             </form>
-                            <form method="POST" action="{{ route('orders.approve-sales', $order) }}" onsubmit="return confirm('Duyệt đơn và chuyển Kho kiểm tồn?');">
+                            <form method="POST" action="{{ route('orders.approve-sales', $order) }}" class="director-approval-action" onsubmit="return confirm('Duyệt đơn và chuyển Kho kiểm tồn?');">
                                 @csrf
                                 <button class="w-full rounded-md bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white transition hover:bg-emerald-800 sm:w-auto">Duyệt đơn</button>
                             </form>

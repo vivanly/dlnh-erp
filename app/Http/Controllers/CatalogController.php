@@ -18,6 +18,10 @@ abstract class CatalogController extends Controller
     private function authorizeManage(): void
     {
         $user = auth()->user();
+        if ($user && $user->isExecutiveBoardMember() && request()->isMethodSafe()) {
+            return;
+        }
+
         abort_unless($user && ($user->isQADepartment() || $user->isITDepartment()), 403, 'Chỉ bộ phận QA hoặc IT mới có quyền thực hiện thao tác này.');
     }
 
@@ -180,7 +184,9 @@ abstract class CatalogController extends Controller
         $model = $this->modelClass();
         $item = $model::findOrFail($id);
 
-        $inUse = \App\Models\PurchaseOrderItem::where('material_type', $this->materialType())->where('material_id', $item->id)->exists();
+        $inUse = \App\Models\PurchaseOrderItem::where('material_type', \App\Models\CatalogItem::codeForType($this->materialType()))
+            ->where('material_id', $item->id)
+            ->exists();
         if ($inUse) {
             return redirect()->route($this->routePrefix() . '.index')->with('error', 'Mục này đã được dùng trong đơn mua hàng nên không thể xóa.');
         }

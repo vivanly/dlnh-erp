@@ -4,14 +4,19 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Department;
+use App\Models\GoodsReceipt;
+use App\Models\GoodsReceiptItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionOrder;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\SalesOrderLabelPrint;
 use App\Models\SalesOrderLotAllocation;
 use App\Models\SupplierBatch;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -68,9 +73,111 @@ class NotificationBellTest extends TestCase
         $this->assertSame([], $this->labels($this->user('KE-TOAN')));
     }
 
+    public function test_department_directors_only_receive_board_notifications(): void
+    {
+        $this->order('pending_sales_approval');
+        $this->order('pending_qa');
+
+        $director = $this->user('QA', 'Giám Đốc');
+        $items = collect($this->actingAs($director)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $labels = $items->pluck('label')->all();
+
+        $this->assertContains('Đơn hàng cần duyệt', $labels);
+        $this->assertNotContains('Đơn hàng cần chốt lô', $labels);
+    }
+
     public function test_guest_cannot_read_notifications(): void
     {
         $this->getJson(route('notifications.summary'))->assertUnauthorized();
+    }
+
+    public function test_purchase_notifications_follow_delivery_and_receipt_status(): void
+    {
+        $warehouse = $this->user('KHO');
+        $supplier = Supplier::create(['code' => 'NOTIFY-PO-SUP', 'name' => 'Notification supplier']);
+        $purchaseOrder = PurchaseOrder::create([
+            'po_number' => 'PO-NOTIFY',
+            'supplier_id' => $supplier->id,
+            'user_id' => $warehouse->id,
+            'order_date' => today(),
+            'status' => 'approved',
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'grand_total' => 0,
+        ]);
+        $this->actingAs($warehouse);
+
+        $items = collect($this->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertSame(1, $items->firstWhere('label', 'Đơn mua chờ nhận hàng')['count']);
+        $this->assertNull($items->firstWhere('label', 'Đơn mua chờ nhập kho'));
+
+        $this->post(route('warehouse.purchase-orders.mark-delivered', $purchaseOrder))->assertSessionHas('success');
+        $items = collect($this->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertNull($items->firstWhere('label', 'Đơn mua chờ nhận hàng'));
+        $notice = $items->firstWhere('label', 'Đơn mua chờ nhập kho');
+        $this->assertSame(1, $notice['count']);
+        $this->assertSame(route('warehouse.purchase-orders'), $notice['url']);
+        $this->get($notice['url'])->assertOk()->assertSee('PO-NOTIFY');
+
+        $purchaseOrder->update(['status' => 'completed']);
+        $this->assertNotContains('Đơn mua chờ nhập kho', $this->labels($warehouse));
+    }
+
+    public function test_supplier_coa_notification_links_to_the_update_workflow(): void
+    {
+        $qa = $this->user('QA');
+        $supplier = Supplier::create(['code' => 'NOTIFY-COA-SUP', 'name' => 'COA supplier']);
+        $purchaseOrder = PurchaseOrder::create([
+            'po_number' => 'PO-NOTIFY-COA',
+            'supplier_id' => $supplier->id,
+            'user_id' => $qa->id,
+            'order_date' => today(),
+            'status' => 'completed',
+            'subtotal' => 0,
+            'tax_amount' => 0,
+            'grand_total' => 0,
+        ]);
+        $product = Product::create(['name' => 'COA product', 'slug' => 'coa-notify', 'sku' => 'COA-NOTIFY', 'unit' => 'kg', 'classification' => 'VT']);
+        $purchaseItem = PurchaseOrderItem::create([
+            'purchase_order_id' => $purchaseOrder->id, 'product_id' => $product->id,
+            'quantity' => 1, 'unit' => 'kg', 'unit_price' => 0, 'total_price' => 0,
+        ]);
+        $receipt = GoodsReceipt::create([
+            'purchase_order_id' => $purchaseOrder->id, 'receipt_code' => 'GR-NOTIFY-COA',
+            'receipt_date' => today(), 'receiver_id' => $qa->id, 'qc_status' => 'pending',
+        ]);
+        $receiptItem = GoodsReceiptItem::create([
+            'goods_receipt_id' => $receipt->id, 'purchase_order_item_id' => $purchaseItem->id,
+            'herb_id' => $product->id, 'ordered_quantity' => 1, 'received_quantity' => 1,
+        ]);
+        $batch = SupplierBatch::create([
+            'goods_receipt_item_id' => $receiptItem->id, 'product_id' => $product->id,
+            'batch_number' => 'COA-NOTIFY-LOT', 'initial_quantity' => 1,
+            'current_quantity' => 1, 'status' => 'pending_qa',
+        ]);
+
+        $this->actingAs($qa);
+        $items = collect($this->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $notice = $items->firstWhere('label', 'Lô NCC chờ QA cập nhật COA');
+        $this->assertSame(1, $notice['count']);
+        $this->assertSame(route('qa.coas.index'), $notice['url']);
+        $this->get($notice['url'])->assertOk()->assertSee(route('goods-receipts.show', $receipt));
+        $this->get(route('goods-receipts.show', $receipt))->assertOk()->assertSee(route('supplier-batches.update-coa', $batch));
+
+        $batch->update(['coa_file' => 'coas/test.pdf', 'mfg_date' => today(), 'exp_date' => today()->addYear()]);
+        $this->assertNotContains('Lô NCC chờ QA cập nhật COA', $this->labels($qa));
+        $this->assertContains('Lô NCC chờ QC xác nhận', $this->labels($this->user('QC')));
+    }
+
+    public function test_raw_material_issue_notification_matches_warehouse_queue_type(): void
+    {
+        $this->order('pending_material_issue');
+        $warehouse = $this->user('KHO');
+        $this->assertNotContains('Đơn dược liệu thô cần xuất kho', $this->labels($warehouse));
+
+        Order::where('status', 'pending_material_issue')->update(['order_type' => 'DLT']);
+        $items = collect($this->actingAs($warehouse)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        $this->assertSame(1, $items->firstWhere('label', 'Đơn dược liệu thô cần xuất kho')['count']);
     }
 
     public function test_orders_waiting_for_labels_notify_only_users_with_print_permission(): void
@@ -113,7 +220,7 @@ class NotificationBellTest extends TestCase
         $allocation = SalesOrderLotAllocation::create([
             'order_item_id' => $item->id,
             'supplier_batch_id' => $batch->id,
-            'reserved_quantity' => 2,
+            'reserved_quantity' => 1,
             'status' => 'reserved',
         ]);
 
@@ -136,6 +243,39 @@ class NotificationBellTest extends TestCase
         ]);
         $authorizedItems = collect($this->actingAs($authorizedUser)->getJson(route('notifications.summary'))->assertOk()->json('items'));
         $this->assertNotContains('Đơn hàng cần in nhãn', $authorizedItems->pluck('label')->all());
+
+        $finishedBatch = ProductionFinishedBatch::create([
+            'product_id' => $product->id,
+            'batch_number' => 'LABEL-NOTIFY-LOT-2',
+            'planned_quantity' => 1,
+            'initial_quantity' => 1,
+            'current_quantity' => 1,
+            'unit' => 'kg',
+            'status' => 'pending_qa',
+            'exp_date' => today()->addYear(),
+        ]);
+        $secondAllocation = SalesOrderLotAllocation::create([
+            'order_item_id' => $item->id,
+            'production_finished_batch_id' => $finishedBatch->id,
+            'reserved_quantity' => 1,
+            'status' => 'reserved',
+        ]);
+
+        $this->assertContains('Đơn hàng cần in nhãn', $this->labels($authorizedUser));
+        $finishedBatch->update(['exp_date' => today()->subDay()]);
+        $this->assertNotContains('Đơn hàng cần in nhãn', $this->labels($authorizedUser));
+        $finishedBatch->update(['exp_date' => today()->addYear(), 'status' => 'rejected']);
+        $this->assertNotContains('Đơn hàng cần in nhãn', $this->labels($authorizedUser));
+        $finishedBatch->update(['status' => 'pending_qa']);
+        $this->assertContains('Đơn hàng cần in nhãn', $this->labels($authorizedUser));
+
+        SalesOrderLabelPrint::create([
+            'order_item_id' => $item->id,
+            'sales_order_lot_allocation_id' => $secondAllocation->id,
+            'copies_count' => 1,
+            'printed_by' => $authorizedUser->id,
+        ]);
+        $this->assertNotContains('Đơn hàng cần in nhãn', $this->labels($authorizedUser));
     }
 
     public function test_production_lot_notifications_match_available_work_at_each_stage(): void

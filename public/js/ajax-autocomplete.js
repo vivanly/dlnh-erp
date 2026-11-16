@@ -1,6 +1,27 @@
 (function () {
     let autocompleteIndex = 0;
 
+    window.positionAutocompleteDropdown = function (input, dropdown) {
+        const rect = input.getBoundingClientRect();
+        const viewportPadding = 8;
+        const desiredHeight = Math.min(256, dropdown.scrollHeight);
+        const spaceAbove = Math.max(0, rect.top - viewportPadding);
+        const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - viewportPadding);
+        const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
+
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.width = rect.width + 'px';
+        dropdown.style.maxHeight = Math.min(256, openAbove ? spaceAbove : spaceBelow) + 'px';
+
+        if (openAbove) {
+            dropdown.style.top = 'auto';
+            dropdown.style.bottom = window.innerHeight - rect.top + 2 + 'px';
+        } else {
+            dropdown.style.bottom = 'auto';
+            dropdown.style.top = rect.bottom + 2 + 'px';
+        }
+    };
+
     function normalizeElements(elements) {
         if (typeof elements === 'string') {
             return Array.from(document.querySelectorAll(elements));
@@ -99,11 +120,7 @@
             let results = [];
 
             function positionDropdown() {
-                const rect = input.getBoundingClientRect();
-                dropdown.style.left = rect.left + 'px';
-                dropdown.style.top = rect.bottom + 2 + 'px';
-                dropdown.style.width = rect.width + 'px';
-                dropdown.style.maxHeight = Math.max(80, window.innerHeight - rect.bottom - 8) + 'px';
+                window.positionAutocompleteDropdown(input, dropdown);
             }
 
             function closeDropdown() {
@@ -118,8 +135,8 @@
                 row.className = 'ajax-autocomplete-message';
                 row.textContent = message;
                 dropdown.append(row);
-                positionDropdown();
                 dropdown.hidden = false;
+                positionDropdown();
                 input.setAttribute('aria-expanded', 'true');
             }
 
@@ -172,8 +189,8 @@
                     dropdown.append(option);
                 });
 
-                positionDropdown();
                 dropdown.hidden = false;
+                positionDropdown();
                 input.setAttribute('aria-expanded', 'true');
             }
 

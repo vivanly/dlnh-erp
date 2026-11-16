@@ -21,6 +21,9 @@ class SupplierController extends Controller implements HasMiddleware
                 }
 
                 $user = auth()->user();
+                if ($user->isExecutiveBoardMember() && $request->isMethodSafe()) {
+                    return $next($request);
+                }
 
                 // Kiểm tra điều kiện bộ phận kinh doanh (Sales)
                 $isSales = (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment()) ||

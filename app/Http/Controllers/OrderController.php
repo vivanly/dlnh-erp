@@ -54,7 +54,7 @@ class OrderController extends Controller
             $query->where('status', $request->input('status'));
         }
 
-        if ($request->filled('order_type') && in_array($request->input('order_type'), ['DL', 'VT', 'NL'], true)) {
+        if ($request->filled('order_type') && in_array($request->input('order_type'), Order::TYPE_CODES, true)) {
             $query->where('order_type', $request->input('order_type'));
         }
 
@@ -89,7 +89,7 @@ class OrderController extends Controller
                         ->orWhereHas('customer', fn ($customerQuery) => $customerQuery->where('name', 'like', "%{$search}%"));
                 });
             })
-            ->when($request->filled('order_type') && in_array($request->input('order_type'), ['DL', 'VT', 'NL'], true), function ($query) use ($request) {
+            ->when($request->filled('order_type') && in_array($request->input('order_type'), Order::TYPE_CODES, true), function ($query) use ($request) {
                 $query->where('order_type', $request->input('order_type'));
             })
             ->latest()
@@ -116,7 +116,7 @@ class OrderController extends Controller
                 }
 
                 $lockedOrder->update([
-                    'status' => $lockedOrder->order_type === 'NL' ? 'pending_material_issue' : 'pending_warehouse_check',
+                    'status' => $lockedOrder->order_type === 'DLT' ? 'pending_material_issue' : 'pending_warehouse_check',
                     'sales_approved_at' => now(),
                     'sales_approved_by' => auth()->id(),
                     'sales_rejection_reason' => null,
@@ -126,7 +126,7 @@ class OrderController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        return back()->with('success', $order->order_type === 'NL'
+        return back()->with('success', $order->order_type === 'DLT'
             ? 'Đã duyệt đơn dược liệu thô; đơn được chuyển sang Kho xuất hàng.'
             : 'Đã duyệt đơn bán; đơn được chuyển sang Kho xác nhận tồn.');
     }
@@ -378,7 +378,7 @@ class OrderController extends Controller
     public function suggestedCode(Request $request)
     {
         $validated = $request->validate([
-            'order_type' => ['required', 'in:DL,VT,NL'],
+            'order_type' => ['required', 'in:'.implode(',', Order::TYPE_CODES)],
             'order_date' => ['required', 'date_format:Y-m-d'],
         ]);
 
@@ -387,7 +387,7 @@ class OrderController extends Controller
 
     private function suggestOrderCode(string $orderType, string $orderDate): string
     {
-        abort_unless(in_array($orderType, ['DL', 'VT', 'NL'], true), 422);
+        abort_unless(in_array($orderType, Order::TYPE_CODES, true), 422);
         $prefix = $orderType.Carbon::parse($orderDate)->format('ym');
         $next = Order::where('order_code', 'like', $prefix.'%')
             ->pluck('order_code')
@@ -419,10 +419,10 @@ class OrderController extends Controller
         abort_unless($user && $user->canSubmitOrders(), 403);
 
         $this->normalizeSaleItems($request);
-        $isRawMaterialOrder = $request->input('order_type') === 'NL';
+        $isRawMaterialOrder = $request->input('order_type') === 'DLT';
 
         $validated = $request->validate([
-            'order_code' => ['required', 'string', 'regex:/^(DL|VT|NL)[0-9]{6,}$/', 'unique:orders,order_code'],
+            'order_code' => ['required', 'string', 'regex:/^(DLT|DLSC|VTCT|TPCN|DL|VT|TCT)[0-9]{6,}$/', 'unique:orders,order_code'],
             'customer_id' => [
                 'required',
                 'exists:customers,id',
@@ -432,7 +432,7 @@ class OrderController extends Controller
                     }
                 },
             ],
-            'order_type' => 'required|in:DL,VT,NL',
+            'order_type' => 'required|in:'.implode(',', Order::TYPE_CODES),
             'order_date' => 'required|date',
             'delivery_date' => 'required|date',
             'province_city' => 'required|string',
@@ -560,7 +560,7 @@ class OrderController extends Controller
     public function edit($id)
     {
         $order = Order::with('items.product', 'customer', 'items.ppcb', 'items.lotAllocations')->findOrFail($id);
-        if ($order->order_type === 'NL') {
+        if ($order->order_type === 'DLT') {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn dược liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
         }
         if ($order->isEditLockedAfterQa()) {
@@ -667,7 +667,7 @@ class OrderController extends Controller
     public function update(Request $request, string $id)
     {
         $order = Order::findOrFail($id);
-        if ($order->order_type === 'NL') {
+        if ($order->order_type === 'DLT') {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn dược liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
         }
         if ($order->isEditLockedAfterQa()) {
@@ -759,7 +759,7 @@ class OrderController extends Controller
                         }
                     },
                 ],
-                'order_type' => 'required|string',
+                'order_type' => 'required|in:'.implode(',', Order::TYPE_CODES),
                 'order_date' => 'required|date',
                 'delivery_date' => 'required|date',
                 'province_city' => 'required|string',

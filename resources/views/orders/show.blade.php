@@ -133,7 +133,7 @@
                     </div>
                     <div>
                         <span class="text-slate-500 text-[10px] font-bold block">Loại Đơn Hàng:</span>
-                        <span class="font-medium text-slate-800">{{ $order->order_type }}</span>
+                        <span class="font-medium text-slate-800">{{ $order->order_type }} · {{ $order->order_type_label }}</span>
                     </div>
                     <div>
                         <span class="text-slate-500 text-[10px] font-bold block">Ngày Nhận Đơn:</span>

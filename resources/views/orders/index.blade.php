@@ -50,9 +50,13 @@
                         <label class="mb-1 block text-xs font-semibold text-slate-600">Loại đơn hàng</label>
                         <select name="order_type" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
                             <option value="">-- Tất cả loại đơn --</option>
-                            <option value="DL" {{ request('order_type') === 'DL' ? 'selected' : '' }}>Dược Liệu</option>
-                            <option value="VT" {{ request('order_type') === 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
-                            <option value="NL" {{ request('order_type') === 'NL' ? 'selected' : '' }}>Dược Liệu Thô</option>
+                            <option value="DLT" {{ request('order_type') === 'DLT' ? 'selected' : '' }}>DLT · Dược Liệu Thô</option>
+                            <option value="DL" {{ request('order_type') === 'DL' ? 'selected' : '' }}>DL · Dược Liệu</option>
+                            <option value="DLSC" {{ request('order_type') === 'DLSC' ? 'selected' : '' }}>DLSC · Dược Liệu Sơ Chế</option>
+                            <option value="VTCT" {{ request('order_type') === 'VTCT' ? 'selected' : '' }}>VTCT · Vị Thuốc Cổ Truyền</option>
+                            <option value="VT" {{ request('order_type') === 'VT' ? 'selected' : '' }}>VT · Vị Thuốc</option>
+                            <option value="TCT" {{ request('order_type') === 'TCT' ? 'selected' : '' }}>TCT · Thuốc Cổ Truyền</option>
+                            <option value="TPCN" {{ request('order_type') === 'TPCN' ? 'selected' : '' }}>TPCN · Thực Phẩm Chức Năng</option>
                         </select>
                     </div>
                     <div>
@@ -112,7 +116,7 @@
                                     {{ $order->customer->name ?? 'N/A' }}
                                 </td>
                                 <td class="py-2.5 px-3 border-r border-slate-200">
-                                    {{ ['DL' => 'Dược liệu', 'VT' => 'Vị thuốc', 'NL' => 'Dược liệu thô'][$order->order_type] ?? $order->order_type }}
+                                    {{ $order->order_type_label }}
                                 </td>
                                 <td class="py-2.5 px-3 border-r border-slate-200 text-center font-mono">
                                     {{ date('d/m/Y', strtotime($order->order_date)) }}

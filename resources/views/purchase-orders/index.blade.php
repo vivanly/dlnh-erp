@@ -52,8 +52,11 @@
                         <label class="mb-1 block text-[11px] font-semibold text-slate-600">Nhóm hàng</label>
                         <select name="item_type" style="height:36px; width:100%; box-sizing:border-box; padding:4px 10px; font-size:13px;" class="rounded-md border-slate-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
                             <option value="">-- Tất cả nhóm hàng --</option>
-                            <option value="raw_material" {{ request('item_type') === 'raw_material' ? 'selected' : '' }}>Dược liệu thô</option>
-                            <option value="accessory" {{ request('item_type') === 'accessory' ? 'selected' : '' }}>Phụ liệu</option>
+                            <option value="DLT" {{ request('item_type') === 'DLT' ? 'selected' : '' }}>DLT · Dược liệu thô</option>
+                            <option value="NL" {{ request('item_type') === 'NL' ? 'selected' : '' }}>NL · Nguyên liệu</option>
+                            <option value="PL" {{ request('item_type') === 'PL' ? 'selected' : '' }}>PL · Phụ liệu</option>
+                            <option value="BB" {{ request('item_type') === 'BB' ? 'selected' : '' }}>BB · Bao bì</option>
+                            <option value="TD" {{ request('item_type') === 'TD' ? 'selected' : '' }}>TD · Tá dược</option>
                         </select>
                     </div>
                     <div style="display:flex; gap:8px; flex:0 0 auto;">
@@ -88,15 +91,15 @@
                                     <thead class="bg-slate-100 text-[10px] uppercase text-slate-600"><tr><th class="p-2.5">Hàng hóa</th><th class="p-2.5">Nhóm</th><th class="p-2.5">Mã hàng</th><th class="p-2.5 text-right">Số lượng</th><th class="p-2.5 text-right">Thành tiền</th></tr></thead>
                                     <tbody class="divide-y divide-slate-200">
                                         @foreach($po->items as $item)
-                                            @php $catalogItem = $item->rawMaterial ?? $item->accessory ?? $item->product; @endphp
-                                            <tr><td class="p-2.5 font-semibold">{{ $catalogItem?->name ?? '---' }}</td><td class="p-2.5">{{ $item->material_type === 'accessory' ? 'Phụ liệu' : 'Dược liệu thô' }}</td><td class="p-2.5 font-mono">{{ $catalogItem?->sku ?? '---' }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->quantity, 2) }} {{ $item->unit }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->total_price, 0, ',', '.') }} đ</td></tr>
+                                            @php $catalogItem = $item->catalog_item; @endphp
+                                            <tr><td class="p-2.5 font-semibold">{{ $catalogItem?->name ?? '---' }}</td><td class="p-2.5">{{ $item->item_type_label }}</td><td class="p-2.5 font-mono">{{ $catalogItem?->sku ?? '---' }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->quantity, 2) }} {{ $item->unit }}</td><td class="p-2.5 text-right font-mono">{{ number_format((float) $item->total_price, 0, ',', '.') }} đ</td></tr>
                                         @endforeach
                                     </tbody>
                                 </table>
                             </div>
                             <div class="flex flex-wrap items-center gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
-                                <form method="POST" action="{{ route('purchase-orders.reject', $po->id) }}" class="flex min-w-0 flex-1 gap-2">@csrf<input name="rejection_reason" required maxlength="500" placeholder="Lý do từ chối bắt buộc" class="min-w-0 flex-1 rounded-md border-slate-300 text-sm"><button class="rounded-md bg-rose-700 px-4 py-2 text-xs font-bold text-white">TỪ CHỐI</button></form>
-                                <form method="POST" action="{{ route('purchase-orders.approve', $po->id) }}" onsubmit="return confirm('Duyệt đơn mua {{ $po->po_number }}?');">@csrf<button class="rounded-md bg-emerald-700 px-5 py-2 text-xs font-bold text-white">DUYỆT ĐƠN</button></form>
+                                <form method="POST" action="{{ route('purchase-orders.reject', $po->id) }}" class="director-approval-action flex min-w-0 flex-1 gap-2">@csrf<input name="rejection_reason" required maxlength="500" placeholder="Lý do từ chối bắt buộc" class="min-w-0 flex-1 rounded-md border-slate-300 text-sm"><button class="rounded-md bg-rose-700 px-4 py-2 text-xs font-bold text-white">TỪ CHỐI</button></form>
+                                <form method="POST" action="{{ route('purchase-orders.approve', $po->id) }}" class="director-approval-action" onsubmit="return confirm('Duyệt đơn mua {{ $po->po_number }}?');">@csrf<button class="rounded-md bg-emerald-700 px-5 py-2 text-xs font-bold text-white">DUYỆT ĐƠN</button></form>
                             </div>
                         </article>
                     @empty

@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Ppcb;
+use App\Models\RawMaterial;
 use App\Exports\ProductsExport;
 use Illuminate\Http\Request;
 use App\Imports\ProductsImport; 
 use Maatwebsite\Excel\Facades\Excel; 
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -16,22 +18,27 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $classifications = Product::query()
+        $classificationCodes = Product::query()
             ->whereNotNull('classification')
             ->where('classification', '<>', '')
             ->distinct()
             ->orderBy('classification')
             ->pluck('classification');
+        $classifications = $classificationCodes->mapWithKeys(
+            fn ($code) => [$code => Product::classificationLabel($code)]
+        );
 
         $products = $this->productsQuery($request)
             ->with('ppcb')
             ->paginate($this->perPage($request, 100))
             ->withQueryString();
 
-        $ppcbs = Ppcb::orderBy('ten_ppcb')->get(['id', 'ma', 'ten_ppcb']);
         $canManageProducts = $this->canManageProducts();
+        $ppcbs = $canManageProducts ? Ppcb::orderBy('ten_ppcb')->get(['id', 'ma', 'ten_ppcb']) : collect();
+        $rawMaterials = $canManageProducts ? RawMaterial::orderBy('name')->get(['id', 'sku', 'name']) : collect();
+        $productClassifications = Product::CLASSIFICATIONS;
 
-        return view('products.index', compact('products', 'classifications', 'ppcbs', 'canManageProducts'));
+        return view('products.index', compact('products', 'classifications', 'productClassifications', 'ppcbs', 'rawMaterials', 'canManageProducts'));
     }
 
     public function export(Request $request)
@@ -53,8 +60,12 @@ class ProductController extends Controller
             'classification' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $classification = ! empty($filters['classification'])
+            ? Product::classificationCode($filters['classification'])
+            : null;
+
         return Product::query()
-            ->when(!empty($filters['classification']), fn ($query) => $query->where('classification', $filters['classification']))
+            ->when($classification, fn ($query) => $query->where('classification', $classification))
             ->when(!empty($filters['search']), function ($query) use ($filters) {
                 $search = trim($filters['search']);
                 $query->where('name', 'like', "%{$search}%");
@@ -102,7 +113,7 @@ class ProductController extends Controller
             'origin' => 'nullable|string',
             'unit' => 'nullable|string',
             'raw_material_id' => 'nullable|exists:raw_materials,id',
-            'classification' => 'required|in:Dược Liệu,Dược Liệu Sơ Chế,Vị Thuốc Cổ Truyền,Thuốc Cổ Truyền,Thực Phẩm Chức Năng',
+            'classification' => ['required', Rule::in(Product::classificationValues())],
             'scientific_name' => 'nullable|string',
             'scientific_name_reference' => 'nullable|string',
             'note' => 'nullable|string',
@@ -148,7 +159,7 @@ class ProductController extends Controller
             'origin' => 'nullable|string',
             'unit' => 'nullable|string',
             'raw_material_id' => 'nullable|exists:raw_materials,id',
-            'classification' => 'required|in:Dược Liệu,Dược Liệu Sơ Chế,Vị Thuốc Cổ Truyền,Thuốc Cổ Truyền,Thực Phẩm Chức Năng',
+            'classification' => ['required', Rule::in(Product::classificationValues())],
             'scientific_name' => 'nullable|string',
             'scientific_name_reference' => 'nullable|string',
             'note' => 'nullable|string',
@@ -176,9 +187,45 @@ class ProductController extends Controller
         $product->update($validated);
 
         $returnQuery = array_filter($returnQuery, fn ($value) => $value !== null && $value !== '');
+        $filtersChanged = false;
 
-        return redirect()->to(route('products.index', $returnQuery) . '#product-' . $product->id)
+        if (isset($returnQuery['classification'])
+            && Product::classificationCode($returnQuery['classification']) !== Product::classificationCode((string) $product->classification)) {
+            $returnQuery['classification'] = $product->classification;
+            $filtersChanged = true;
+        }
+
+        $catalogRequest = Request::create('/', 'GET', $returnQuery);
+        if (!$this->productsQuery($catalogRequest)->whereKey($product->id)->exists()) {
+            unset($returnQuery['search']);
+            $filtersChanged = true;
+            $catalogRequest = Request::create('/', 'GET', $returnQuery);
+        }
+
+        $precedingProducts = $this->productsQuery($catalogRequest)
+            ->where(function ($query) use ($product) {
+                $query->whereNull('classification')
+                    ->orWhere('classification', '<', $product->classification)
+                    ->orWhere(function ($query) use ($product) {
+                        $query->where('classification', $product->classification)
+                            ->where(function ($query) use ($product) {
+                                $query->where('name', '<', $product->name)
+                                    ->orWhere(function ($query) use ($product) {
+                                        $query->where('name', $product->name)->where('id', '<', $product->id);
+                                    });
+                            });
+                    });
+            })->count();
+        $returnQuery['page'] = intdiv($precedingProducts, $this->perPage($catalogRequest, 100)) + 1;
+
+        $redirect = redirect()->to(route('products.index', $returnQuery) . '#product-' . $product->id)
             ->with('success', 'Cập nhật sản phẩm thành công!');
+
+        if ($filtersChanged) {
+            $redirect->with('warning', 'Bộ lọc đã được điều chỉnh để hiển thị sản phẩm vừa cập nhật.');
+        }
+
+        return $redirect;
     }
 
     /**
@@ -256,12 +303,29 @@ class ProductController extends Controller
     public function searchAjax(Request $request)
     {
         $keyword = $request->get('q');
+        $classificationByOrderType = [
+            'DL' => 'DL',
+            'DLSC' => 'DLSC',
+            'VTCT' => 'VTCT',
+            'VT' => 'VT',
+            'TCT' => 'TCT',
+            'TPCN' => 'TPCN',
+        ];
+        $orderType = $request->get('order_type');
+        if ($orderType && ! isset($classificationByOrderType[$orderType])) {
+            abort(422, 'Loại đơn bán không hợp lệ.');
+        }
+        $classification = $classificationByOrderType[$orderType] ?? null;
 
-        $products = Product::when($keyword, function ($query, $keyword) {
-                return $query->where('name', 'like', "%{$keyword}%")
-                            ->orWhere('sku', 'like', "%{$keyword}%")
-                            ->orWhere('scientific_name', 'like', "%{$keyword}%");
+        $products = Product::when($classification, fn ($query) => $query->where('classification', $classification))
+            ->when($keyword, function ($query, $keyword) {
+                return $query->where(function ($search) use ($keyword) {
+                    $search->where('name', 'like', "%{$keyword}%")
+                        ->orWhere('sku', 'like', "%{$keyword}%")
+                        ->orWhere('scientific_name', 'like', "%{$keyword}%");
+                });
             })
+            ->orderBy('name')
             ->limit(20)
             ->get();
 

@@ -370,7 +370,7 @@ class AuthorizationEdgeCasesTest extends TestCase
 
         $this->actingAs($director)
             ->post(route('boms.approve', $bom))
-            ->assertSessionHas('error');
+            ->assertForbidden();
         $this->assertSame('approved', $bom->fresh()->status);
 
         $this->actingAs($director)

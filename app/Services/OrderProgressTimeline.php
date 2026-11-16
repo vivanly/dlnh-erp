@@ -16,7 +16,7 @@ class OrderProgressTimeline
         $allocations = $items->flatMap(fn ($item) => $item->lotAllocations->whereIn('status', ['reserved', 'shipped']));
         $productionBatches = $allocations->map(fn ($allocation) => $allocation->finishedBatch)->filter()->unique('id')->values();
         $hasInternalLots = $allocations->contains(fn ($allocation) => (bool) $allocation->production_finished_batch_id);
-        $isRawMaterialOrder = $order->order_type === 'NL';
+        $isRawMaterialOrder = $order->order_type === 'DLT';
         $stages = [];
 
         $add = function (string $key, string $title, bool $done = false, $at = null, ?string $detail = null, bool $applicable = true, bool $rejected = false, bool $started = false, ?string $by = null) use (&$stages): void {

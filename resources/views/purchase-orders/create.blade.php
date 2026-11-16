@@ -43,9 +43,12 @@
                     <div class="grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
                         <div>
                             <label class="block font-bold text-xs text-slate-700 uppercase mb-1">Loại hàng đặt mua <span class="text-rose-600">*</span></label>
-                            <select name="item_type" id="po-item-type" class="w-full text-xs border-slate-300 rounded-none py-1.5">
-                                <option value="raw_material" @selected(old('item_type', 'raw_material') === 'raw_material')>Dược Liệu Thô</option>
-                                <option value="accessory" @selected(old('item_type', 'raw_material') === 'accessory')>Phụ Liệu</option>
+                            <select name="item_type" id="po-item-type" class="w-full text-xs border-slate-300 rounded-none py-1.5" required>
+                                <option value="DLT" @selected(old('item_type', 'DLT') === 'DLT')>DLT · Dược Liệu Thô</option>
+                                <option value="NL" @selected(old('item_type', 'DLT') === 'NL')>NL · Nguyên Liệu</option>
+                                <option value="PL" @selected(old('item_type', 'DLT') === 'PL')>PL · Phụ Liệu</option>
+                                <option value="BB" @selected(old('item_type', 'DLT') === 'BB')>BB · Bao Bì</option>
+                                <option value="TD" @selected(old('item_type', 'DLT') === 'TD')>TD · Tá Dược</option>
                             </select>
                         </div>
                         <div>
@@ -75,7 +78,7 @@
                     <div class="p-3 border-b border-slate-300 bg-slate-100 flex items-center justify-between">
                         <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider flex items-center gap-2">
                             <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
-                            Danh mục dược liệu thô / phụ liệu đặt mua
+                            Danh mục hàng đặt mua
                         </h3>
                         <button type="button" id="add-item-btn" class="erp-action-create inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-bold text-xs uppercase tracking-wider transition shadow-none">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
@@ -100,7 +103,7 @@
                                 <tr class="item-row hover:bg-blue-50/20 transition">
                                     <td class="py-2 px-3 border-r border-slate-200 text-center font-mono row-index font-bold text-slate-600">1</td>
                                     <td class="py-2 px-3 border-r border-slate-200">
-                                        <input type="hidden" name="items[0][item_type]" value="{{ old('item_type', 'raw_material') }}" class="item-type-select">
+                                        <input type="hidden" name="items[0][item_type]" value="{{ old('item_type', 'DLT') }}" class="item-type-select">
                                         <select name="items[0][item_id]" class="w-full text-xs border-slate-300 rounded-none product-select" required>
                                             <option value="">-- Gõ tìm tên / mã SKU --</option>
                                         </select>
@@ -215,7 +218,7 @@
                         dataType: 'json',
                         delay: 250,
                         data: function (params) {
-                            return { q: params.term, type: $(element).closest('tr').find('.item-type-select').val() || 'raw_material' };
+                            return { q: params.term, type: $(element).closest('tr').find('.item-type-select').val() || 'DLT' };
                         },
                         processResults: function (response) {
                             let items = response.data || response;

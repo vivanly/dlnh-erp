@@ -43,7 +43,13 @@ class SupplierReturnController extends Controller
     {
         abort_unless(auth()->check(), 403);
 
-        $items = PurchaseOrderItem::with(['purchaseOrder.supplier', 'rawMaterial', 'accessory'])
+        $items = PurchaseOrderItem::with([
+            'purchaseOrder.supplier',
+            'rawMaterial',
+            'accessory',
+            'excipient',
+            'packagingMaterial',
+        ])
             ->whereNotNull('material_type')
             ->whereHas('materialLots', fn ($query) => $query->where('status', 'rejected'))
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -51,7 +57,9 @@ class SupplierReturnController extends Controller
                 $query->where(fn ($subQuery) => $subQuery
                     ->whereHas('purchaseOrder', fn ($po) => $po->where('po_number', 'like', "%{$search}%"))
                     ->orWhereHas('rawMaterial', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
-                    ->orWhereHas('accessory', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")));
+                    ->orWhereHas('accessory', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
+                    ->orWhereHas('excipient', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
+                    ->orWhereHas('packagingMaterial', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")));
             })
             ->latest()
             ->paginate($this->perPage($request))
@@ -91,7 +99,7 @@ class SupplierReturnController extends Controller
             $returnOrder = DB::transaction(function () use ($purchaseOrderItem, $validated) {
                 $item = PurchaseOrderItem::with('purchaseOrder')->whereKey($purchaseOrderItem->id)->lockForUpdate()->firstOrFail();
                 if (!$item->material_type) {
-                    throw new DomainException('Chỉ lập đơn trả cho dược liệu thô hoặc phụ liệu.');
+                    throw new DomainException('Chỉ lập đơn trả cho hàng hóa thuộc nhóm nguyên liệu.');
                 }
 
                 $lot = MaterialLot::whereKey($validated['material_lot_id'])
@@ -114,7 +122,7 @@ class SupplierReturnController extends Controller
                     'purchase_order_id' => $item->purchase_order_id,
                     'purchase_order_item_id' => $item->id,
                     'material_lot_id' => $lot->id,
-                    'material_type' => $item->material_type,
+                    'material_type' => \App\Models\CatalogItem::normalizeType($item->material_type),
                     'material_id' => $item->material_id,
                     'quantity' => $quantity,
                     'unit' => $item->unit ?: 'kg',

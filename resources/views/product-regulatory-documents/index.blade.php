@@ -17,7 +17,7 @@
                     <select name="product_id" aria-label="Lọc theo sản phẩm" class="w-full sm:w-72 text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0">
                         <option value="">Tất cả sản phẩm</option>
                         @foreach($productOptions as $product)
-                            <option value="{{ $product->id }}" @selected((string) $selectedProductId === (string) $product->id)>{{ $product->name }} - {{ $product->sku }} ({{ $product->classification ?: 'Chưa phân loại' }})</option>
+                            <option value="{{ $product->id }}" @selected((string) $selectedProductId === (string) $product->id)>{{ $product->name }} - {{ $product->sku }} ({{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }})</option>
                         @endforeach
                     </select>
                     <input type="search" name="search" value="{{ request('search') }}" placeholder="Tìm theo tên sản phẩm, SKU hoặc số hồ sơ" aria-label="Tìm hồ sơ" class="w-full sm:w-96 text-xs border-slate-300 rounded-none focus:border-blue-600 focus:ring-0">

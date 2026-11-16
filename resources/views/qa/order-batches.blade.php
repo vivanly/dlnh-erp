@@ -24,14 +24,14 @@
                     <tbody class="divide-y divide-slate-200">
                         @forelse($orders as $order)
                             <tr class="align-top hover:bg-blue-50/30">
-                                <td class="p-2.5 border-r"><strong class="font-mono text-blue-700">{{ $order->order_code }}</strong><span class="block mt-1">{{ $order->customer->name ?? '---' }}</span><span class="block text-[10px] text-slate-500">{{ $order->order_type }}</span>@if($order->warehouse_stock_checked_at)<span class="block mt-1 text-[10px] text-slate-500">Kho kiểm {{ $order->warehouse_stock_checked_at->format('d/m/Y H:i') }} · {{ $order->warehouseStockCheckedBy->name ?? 'Nhân viên Kho' }}</span>@endif</td>
+                                <td class="p-2.5 border-r"><strong class="font-mono text-blue-700">{{ $order->order_code }}</strong><span class="block mt-1">{{ $order->customer->name ?? '---' }}</span><span class="block text-[10px] text-slate-500">{{ $order->order_type }} · {{ $order->order_type_label }}</span>@if($order->warehouse_stock_checked_at)<span class="block mt-1 text-[10px] text-slate-500">Kho kiểm {{ $order->warehouse_stock_checked_at->format('d/m/Y H:i') }} · {{ $order->warehouseStockCheckedBy->name ?? 'Nhân viên Kho' }}</span>@endif</td>
                                 <td class="p-2.5 border-r">{{ date('d/m/Y', strtotime($order->order_date)) }}<span class="block text-slate-500">Hẹn {{ date('d/m/Y', strtotime($order->delivery_date)) }}</span></td>
                                 <td class="p-2.5 border-r">{{ $order->province_city }}<span class="block text-slate-500">{{ $order->contact_person ?: 'Chưa có người liên hệ' }}</span></td>
                                 <td class="p-2.5 border-r">
                                     @foreach($order->items as $item)
                                         <div class="mb-1 last:mb-0">
                                             <strong>{{ $item->product->name ?? '---' }}</strong>
-                                            <span class="block text-[10px] text-slate-500">SKU {{ $item->product->sku ?? '---' }} · {{ $item->product->classification ?? '---' }} · {{ $item->product->origin ?? '---' }}</span>
+                                            <span class="block text-[10px] text-slate-500">SKU {{ $item->product->sku ?? '---' }} · {{ $item->product->classification ? $item->product->classification . ' · ' . $item->product->classification_label : '---' }} · {{ $item->product->origin ?? '---' }}</span>
                                             <span class="block text-[10px] text-slate-500">{{ number_format((float) $item->quantity, 4) }} {{ $item->product->unit ?? '' }} · QCĐG {{ $item->packaging_spec ?: '---' }} · TP {{ number_format((float) $item->finished_quantity, 4) }} · PPCB {{ $item->ppcb->ten_ppcb ?? '---' }}</span>
                                             @if($item->warehouse_stock_confirmed_quantity !== null)
                                                 @php($stockShortage = max(0, (float) $item->quantity - (float) $item->warehouse_stock_confirmed_quantity))

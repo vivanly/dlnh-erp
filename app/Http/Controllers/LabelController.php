@@ -12,7 +12,6 @@ use App\Models\TraceabilityLotCode;
 use App\Models\TraceabilitySetting;
 use DomainException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -87,7 +86,7 @@ class LabelController extends Controller
                 continue;
             }
 
-            $targets = $this->distributeLabelTarget($item, $allocations);
+            $targets = $item->distributeLabelTarget($allocations);
             foreach ($allocations as $allocation) {
                 $batch = $this->allocationBatch($allocation);
                 $printed = (int) $allocation->labelPrints->sum('copies_count');
@@ -97,7 +96,7 @@ class LabelController extends Controller
                     'allocation' => $allocation,
                     'batch_code' => $this->batchCode($allocation, $batch),
                     'label_type_name' => self::LABEL_TYPES[$labelType],
-                    'qa_approved' => $this->batchIsQaApproved($allocation, $batch),
+                    'qa_approved' => $allocation->isLabelQaApproved(),
                     'target' => $targets[$allocation->id] ?? 0,
                     'printed' => $printed,
                     'remaining' => max(0, ($targets[$allocation->id] ?? 0) - $printed),
@@ -180,7 +179,7 @@ class LabelController extends Controller
                         continue;
                     }
 
-                    $targets = $this->distributeLabelTarget($item, $itemAllocations);
+                    $targets = $item->distributeLabelTarget($itemAllocations);
                     foreach ($itemAllocations as $allocation) {
                         $batch = $this->allocationBatch($allocation);
                         $target = $targets[$allocation->id] ?? 0;
@@ -204,10 +203,10 @@ class LabelController extends Controller
                         if ($requiredCopies === 0 && $additionalCopies === 0) {
                             continue;
                         }
-                        if (!$this->batchIsQaApproved($allocation, $batch) && $printed === 0) {
+                        if (!$allocation->isLabelQaApproved() && $printed === 0) {
                             throw new DomainException("Lô {$this->batchCode($allocation, $batch)} chưa được QA cho phép để in nhãn.");
                         }
-                        if ($requiredCopies > 0 && (!$this->batchIsQaApproved($allocation, $batch) || ($batch->exp_date && $batch->exp_date < today()))) {
+                        if ($requiredCopies > 0 && (!$allocation->isLabelQaApproved() || ($batch->exp_date && $batch->exp_date < today()))) {
                             throw new DomainException("Lô {$this->batchCode($allocation, $batch)} không còn đủ điều kiện QA/HSD để in nhãn chuẩn.");
                         }
 
@@ -335,35 +334,6 @@ class LabelController extends Controller
     private function batchCode(SalesOrderLotAllocation $allocation, SupplierBatch|ProductionFinishedBatch $batch): string
     {
         return $batch->batch_number;
-    }
-
-    private function batchIsQaApproved(SalesOrderLotAllocation $allocation, SupplierBatch|ProductionFinishedBatch $batch): bool
-    {
-        return $batch->status === 'active'
-            || ($batch instanceof ProductionFinishedBatch && $batch->status === 'pending_qa');
-    }
-
-    private function distributeLabelTarget(OrderItem $item, Collection $allocations): array
-    {
-        $target = $item->label_target_count;
-        $totalQuantity = $allocations->sum(fn ($allocation) => max(0, (float) $allocation->reserved_quantity));
-        if ($target <= 0 || $totalQuantity <= 0) {
-            return $allocations->mapWithKeys(fn ($allocation) => [$allocation->id => 0])->all();
-        }
-
-        $shares = $allocations->map(function ($allocation) use ($target, $totalQuantity) {
-            $exact = $target * max(0, (float) $allocation->reserved_quantity) / $totalQuantity;
-
-            return ['id' => $allocation->id, 'count' => (int) floor($exact), 'remainder' => $exact - floor($exact)];
-        });
-        $remaining = $target - $shares->sum('count');
-        foreach ($shares->sortByDesc('remainder')->take($remaining) as $share) {
-            $shares = $shares->map(fn ($candidate) => $candidate['id'] === $share['id']
-                ? [...$candidate, 'count' => $candidate['count'] + 1]
-                : $candidate);
-        }
-
-        return $shares->mapWithKeys(fn ($share) => [$share['id'] => $share['count']])->all();
     }
 
     private function labelType(OrderItem $item): string

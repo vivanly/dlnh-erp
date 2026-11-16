@@ -28,8 +28,8 @@
                             <label class="block font-medium text-sm text-gray-700">Phân loại</label>
                             <select name="classification" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">-- Chọn phân loại --</option>
-                                @foreach(['Dược Liệu', 'Dược Liệu Sơ Chế', 'Vị Thuốc Cổ Truyền', 'Thuốc Cổ Truyền', 'Thực Phẩm Chức Năng'] as $classification)
-                                    <option value="{{ $classification }}" @selected(old('classification') === $classification)>{{ $classification }}</option>
+                                @foreach(\App\Models\Product::CLASSIFICATIONS as $code => $classification)
+                                    <option value="{{ $code }}" @selected(old('classification') === $code)>{{ $code }} · {{ $classification }}</option>
                                 @endforeach
                             </select>
                         </div>

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class OrderItem extends Model
 {
@@ -89,5 +90,28 @@ class OrderItem extends Model
         return $packageSize > 0
             ? (int) ceil(((float) $this->quantity / $packageSize) - 0.000001)
             : 0;
+    }
+
+    public function distributeLabelTarget(Collection $allocations): array
+    {
+        $target = $this->label_target_count;
+        $totalQuantity = $allocations->sum(fn ($allocation) => max(0, (float) $allocation->reserved_quantity));
+        if ($target <= 0 || $totalQuantity <= 0) {
+            return $allocations->mapWithKeys(fn ($allocation) => [$allocation->id => 0])->all();
+        }
+
+        $shares = $allocations->map(function ($allocation) use ($target, $totalQuantity) {
+            $exact = $target * max(0, (float) $allocation->reserved_quantity) / $totalQuantity;
+
+            return ['id' => $allocation->id, 'count' => (int) floor($exact), 'remainder' => $exact - floor($exact)];
+        });
+        $remaining = $target - $shares->sum('count');
+        foreach ($shares->sortByDesc('remainder')->take($remaining) as $share) {
+            $shares = $shares->map(fn ($candidate) => $candidate['id'] === $share['id']
+                ? [...$candidate, 'count' => $candidate['count'] + 1]
+                : $candidate);
+        }
+
+        return $shares->mapWithKeys(fn ($share) => [$share['id'] => $share['count']])->all();
     }
 }

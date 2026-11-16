@@ -116,18 +116,18 @@
                                     $originKey = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::ascii($origin));
                                     $isDomestic = in_array($originKey, ['VN', 'VIET NAM', 'VIETNAM', 'TRONG NUOC'], true);
                                 @endphp
-                                <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="font-mono font-semibold text-blue-700">· Mã SP: {{ $first->item->sku ?: '---' }}</span> <span class="text-slate-500">· {{ $first->type === 'accessory' ? 'Phụ liệu' : 'Dược liệu thô' }}</span>
+                                <div class="mb-3 text-xs"><strong>{{ $first->item->name }}</strong> <span class="font-mono font-semibold text-blue-700">· Mã SP: {{ $first->item->sku ?: '---' }}</span> <span class="text-slate-500">· {{ \App\Models\CatalogItem::labelForType($first->type) }}</span>
                                     <span class="ml-1 inline-flex items-center border px-1.5 py-0.5 text-[10px] font-bold {{ $origin === '' ? 'border-slate-300 bg-slate-100 text-slate-600' : ($isDomestic ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-amber-300 bg-amber-50 text-amber-800') }}">
                                         {{ $origin === '' ? 'Chưa khai báo xuất xứ' : ($isDomestic ? 'Trong nước' : 'Nhập khẩu') }}{{ $origin !== '' ? ' · '.$origin : '' }}
                                     </span>
                                     <table class="mt-1 w-full table-fixed border border-slate-200 text-[11px]">
                                         <colgroup><col style="width:26%"><col style="width:18%"><col style="width:18%"><col style="width:18%"><col style="width:20%"></colgroup>
-                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'accessory' ? 'Tồn tổng' : 'Lô NCC' }}</th><th class="px-2 py-1.5">Mã SP</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 text-right">Số lượng xuất</th></tr></thead>
+                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'raw_material' ? 'Lô NCC' : 'Tồn tổng' }}</th><th class="px-2 py-1.5">Mã SP</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 text-right">Số lượng xuất</th></tr></thead>
                                         <tbody class="divide-y divide-slate-200">
                                             @foreach($group as $lot)
                                                 @php $i = $loop->parent->index . '_' . $loop->index; @endphp
                                                 <tr>
-                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $first->type === 'accessory' ? 'Toàn bộ' : ($lot->batch ?: '(không số lô)') }}</td>
+                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $first->type === 'raw_material' ? ($lot->batch ?: '(không số lô)') : 'Toàn bộ' }}</td>
                                                     <td class="px-2 py-1.5 font-mono text-blue-700">{{ $lot->item->sku ?: '---' }}</td>
                                                     <td class="px-2 py-1.5">{{ $lot->exp_date ? \Illuminate\Support\Carbon::parse($lot->exp_date)->format('d/m/Y') : 'Không hạn' }}</td>
                                                     <td class="px-2 py-1.5 text-right font-mono">{{ number_format($lot->balance, 4) }} {{ $lot->item->unit }}</td>
@@ -141,7 +141,7 @@
                                     </table>
                                 </div>
                             @empty
-                                <div class="text-xs text-slate-500">Chưa có dược liệu thô/phụ liệu còn tồn.</div>
+                                <div class="text-xs text-slate-500">Chưa có nguyên liệu còn tồn.</div>
                             @endforelse
                         </div>
                     </div>

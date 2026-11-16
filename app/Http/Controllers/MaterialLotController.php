@@ -28,18 +28,27 @@ class MaterialLotController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        abort_unless($user && ($this->canQa() || $this->canQc() || $user->isWarehouseDepartment() || $user->isWarehouseManager()), 403);
+        abort_unless($user && (
+            $user->isExecutiveBoardMember()
+            || $this->canQa()
+            || $this->canQc()
+            || $user->isWarehouseDepartment()
+            || $user->isWarehouseManager()
+        ), 403);
 
-        $type = $request->query('type') === 'accessory' ? 'accessory' : 'raw_material';
+        $validated = $request->validate([
+            'type' => ['nullable', 'in:raw_material,accessory,excipient,packaging'],
+        ]);
+        $type = $validated['type'] ?? 'raw_material';
+        $catalogModel = \App\Models\CatalogItem::modelForType($type);
         $lots = MaterialLot::with('purchaseOrderItem.purchaseOrder.supplier')
             ->where('material_type', $type)
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
-            ->when($request->filled('search'), function ($query) use ($request) {
+            ->when($request->filled('search'), function ($query) use ($request, $catalogModel) {
                 $search = $request->search;
-                $query->where(function ($q) use ($search) {
+                $query->where(function ($q) use ($search, $catalogModel) {
                     $q->where('batch_number', 'like', "%{$search}%")
-                        ->orWhereIn('material_id', \App\Models\RawMaterial::where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")->pluck('id'))
-                        ->orWhereIn('material_id', \App\Models\Accessory::where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")->pluck('id'));
+                        ->orWhereIn('material_id', $catalogModel::where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")->select('id'));
                 });
             })
             ->orderByRaw("FIELD(status, 'pending_qa', 'active', 'rejected')")
@@ -50,6 +59,8 @@ class MaterialLotController extends Controller
         return view('material-lots.index', [
             'lots' => $lots,
             'type' => $type,
+            'typeLabel' => \App\Models\CatalogItem::labelForType($type),
+            'materialTypes' => ['raw_material', 'accessory', 'excipient', 'packaging'],
             'canQa' => $this->canQa(),
             'canQc' => $this->canQc(),
         ]);
@@ -62,7 +73,7 @@ class MaterialLotController extends Controller
             return back()->with('error', 'Lô đã được QC kết luận, không thể sửa.');
         }
         if ($materialLot->material_type !== 'raw_material') {
-            return back()->with('error', 'Phụ liệu không có số lô NCC/COA; chỉ cần QC xác nhận.');
+            return back()->with('error', 'Loại hàng này không yêu cầu cập nhật số lô NCC/COA; chỉ cần QC xác nhận.');
         }
 
         $data = $request->validate([
@@ -166,7 +177,12 @@ class MaterialLotController extends Controller
     public function coa(MaterialLot $materialLot)
     {
         $user = auth()->user();
-        abort_unless($user && ($this->canQa() || $this->canQc() || $user->isWarehouseDepartment()), 403);
+        abort_unless($user && (
+            $user->isExecutiveBoardMember()
+            || $this->canQa()
+            || $this->canQc()
+            || $user->isWarehouseDepartment()
+        ), 403);
         abort_unless($materialLot->coa_file && Storage::disk('local')->exists($materialLot->coa_file), 404);
 
         return Storage::disk('local')->response($materialLot->coa_file);

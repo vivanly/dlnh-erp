@@ -10,7 +10,7 @@ Tài liệu định hướng khi chỉnh sửa hệ thống DLNH ERP. Được t
 | Nhân viên | `users.*` / `UserController` / `users` | `users`, `departments`; `users` còn giữ chức vụ, địa chỉ, trạng thái, locale, avatar |
 | PPCB | `ppcb.*` / `PpcbController` / `ppcb` | `ppcb`; được tham chiếu bởi `products`, `order_items`, lô thành phẩm và kế hoạch sản xuất |
 | Sản phẩm | `products.*` / `ProductController` / `products` | `products`, `ppcb`; hồ sơ liên quan ở `product_regulatory_documents`, `product_quality_standards`, `product_storage_methods`, `product_unit_conversions` |
-| Nguyên liệu/phụ liệu/tá dược/bao bì | `raw-materials.*`, `accessories.*`, `excipients.*`, `packaging.*` / các `CatalogController` tương ứng | `raw_materials`, `accessories`, `excipients`, `packaging_materials`; mua hàng/tồn kho hiện dùng `raw_materials`, `accessories` |
+| Nguyên liệu/phụ liệu/tá dược/bao bì | `raw-materials.*`, `accessories.*`, `excipients.*`, `packaging.*` / các `CatalogController` tương ứng | `raw_materials`, `accessories`, `excipients`, `packaging_materials`; PO/nhập kho/tồn vật tư dùng cả bốn catalog (Nguyên liệu và Phụ liệu dùng chung `accessories`) |
 | BOM/định mức | `boms.*` / `BomController` / `boms` | `product_boms` → `product_bom_items`; thành phần tham chiếu đa hình qua `component_type`/`component_id`, quy đổi sản phẩm ở `product_unit_conversions`; workflow duyệt lưu ngay trên `product_boms` |
 | Nhà cung cấp | `suppliers.*` / `suppliercontroller` / `suppliers` | `suppliers`; được PO tham chiếu |
 | Đơn mua | `purchase-orders.*` / `PurchaseOrderController` / `purchase-orders` | `purchase_orders` → `purchase_order_items`; liên quan `suppliers`, `users`, `goods_receipts`, `supplier_return_orders`, `material_lots` |
@@ -28,6 +28,12 @@ Tài liệu định hướng khi chỉnh sửa hệ thống DLNH ERP. Được t
 | Nhãn | `labels.*` / `LabelController` | `sales_order_label_prints`, `orders`, `order_items`, phân bổ lô |
 | Hồ sơ sản phẩm | `product-regulatory-documents.*`, `product-quality-standards.*`, `product-storage-methods.*` | Mỗi bảng có `product_id`, gắn vào `products` |
 | Hồ sơ cá nhân | `profile.*` / `ProfileController` | `users` |
+
+## Mã phân loại và loại đơn
+
+- Dòng hàng đơn mua lưu mã `DLT`, `NL`, `PL`, `TD` hoặc `BB` trong `purchase_order_items.material_type`; `NL` và `PL` vẫn dùng chung bảng/tồn kho `accessories`.
+- Sản phẩm lưu mã phân loại `DL`, `DLSC`, `VTCT`, `VT`, `TCT` hoặc `TPCN` trong `products.classification`.
+- `orders.order_type` dùng mã `DLT`, `DL`, `DLSC`, `VTCT`, `VT`, `TCT` hoặc `TPCN`; `DLT` dùng danh mục dược liệu thô, các mã còn lại dùng sản phẩm. Migration chuẩn hóa dữ liệu cũ và đổi tiền tố mã đơn bán; mã PO tiếp tục do người dùng nhập.
 
 ## Các luồng dữ liệu chính
 

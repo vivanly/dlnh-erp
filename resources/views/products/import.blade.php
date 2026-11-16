@@ -54,8 +54,9 @@
 
                 <div class="mt-8 border-t pt-4 text-sm text-gray-600">
                     <p class="font-semibold text-gray-700">Lưu ý cấu trúc tên cột ở dòng đầu tiên trong file Excel:</p>
+                    <p>Các dòng trống được bỏ qua; dòng có dữ liệu phải có phân loại, mã hàng SKU và tên hàng hóa. Phân loại dùng mã: DL, DLSC, VTCT, VT, TCT hoặc TPCN; hệ thống vẫn nhận tên phân loại cũ khi import.</p>
                     <ul class="list-disc pl-5 mt-2 space-y-1">
-                        <li><code>phan_loai</code></li>
+                        <li><code>phan_loai</code> (Bắt buộc)</li>
                         <li><code>ma_hang_sku</code> (Bắt buộc)</li>
                         <li><code>ten_hang_hoa</code> (Bắt buộc)</li>
                         <li><code>dvt</code></li>

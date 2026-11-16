@@ -43,4 +43,11 @@ class SalesOrderLotAllocation extends Model
         return $this->hasMany(SalesOrderLabelPrint::class, 'sales_order_lot_allocation_id');
     }
 
+    public function isLabelQaApproved(): bool
+    {
+        $batch = $this->supplierBatch ?? $this->finishedBatch;
+
+        return $batch && ($batch->status === 'active'
+            || ($batch instanceof ProductionFinishedBatch && $batch->status === 'pending_qa'));
+    }
 }

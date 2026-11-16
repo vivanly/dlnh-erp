@@ -6,6 +6,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\Supplier;
 use App\Models\Product;
+use App\Models\CatalogItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -31,9 +32,11 @@ class PurchaseOrderController extends Controller
     public function searchItems(Request $request)
     {
         $controller = match ($request->get('type')) {
-            'raw_material' => app(RawMaterialController::class),
-            'accessory' => app(AccessoryController::class),
-            default => app(RawMaterialController::class),
+            'DLT', 'raw_material' => app(RawMaterialController::class),
+            'NL', 'PL', 'ingredient', 'accessory' => app(AccessoryController::class),
+            'TD', 'excipient' => app(ExcipientController::class),
+            'BB', 'packaging' => app(PackagingMaterialController::class),
+            default => abort(422, 'Loại hàng đặt mua không hợp lệ.'),
         };
 
         return $controller->searchAjax($request);
@@ -41,7 +44,15 @@ class PurchaseOrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = PurchaseOrder::with(['supplier', 'user', 'items.product', 'items.rawMaterial', 'items.accessory'])->orderBy('id', 'desc');
+        $query = PurchaseOrder::with([
+            'supplier',
+            'user',
+            'items.product',
+            'items.rawMaterial',
+            'items.accessory',
+            'items.excipient',
+            'items.packagingMaterial',
+        ])->orderBy('id', 'desc');
 
         // Lọc theo từ khóa (Mã PO hoặc Tên Nhà cung cấp)
         if ($request->filled('search')) {
@@ -59,8 +70,9 @@ class PurchaseOrderController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('item_type') && in_array($request->input('item_type'), ['raw_material', 'accessory'], true)) {
-            $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('material_type', $request->input('item_type')));
+        if ($request->filled('item_type') && in_array($request->input('item_type'), ['DLT', 'NL', 'PL', 'TD', 'BB', 'raw_material', 'ingredient', 'accessory', 'excipient', 'packaging'], true)) {
+            $itemType = CatalogItem::codeForType($request->input('item_type'));
+            $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('material_type', $itemType));
         }
 
         // Giữ nguyên tham số bộ lọc khi phân trang
@@ -88,8 +100,8 @@ class PurchaseOrderController extends Controller
     {
         $orderType = $request->input('item_type');
         $items = collect($request->input('items', []))->map(function ($item) use ($orderType) {
-            if (is_array($item) && in_array($orderType, ['raw_material', 'accessory'], true)) {
-                $item['item_type'] = $orderType;
+            if (is_array($item) && in_array($orderType, ['DLT', 'NL', 'PL', 'TD', 'BB', 'raw_material', 'ingredient', 'accessory', 'excipient', 'packaging'], true)) {
+                $item['item_type'] = CatalogItem::codeForType($orderType);
             }
 
             return $item;
@@ -124,7 +136,7 @@ class PurchaseOrderController extends Controller
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.item_type' => 'required|in:raw_material,accessory',
+            'items.*.item_type' => 'required|in:DLT,NL,PL,TD,BB,raw_material,ingredient,accessory,excipient,packaging',
             'items.*.item_id' => ['required', 'integer', function ($attribute, $value, $fail) use ($request) {
                 $index = explode('.', $attribute)[1];
                 if (!PurchaseOrderItem::catalogExists((string) $request->input("items.{$index}.item_type"), (int) $value)) {
@@ -192,7 +204,14 @@ class PurchaseOrderController extends Controller
             return redirect()->route('purchase-orders.index')->with('error', 'Chỉ bộ phận Kinh doanh hoặc IT mới có quyền chỉnh sửa đơn mua hàng.');
         }
 
-        $purchaseOrder = PurchaseOrder::with(['supplier', 'items.product', 'items.rawMaterial', 'items.accessory'])->findOrFail($id);
+        $purchaseOrder = PurchaseOrder::with([
+            'supplier',
+            'items.product',
+            'items.rawMaterial',
+            'items.accessory',
+            'items.excipient',
+            'items.packagingMaterial',
+        ])->findOrFail($id);
         
         if (!in_array($purchaseOrder->status, ['draft', 'rejected'], true)) {
             return redirect()->route('purchase-orders.index')->with('error', 'Chỉ được chỉnh sửa đơn hàng đang ở trạng thái Nháp hoặc Bị từ chối.');
@@ -231,7 +250,7 @@ class PurchaseOrderController extends Controller
             'expected_delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.item_type' => 'required|in:raw_material,accessory',
+            'items.*.item_type' => 'required|in:DLT,NL,PL,TD,BB,raw_material,ingredient,accessory,excipient,packaging',
             'items.*.item_id' => ['required', 'integer', function ($attribute, $value, $fail) use ($request) {
                 $index = explode('.', $attribute)[1];
                 if (!PurchaseOrderItem::catalogExists((string) $request->input("items.{$index}.item_type"), (int) $value)) {

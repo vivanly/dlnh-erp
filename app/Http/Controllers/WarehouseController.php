@@ -627,7 +627,17 @@ class WarehouseController extends Controller
         $search = trim((string) $request->input('search'));
         $selectedItemId = $request->integer('item_id') ?: null;
 
-        $rows = collect(['raw_material' => \App\Models\RawMaterial::class, 'accessory' => \App\Models\Accessory::class])
+        $allowedTypes = ['raw_material', 'accessory', 'excipient', 'packaging'];
+        $validated = $request->validate([
+            'type' => ['nullable', 'in:' . implode(',', $allowedTypes)],
+        ]);
+        $type = $validated['type'] ?? null;
+        $rows = collect([
+            'raw_material' => \App\Models\RawMaterial::class,
+            'accessory' => \App\Models\Accessory::class,
+            'excipient' => \App\Models\Excipient::class,
+            'packaging' => \App\Models\PackagingMaterial::class,
+        ])
             ->when($type, fn ($c) => $c->only([$type]))
             ->flatMap(function ($model, $materialType) use ($search, $selectedItemId) {
                 return $model::query()
@@ -670,7 +680,7 @@ class WarehouseController extends Controller
         $this->ensureWarehouseViewAccess();
 
         $orders = Order::with(['customer', 'items.rawMaterial'])
-            ->where('order_type', 'NL')
+            ->where('order_type', 'DLT')
             ->where('status', 'pending_material_issue')
             ->latest()
             ->paginate(20);
@@ -702,7 +712,7 @@ class WarehouseController extends Controller
         try {
             DB::transaction(function () use ($order, $picked) {
                 $locked = Order::whereKey($order->id)->lockForUpdate()->firstOrFail();
-                if ($locked->order_type !== 'NL' || $locked->status !== 'pending_material_issue') {
+                if ($locked->order_type !== 'DLT' || $locked->status !== 'pending_material_issue') {
                     throw new DomainException('Đơn không còn chờ xuất dược liệu thô.');
                 }
 

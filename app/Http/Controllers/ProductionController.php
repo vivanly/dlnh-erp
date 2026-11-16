@@ -761,7 +761,7 @@ class ProductionController extends Controller
         if ($workArea === 'warehouse' && $this->userCanWorkInWarehouse() && in_array($productionOrder->status, ['released', 'materials_issued'], true)) {
             $pairs = \App\Models\MaterialStockMovement::select('material_type', 'material_id')->distinct()->get();
             foreach ($pairs as $pair) {
-                $catalogItem = $pair->material_type === 'accessory' ? \App\Models\Accessory::find($pair->material_id) : \App\Models\RawMaterial::find($pair->material_id);
+                $catalogItem = \App\Models\CatalogItem::findByType($pair->material_type, (int) $pair->material_id);
                 if (!$catalogItem) {
                     continue;
                 }
@@ -996,7 +996,7 @@ class ProductionController extends Controller
             'lots' => ['nullable', 'array'],
             'lots.*' => ['nullable', 'numeric', 'min:0'],
             'material_lots' => ['nullable', 'array'],
-            'material_lots.*.type' => ['required', 'in:raw_material,accessory'],
+            'material_lots.*.type' => ['required', 'in:raw_material,accessory,excipient,packaging'],
             'material_lots.*.id' => ['required', 'integer'],
             'material_lots.*.batch' => ['nullable', 'string', 'max:255'],
             'material_lots.*.quantity' => ['nullable', 'numeric', 'min:0'],
@@ -1066,7 +1066,7 @@ class ProductionController extends Controller
                 }
 
                 foreach ($materialSelected as $row) {
-                    $catalogModel = $row['type'] === 'accessory' ? \App\Models\Accessory::class : \App\Models\RawMaterial::class;
+                    $catalogModel = \App\Models\CatalogItem::modelForType($row['type']);
                     $catalogItem = $catalogModel::whereKey($row['id'])->lockForUpdate()->first();
                     if (!$catalogItem) {
                         throw new DomainException('Có nguyên liệu/phụ liệu được chọn không tồn tại.');

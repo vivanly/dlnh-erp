@@ -36,14 +36,14 @@
                         </div>
                         @if($canApproveProductionPlan)
                             <div class="flex flex-wrap items-end justify-between gap-3 border-t border-slate-200 p-3">
-                                <form method="POST" action="{{ route('production-planning.reject', $order) }}" class="flex min-w-[min(100%,28rem)] flex-1 items-end gap-2">
+                                <form method="POST" action="{{ route('production-planning.reject', $order) }}" class="director-approval-action flex min-w-[min(100%,28rem)] flex-1 items-end gap-2">
                                     @csrf
                                     <label class="flex-1 text-[10px] font-semibold">Lý do trả kế hoạch
                                         <input name="reason" required maxlength="1000" class="mt-1 w-full text-xs border-slate-300 rounded-none">
                                     </label>
                                     <button class="px-3 py-2 bg-rose-700 text-[10px] font-bold uppercase text-white">Trả lại</button>
                                 </form>
-                                <form method="POST" action="{{ route('production-planning.approve', $order) }}" onsubmit="return confirm('Duyệt kế hoạch và mở quyền lập phiếu xuất nguyên liệu cho Kho?');">
+                                <form method="POST" action="{{ route('production-planning.approve', $order) }}" class="director-approval-action" onsubmit="return confirm('Duyệt kế hoạch và mở quyền lập phiếu xuất nguyên liệu cho Kho?');">
                                     @csrf
                                     <button class="px-4 py-2 bg-emerald-700 text-[10px] font-bold uppercase text-white">Duyệt kế hoạch</button>
                                 </form>

@@ -23,7 +23,7 @@
                             <select name="product_id" id="bom-product" required class="mt-1 w-full text-xs border-slate-300 rounded-none">
                                 <option value="">Chọn sản phẩm</option>
                                 @foreach($products as $product)
-                                    <option value="{{ $product->id }}" data-unit="{{ $product->unit }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>{{ $product->classification ?: 'Chưa phân loại' }} · {{ $product->name }} · {{ $product->sku }}</option>
+                                    <option value="{{ $product->id }}" data-unit="{{ $product->unit }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>{{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }} · {{ $product->name }} · {{ $product->sku }}</option>
                                 @endforeach
                             </select>
                         </label>

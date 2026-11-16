@@ -67,7 +67,7 @@
                                 <select id="internal-lot-product" name="product_id" required class="mt-1.5 w-full border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500">
                                     <option value="">Chọn sản phẩm</option>
                                     @foreach($products as $product)
-                                        <option value="{{ $product->id }}" data-classification="{{ $product->classification ?? '' }}" data-origin="{{ $product->origin ?? '' }}" data-unit="{{ $product->unit }}" @selected((string) $selectedProductId === (string) $product->id)>{{ $product->classification ? $product->classification . ' · ' : '' }}{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->unit }}{{ $product->origin ? ' · ' . $product->origin : '' }}</option>
+                                        <option value="{{ $product->id }}" data-classification="{{ $product->classification ?? '' }}" data-origin="{{ $product->origin ?? '' }}" data-unit="{{ $product->unit }}" @selected((string) $selectedProductId === (string) $product->id)>{{ $product->classification ? $product->classification . ' · ' . $product->classification_label . ' · ' : '' }}{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->unit }}{{ $product->origin ? ' · ' . $product->origin : '' }}</option>
                                     @endforeach
                                 </select>
                                 <span id="product-filter-count" class="mt-1 block text-[11px] font-normal text-slate-500" aria-live="polite"></span>

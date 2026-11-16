@@ -9,6 +9,8 @@ class Order extends Model
 {
     use HasFactory;
 
+    public const TYPE_CODES = ['DLT', 'DL', 'DLSC', 'VTCT', 'VT', 'TCT', 'TPCN'];
+
     protected $table = 'orders';
 
     protected $fillable = [
@@ -69,6 +71,20 @@ class Order extends Model
     public function isApproved(): bool
     {
         return in_array($this->status, ['pending_warehouse_check', 'pending_qa', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true);
+    }
+
+    public function getOrderTypeLabelAttribute(): string
+    {
+        return match ($this->order_type) {
+            'DLT' => 'Dược liệu thô',
+            'DL' => 'Dược liệu',
+            'DLSC' => 'Dược liệu sơ chế',
+            'VTCT' => 'Vị thuốc cổ truyền',
+            'VT' => 'Vị thuốc',
+            'TCT' => 'Thuốc cổ truyền',
+            'TPCN' => 'Thực phẩm chức năng',
+            default => (string) $this->order_type,
+        };
     }
 
     public function isEditLockedAfterQa(): bool

@@ -41,11 +41,7 @@ class ProductionOrderMaterial extends Model
 
     public function getCatalogItemAttribute()
     {
-        return match ($this->material_type) {
-            'raw_material' => RawMaterial::find($this->material_id),
-            'accessory' => Accessory::find($this->material_id),
-            default => null,
-        };
+        return CatalogItem::findByType((string) $this->material_type, (int) $this->material_id);
     }
 
     public function getDisplayNameAttribute(): string

@@ -54,9 +54,13 @@
                             <label class="block text-xs font-semibold text-slate-800 mb-1">Loại Đơn Hàng <span class="text-rose-500">*</span></label>
                             <select name="order_type" id="order_type" required class="w-full text-xs font-medium border-slate-300 rounded-md focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2.5 text-slate-900 bg-white">
                                 <option value="">-- Chọn loại đơn hàng --</option>
-                                <option value="DL" {{ old('order_type', $orderType ?? 'DL') == 'DL' ? 'selected' : '' }}>Dược Liệu</option>
-                                <option value="VT" {{ old('order_type', $orderType ?? '') == 'VT' ? 'selected' : '' }}>Vị Thuốc</option>
-                                <option value="NL" {{ old('order_type', $orderType ?? '') == 'NL' ? 'selected' : '' }}>Dược Liệu Thô</option>
+                                <option value="DLT" {{ old('order_type', $orderType ?? '') == 'DLT' ? 'selected' : '' }}>DLT · Dược Liệu Thô</option>
+                                <option value="DL" {{ old('order_type', $orderType ?? 'DL') == 'DL' ? 'selected' : '' }}>DL · Dược Liệu</option>
+                                <option value="DLSC" {{ old('order_type', $orderType ?? '') == 'DLSC' ? 'selected' : '' }}>DLSC · Dược Liệu Sơ Chế</option>
+                                <option value="VTCT" {{ old('order_type', $orderType ?? '') == 'VTCT' ? 'selected' : '' }}>VTCT · Vị Thuốc Cổ Truyền</option>
+                                <option value="VT" {{ old('order_type', $orderType ?? '') == 'VT' ? 'selected' : '' }}>VT · Vị Thuốc</option>
+                                <option value="TCT" {{ old('order_type', $orderType ?? '') == 'TCT' ? 'selected' : '' }}>TCT · Thuốc Cổ Truyền</option>
+                                <option value="TPCN" {{ old('order_type', $orderType ?? '') == 'TPCN' ? 'selected' : '' }}>TPCN · Thực Phẩm Chức Năng</option>
                             </select>
                                 @error('order_type') <span class="text-rose-500 text-[11px] mt-0.5 block">{{ $message }}</span> @enderror
                         </div>
@@ -250,10 +254,10 @@
                     placeholder: '-- Chọn vị thuốc --',
                     allowClear: true,
                     ajax: {
-                        url: () => ($('select[name=order_type]').val() === 'NL' ? '{{ route("api.raw-materials.search") }}' : '{{ route("api.products.search") }}'),
+                        url: () => ($('select[name=order_type]').val() === 'DLT' ? '{{ route("api.raw-materials.search") }}' : '{{ route("api.products.search") }}'),
                         dataType: 'json',
                         delay: 250,
-                        data: params => ({ q: params.term }),
+                        data: params => ({ q: params.term, order_type: $('select[name=order_type]').val() }),
                         processResults: data => ({
                             results: data.map(item => ({
                                 id: item.id,

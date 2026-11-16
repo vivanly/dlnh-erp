@@ -59,7 +59,7 @@
                                     <a href="{{ route('goods-receipts.create', $purchaseOrder) }}" class="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold uppercase hover:bg-emerald-700">Lập phiếu nhập kho</a>
                                 @endif
                                 @if($purchaseOrder->items->whereNotNull('material_type')->isNotEmpty())
-                                    <a href="{{ route('material-receipts.create', $purchaseOrder) }}" class="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold uppercase hover:bg-teal-700">Nhập kho NL thô / phụ liệu</a>
+                                    <a href="{{ route('material-receipts.create', $purchaseOrder) }}" class="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold uppercase hover:bg-teal-700">Nhập kho nguyên liệu</a>
                                 @endif
                             @endif
                         </div>

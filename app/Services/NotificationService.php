@@ -9,6 +9,7 @@ use App\Models\ProductionMonthlyPlan;
 use App\Models\ProductionOrder;
 use App\Models\PurchaseOrder;
 use App\Models\OrderItem;
+use App\Models\SalesOrderLotAllocation;
 use App\Models\SupplierBatch;
 use App\Models\User;
 
@@ -20,6 +21,7 @@ class NotificationService
     public function forUser(User $user): array
     {
         $items = [];
+        $isExecutiveBoardMember = $user->isExecutiveBoardMember();
         $add = function (string $label, int $count, string $route, array $params = []) use (&$items) {
             if ($count > 0) {
                 $items[] = ['label' => $label, 'count' => $count, 'url' => route($route, $params)];
@@ -30,7 +32,7 @@ class NotificationService
             $add('Đơn hàng cần duyệt', Order::where('status', 'pending_sales_approval')->count(), 'sales-order-approvals.index');
         }
 
-        if ($user->canPrintLabels()) {
+        if (! $isExecutiveBoardMember && $user->canPrintLabels()) {
             $add('Đơn hàng cần in nhãn', $this->ordersWaitingForLabels(), 'labels.index');
         }
 
@@ -50,30 +52,30 @@ class NotificationService
             $add('Đơn mua hàng cần duyệt', PurchaseOrder::where('status', 'pending')->count(), 'purchase-orders.index', ['status' => 'pending']);
         }
 
-        if ($user->isQADepartment()) {
+        if (! $isExecutiveBoardMember && $user->isQADepartment()) {
             $add('Đơn hàng cần chốt lô', Order::where('status', 'pending_qa')->count(), 'qa.order-batches');
             $add('Lệnh sản xuất chờ QA gán số lô', ProductionOrder::awaitingBatchAssignment()->count(), 'qa.production-batch-assignments.index');
             $add('Lệnh sản xuất hoàn tất chờ phân bổ lô', ProductionOrder::where('status', 'completed')->where('pending_finished_quantity', '>', 0)->count(), 'qa.internal-lots.create');
-            $add('Lô NCC chờ QA cập nhật COA', SupplierBatch::where('status', 'pending_qa')->where(fn ($q) => $q->whereNull('coa_file')->orWhereNull('mfg_date')->orWhereNull('exp_date'))->count(), 'qa.batches.index');
+            $add('Lô NCC chờ QA cập nhật COA', SupplierBatch::where('status', 'pending_qa')->where(fn ($q) => $q->whereNull('coa_file')->orWhereNull('mfg_date')->orWhereNull('exp_date'))->count(), 'qa.coas.index');
             $add('Lô dược liệu thô chờ QA cập nhật lô/COA', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'raw_material')->where(fn ($q) => $q->whereNull('batch_number')->orWhereNull('coa_file'))->count(), 'material-lots.index', ['type' => 'raw_material', 'status' => 'pending_qa']);
         }
 
-        if ($user->isPlanningDepartment()) {
+        if (! $isExecutiveBoardMember && $user->isPlanningDepartment()) {
             $add('Đơn hàng chờ lập kế hoạch', Order::where('status', 'pending_planning')->whereNotNull('qa_confirmed_at')->count(), 'production-planning.index');
         }
 
-        if ($user->isQCDepartment()) {
+        if (! $isExecutiveBoardMember && $user->isQCDepartment()) {
             $add('Lô NCC chờ QC xác nhận', SupplierBatch::where('status', 'pending_qa')->whereNotNull('coa_file')->whereNotNull('mfg_date')->whereNotNull('exp_date')->where('current_quantity', '>', 0)->count(), 'qa.batches.index');
             $add('Lô NCC dược liệu thô chờ QC xác nhận', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'raw_material')->whereNotNull('batch_number')->whereNotNull('coa_file')->count(), 'material-lots.index', ['type' => 'raw_material', 'status' => 'pending_qa']);
             $add('Phụ liệu chờ QC xác nhận', \App\Models\MaterialLot::where('status', 'pending_qa')->where('material_type', 'accessory')->count(), 'material-lots.index', ['type' => 'accessory', 'status' => 'pending_qa']);
         }
 
-        if ($user->isQCDepartment()) {
+        if (! $isExecutiveBoardMember && $user->isQCDepartment()) {
             $add('Lô thành phẩm chờ phiếu kiểm nghiệm', ProductionFinishedBatch::awaitingQualityReport()->count(), 'qa.production-batches.index');
         }
 
-        if ($user->isWarehouseDepartment()) {
-            $add('Đơn dược liệu thô cần xuất kho', Order::where('status', 'pending_material_issue')->count(), 'warehouse.material-issues');
+        if (! $isExecutiveBoardMember && $user->isWarehouseDepartment()) {
+            $add('Đơn dược liệu thô cần xuất kho', Order::where('order_type', 'DLT')->where('status', 'pending_material_issue')->count(), 'warehouse.material-issues');
             $add('Lệnh sản xuất chờ Kho xuất nguyên liệu', ProductionOrder::readyForMaterialIssue()->count(), 'warehouse.production-issues');
             $add('Lệnh sản xuất chờ Kho xác nhận hoàn tất', ProductionOrder::where('status', 'production_reported')->count(), 'warehouse.production-issues');
             $add('Lô thành phẩm chờ Kho nhập', ProductionFinishedBatch::awaitingWarehouseReceipt()
@@ -97,9 +99,10 @@ class NotificationService
                 ->whereNotNull('warehouse_packed_at')
                 ->count(), 'warehouse.sales-orders');
             $add('Đơn mua chờ nhận hàng', PurchaseOrder::where('status', 'approved')->count(), 'warehouse.purchase-orders');
+            $add('Đơn mua chờ nhập kho', PurchaseOrder::where('status', 'delivered')->count(), 'warehouse.purchase-orders');
         }
 
-        if ($user->isProductionDepartment()) {
+        if (! $isExecutiveBoardMember && $user->isProductionDepartment()) {
             $add('Lệnh sản xuất cần báo sản lượng', ProductionOrder::where('status', 'materials_issued')->count(), 'production-orders.index');
             $add('Đơn hàng cần đóng gói', Order::where('status', 'ready_to_ship')
                 ->whereNotNull('qa_confirmed_at')
@@ -122,26 +125,27 @@ class NotificationService
                     ->select(['id', 'order_item_id', 'supplier_batch_id', 'production_finished_batch_id', 'reserved_quantity', 'status'])
                     ->whereIn('status', ['reserved', 'shipped'])
                     ->withSum('labelPrints', 'copies_count')
-                    ->with(['supplierBatch:id,batch_number', 'finishedBatch:id,batch_number']),
+                    ->with(['supplierBatch:id,batch_number,status,exp_date', 'finishedBatch:id,batch_number,status,exp_date']),
             ])
             ->get()
             ->filter(function (Order $order): bool {
                 return $order->items->contains(function (OrderItem $item): bool {
-                    $allocations = $item->lotAllocations;
-                    if ($allocations->isEmpty() || $allocations->sum(fn ($allocation) => (float) $allocation->reserved_quantity) + 0.0001 < (float) $item->quantity) {
+                    $allocations = $item->lotAllocations
+                        ->filter(fn (SalesOrderLotAllocation $allocation) => $allocation->supplierBatch || $allocation->finishedBatch)
+                        ->values();
+                    if ($allocations->isEmpty()) {
                         return false;
                     }
 
-                    $target = $item->label_target_count;
-                    if ($target <= 0) {
-                        return false;
-                    }
+                    $targets = $item->distributeLabelTarget($allocations);
 
-                    $printed = $allocations
-                        ->filter(fn ($allocation) => $allocation->supplierBatch || $allocation->finishedBatch)
-                        ->sum(fn ($allocation) => (int) $allocation->label_prints_sum_copies_count);
+                    return $allocations->contains(function (SalesOrderLotAllocation $allocation) use ($targets): bool {
+                        $batch = $allocation->supplierBatch ?? $allocation->finishedBatch;
 
-                    return $printed < $target;
+                        return $allocation->isLabelQaApproved()
+                            && (! $batch->exp_date || $batch->exp_date >= today())
+                            && (int) $allocation->label_prints_sum_copies_count < ($targets[$allocation->id] ?? 0);
+                    });
                 });
             })
             ->count();

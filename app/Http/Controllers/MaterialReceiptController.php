@@ -15,12 +15,17 @@ class MaterialReceiptController extends Controller
     private function authorizeWarehouse(): void
     {
         $user = auth()->user();
-        abort_unless($user && ($user->isWarehouseDepartment() || $user->isWarehouseManager() || $user->isITDepartment()), 403, 'Chỉ bộ phận Kho hoặc IT mới có quyền nhập kho dược liệu thô/phụ liệu.');
+        abort_unless($user && ($user->isWarehouseDepartment() || $user->isWarehouseManager() || $user->isITDepartment()), 403, 'Chỉ bộ phận Kho hoặc IT mới có quyền nhập kho nguyên liệu.');
     }
 
     private function materialItems(PurchaseOrder $purchaseOrder)
     {
-        $items = $purchaseOrder->items()->whereNotNull('material_type')->with(['rawMaterial', 'accessory'])->get();
+        $items = $purchaseOrder->items()->whereNotNull('material_type')->with([
+            'rawMaterial',
+            'accessory',
+            'excipient',
+            'packagingMaterial',
+        ])->get();
         foreach ($items as $item) {
             $item->setAttribute('remaining_quantity', max(0, (float) $item->quantity - $item->processedQuantity()));
         }
@@ -38,7 +43,7 @@ class MaterialReceiptController extends Controller
 
         $items = $this->materialItems($purchaseOrder);
         if ($items->isEmpty()) {
-            return redirect()->route('warehouse.purchase-orders')->with('error', 'Đơn mua không có dược liệu thô/phụ liệu.');
+            return redirect()->route('warehouse.purchase-orders')->with('error', 'Đơn mua không có mặt hàng cần nhập kho nguyên liệu.');
         }
 
         return view('material-receipts.create', compact('purchaseOrder', 'items'));
@@ -78,7 +83,7 @@ class MaterialReceiptController extends Controller
                     }
 
                     $base = [
-                        'material_type' => $item->material_type,
+                        'material_type' => \App\Models\CatalogItem::normalizeType($item->material_type),
                         'material_id' => $item->material_id,
                         'unit' => $item->unit,
                         'purchase_order_item_id' => $item->id,
@@ -88,7 +93,7 @@ class MaterialReceiptController extends Controller
                     if ($received > 0) {
                         MaterialLot::create([
                             'purchase_order_item_id' => $item->id,
-                            'material_type' => $item->material_type,
+                            'material_type' => \App\Models\CatalogItem::normalizeType($item->material_type),
                             'material_id' => $item->material_id,
                             'quantity' => $received,
                             'unit' => $item->unit,

@@ -29,7 +29,7 @@
                     $isMaterial = $traceabilityType === 'material';
                     $lotTypeLabel = match($traceabilityType) {
                         'supplier' => 'Lô nhà cung cấp',
-                        'material' => $traceBatch->material_type === 'accessory' ? 'Lô phụ liệu (NCC)' : 'Lô dược liệu thô (NCC)',
+                        'material' => \App\Models\CatalogItem::labelForType($traceBatch->material_type) . ' (NCC)',
                         default => str_contains(strtoupper((string) $traceBatch->product->classification), 'VT')
                             ? 'Lô nội bộ · vị thuốc'
                             : 'Lô nội bộ · dược liệu sơ chế',
