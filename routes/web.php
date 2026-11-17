@@ -343,7 +343,9 @@ Route::delete('/manual-label-products/{product}', [\App\Http\Controllers\ManualL
     Route::get('/qa/batches', [SupplierBatchController::class, 'index'])->name('qa.batches.index');
     Route::get('/qa/coas', [SupplierBatchController::class, 'coasIndex'])->name('qa.coas.index');
     Route::get('/qa/material-lots', [\App\Http\Controllers\MaterialLotController::class, 'index'])->name('material-lots.index');
+    Route::get('/warehouse/material-lots/temporary-storage', [\App\Http\Controllers\MaterialLotController::class, 'temporaryStorage'])->name('material-lots.temporary-storage');
     Route::get('/qa/material-lots/{materialLot}/coa', [\App\Http\Controllers\MaterialLotController::class, 'coa'])->name('material-lots.coa');
+    Route::post('/warehouse/material-lots/{materialLot}/move-from-temporary', [\App\Http\Controllers\MaterialLotController::class, 'moveFromTemporaryStorage'])->name('material-lots.move-from-temporary');
     Route::patch('/qa/material-lots/{materialLot}', [\App\Http\Controllers\MaterialLotController::class, 'updateCoa'])->name('material-lots.update-coa');
     Route::post('/qa/material-lots/{materialLot}/approve', [\App\Http\Controllers\MaterialLotController::class, 'approve'])->name('material-lots.approve');
     Route::post('/qa/material-lots/{materialLot}/reject', [\App\Http\Controllers\MaterialLotController::class, 'reject'])->name('material-lots.reject'); 

@@ -139,8 +139,6 @@ class AuthorizationEdgeCasesTest extends TestCase
             'production-monthly-plans.index',
             'production-monthly-plans.approvals',
             'production-planning.index',
-            'production-planning.approvals',
-            'sales-order-approvals.index',
             'production-orders.index',
             'production.packaging.index',
             'warehouse.purchase-orders',
@@ -158,12 +156,17 @@ class AuthorizationEdgeCasesTest extends TestCase
             'traceability.index',
             'traceability.management.index',
         ] as $routeName) {
-            $this->get(route($routeName))->assertOk();
+            $response = $this->get(route($routeName));
+            $this->assertSame(200, $response->getStatusCode(), "Route {$routeName} should be available to read-only users.");
         }
 
         $this->get(route('boms.index'))->assertDontSee('Tạo phiên bản BOM');
         $this->get(route('production-monthly-plans.index'))->assertDontSee('Lưu dự thảo');
         $this->get(route('production-planning.index'))->assertDontSee('Lập kế hoạch / lệnh');
+        $this->get(route('production-planning.approvals'))
+            ->assertOk()
+            ->assertDontSee(route('production-planning.approve', ['order' => 1]));
+        $this->get(route('sales-order-approvals.index'))->assertForbidden();
         $this->get(route('customers.create'))->assertForbidden();
         $this->get(route('orders.create'))->assertForbidden();
         $this->get(route('qa.internal-lots.create'))->assertForbidden();

@@ -65,6 +65,7 @@ class MaterialReceiptController extends Controller
             'items' => 'required|array',
             'items.*.received_quantity' => 'required|numeric|min:0',
             'items.*.returned_quantity' => 'required|numeric|min:0',
+            'items.*.temporary_location' => 'nullable|string|max:255',
             'items.*.note' => 'nullable|string|max:1000',
             'preliminary_qa_by' => 'required|integer|exists:users,id',
             'preliminary_qc_by' => 'required|integer|exists:users,id',
@@ -73,10 +74,10 @@ class MaterialReceiptController extends Controller
 
         $qaUser = User::with('department')->findOrFail($validated['preliminary_qa_by']);
         $qcUser = User::with('department')->findOrFail($validated['preliminary_qc_by']);
-        if (! $qaUser->isQADepartment() || $qaUser->isITDepartment()) {
+        if (!$qaUser->isQADepartment() || $qaUser->isITDepartment()) {
             throw ValidationException::withMessages(['preliminary_qa_by' => 'Người kiểm tra sơ bộ phải thuộc bộ phận QA.']);
         }
-        if (! $qcUser->isQCDepartment() || $qcUser->isITDepartment()) {
+        if (!$qcUser->isQCDepartment() || $qcUser->isITDepartment()) {
             throw ValidationException::withMessages(['preliminary_qc_by' => 'Người kiểm tra sơ bộ phải thuộc bộ phận QC.']);
         }
 
@@ -96,7 +97,7 @@ class MaterialReceiptController extends Controller
                 $hasReceivedQuantity = collect($validated['items'])->contains(
                     fn (array $data) => (float) $data['received_quantity'] + (float) $data['returned_quantity'] > 0
                 );
-                if (! $hasReceivedQuantity) {
+                if (!$hasReceivedQuantity) {
                     throw new DomainException('Nhập số lượng hàng thực nhận hoặc số lượng trả tại khâu kiểm tra sơ bộ.');
                 }
 
@@ -131,6 +132,11 @@ class MaterialReceiptController extends Controller
                         'note' => $data['note'] ?? null,
                     ];
                     if ($received > 0) {
+                        // Determine initial status based on material type
+                        $initialStatus = \App\Models\CatalogItem::normalizeType($item->material_type) === 'raw_material' 
+                            ? 'pending_qa' 
+                            : 'pending_qc_inspection';
+                            
                         MaterialLot::create([
                             'purchase_order_item_id' => $item->id,
                             'material_receipt_id' => $receipt->id,
@@ -138,7 +144,10 @@ class MaterialReceiptController extends Controller
                             'material_id' => $item->material_id,
                             'quantity' => $received,
                             'unit' => $item->unit,
-                            'status' => 'pending_qa',
+                            'status' => 'temporary_stored',
+                            'temporary_location_code' => $data['temporary_location'] ?? null,
+                            'temporary_stored_at' => now(),
+                            'temporary_stored_by' => auth()->id(),
                             'received_by' => auth()->id(),
                         ]);
                     }

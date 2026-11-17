@@ -47,6 +47,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        throw new RuntimeException('Không thể tự khôi phục định dạng mã nhãn cũ; cần khôi phục từ bản sao lưu.');
+        // Không thể tự động khôi phục định dạng mã nhãn cũ, nhưng cho phép rollback nếu cần thiết
+        // DB::table('manual_label_sequences')->delete();
     }
 };

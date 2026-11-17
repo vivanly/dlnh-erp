@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ManualLabelPrint;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ManualLabelPrintTest extends TestCase
@@ -173,13 +174,29 @@ class ManualLabelPrintTest extends TestCase
         $this->assertSame(['NH000001', 'NH000002'], $orders->pluck('label_code')->all());
         $this->assertTrue($orders[0]->traditional_medicine_name);
         $this->assertFalse($orders[1]->traditional_medicine_name);
+        $trackedQueries = false;
+        $lookupQueries = 0;
+        DB::listen(function ($query) use (&$trackedQueries, &$lookupQueries) {
+            if ($trackedQueries
+                && str_starts_with(strtolower($query->sql), 'select')
+                && (str_contains($query->sql, 'manual_label_products') || str_contains($query->sql, 'manual_label_prints'))) {
+                $lookupQueries++;
+            }
+        });
+        $trackedQueries = true;
         $page = $this->actingAs($user)->get(route('manual-labels.batch.create', ['order' => 'SX01']));
+        $trackedQueries = false;
+        $this->assertSame(2, $lookupQueries);
         $page->assertOk()->assertSee('Còn 1000 g')->assertSee('NH000001')->assertSee('NH000002');
 
         $counts = [$orders[0]->id => 3, $orders[1]->id => 3];
+        $lookupQueries = 0;
+        $trackedQueries = true;
         $response = $this->actingAs($user)->post(route('manual-labels.batch.store'), [
             'production_order' => 'SX01', 'counts' => $counts, 'include_partial' => '0',
         ]);
+        $trackedQueries = false;
+        $this->assertSame(2, $lookupQueries);
         $response->assertOk()->assertSee('page column-first')->assertSee('Tên vị thuốc cổ truyền:')->assertSee('DƯỢC LIỆU TRONG NƯỚC');
         $this->assertSame(4, substr_count($response->getContent(), '<div class="slot">'));
         $this->assertDatabaseHas('manual_label_prints', ['label_code' => 'NH000001', 'copies_count' => 3]);

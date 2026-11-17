@@ -196,7 +196,7 @@ class BomApprovalTest extends TestCase
             ->assertOk()
             ->assertSee('Tá dược kiểm thử')
             ->assertSee('Bao bì kiểm thử')
-            ->assertSee('VT · BOM catalog finished product · BOM-CATALOG-FIN')
+            ->assertSee('Vị Thuốc · BOM catalog finished product · BOM-CATALOG-FIN')
             ->assertSee('<option value="raw_material">Dược liệu thô</option>', false)
             ->assertSee('<option value="accessory">Phụ liệu</option>', false)
             ->assertSee('<option value="excipient">Tá dược</option>', false)

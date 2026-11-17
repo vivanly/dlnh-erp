@@ -14,6 +14,8 @@ class MaterialLot extends Model
         'mfg_date' => 'date',
         'exp_date' => 'date',
         'stock_received_at' => 'datetime',
+        'temporary_stored_at' => 'datetime',
+        'qa_reviewed_at' => 'datetime',
     ];
 
     public function purchaseOrderItem()
@@ -41,6 +43,16 @@ class MaterialLot extends Model
         return $this->belongsTo(User::class, 'qc_by');
     }
 
+    public function qaReviewedBy()
+    {
+        return $this->belongsTo(User::class, 'qa_reviewed_by');
+    }
+
+    public function temporaryStoredBy()
+    {
+        return $this->belongsTo(User::class, 'temporary_stored_by');
+    }
+
     public function stockReceiver()
     {
         return $this->belongsTo(User::class, 'stock_received_by');
@@ -60,11 +72,15 @@ class MaterialLot extends Model
     public function getStatusLabelAttribute(): string
     {
         return match ($this->status) {
-            'active' => 'QC đạt - đã vào tồn',
+            'temporary_stored' => 'Đã nhập kho tạm',
+            'pending_qa' => $this->material_type === 'raw_material' ? 'Chờ QA cập nhật COA' : 'Chờ QC xác nhận',
+            'qa_reviewed' => 'QA đã cập nhật, chờ QC',
+            'pending_qc_inspection' => 'Chờ QC kiểm tra',
             'qc_passed_pending_receipt' => 'QC đạt - chờ Kho nhập chính thức',
-            'rejected' => 'QC không đạt',
+            'active' => 'QC đạt - đã vào tồn',
             'pending_reinspection' => 'Chờ QC kiểm tra lại',
-            default => $this->needsQa() ? 'Chờ QA cập nhật lô/COA' : 'Chờ QC xác nhận',
+            'rejected' => 'QC không đạt',
+            default => 'Chờ xử lý',
         };
     }
 }

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\ManualLabelPrint;
+use App\Models\ManualLabelProduct;
 use App\Models\ManualLabelProductionOrder;
 use App\Services\ManualLabelOrders;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -17,9 +19,9 @@ class ManualLabelBatchController extends Controller
         abort_unless(auth()->user()?->canPrintLabels(), 403);
         $code = trim((string) $request->query('order'));
         $orders = $code === '' ? collect() : ManualLabelProductionOrder::where('production_order', $code)->orderBy('id')->get();
-        $printed = ManualLabelPrint::whereIn('label_code', $orders->pluck('label_code'))
-            ->selectRaw('label_code, SUM(copies_count) as total')->groupBy('label_code')->pluck('total', 'label_code');
-        $rows = $orders->map(function ($order) use ($printed) {
+        $printed = $this->printedCountsFor($orders);
+        $products = $this->productsFor($orders);
+        $rows = $orders->map(function ($order) use ($printed, $products) {
             try {
                 $calculation = ManualLabelOrders::calculate($order->quantity, $order->pack_spec);
                 $error = null;
@@ -27,7 +29,7 @@ class ManualLabelBatchController extends Controller
                 $calculation = null;
                 $error = $e->getMessage();
             }
-            $product = $order->product();
+            $product = $products->get(ManualLabelProduct::key($order->name));
             $problem = ManualLabelOrders::printProblem($order, $product);
             if ($problem) {
                 $error = trim(($error ? $error . ' ' : '') . $problem);
@@ -72,8 +74,10 @@ class ManualLabelBatchController extends Controller
 
             $total = 0;
             $items = [];
+            $products = $this->productsFor($orders);
+            $printed = $this->printedCountsFor($orders);
             foreach ($orders as $order) {
-                $product = $order->product();
+                $product = $products->get(ManualLabelProduct::key($order->name));
                 $problem = ManualLabelOrders::printProblem($order, $product);
                 if ($problem) {
                     throw ValidationException::withMessages(['counts' => "Mã {$order->label_code}: {$problem}"]);
@@ -84,7 +88,7 @@ class ManualLabelBatchController extends Controller
                     throw ValidationException::withMessages(['counts' => "Mã {$order->label_code}: " . $e->getMessage()]);
                 }
                 $count = (int) $data['counts'][$order->id];
-                $remaining = max(0, $calculation['count'] - ManualLabelOrders::printed($order));
+                $remaining = max(0, $calculation['count'] - (int) ($printed[$order->label_code] ?? 0));
                 if ($count > $remaining && empty($data['allow_extra'])) {
                     throw ValidationException::withMessages(['counts' => "Mã {$order->label_code}: số in vượt {$remaining} nhãn còn thiếu. Hãy xác nhận in vượt."]);
                 }
@@ -126,5 +130,23 @@ class ManualLabelBatchController extends Controller
             'printTitle' => 'In nhãn theo lệnh ' . $data['production_order'],
             'labels' => $labels, 'watermark' => false, 'autoPrint' => true, 'columnFirst' => true,
         ]);
+    }
+
+    private function productsFor(Collection $orders): Collection
+    {
+        $nameKeys = $orders->pluck('name')
+            ->map(fn (string $name) => ManualLabelProduct::key($name))
+            ->unique()
+            ->all();
+
+        return ManualLabelProduct::whereIn('name_key', $nameKeys)->get()->keyBy('name_key');
+    }
+
+    private function printedCountsFor(Collection $orders): Collection
+    {
+        return ManualLabelPrint::whereIn('label_code', $orders->pluck('label_code'))
+            ->selectRaw('label_code, SUM(copies_count) as total')
+            ->groupBy('label_code')
+            ->pluck('total', 'label_code');
     }
 }

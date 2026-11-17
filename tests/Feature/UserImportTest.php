@@ -28,7 +28,7 @@ class UserImportTest extends TestCase
         $file = UploadedFile::fake()->createWithContent(
             'employees.csv',
             "employee_code,name,email,password,phone,address,status,department,position\n"
-            . "EMP-2001,Nguyen Test,nguyen.test@example.com,secret123,0900000000,Test address,working,,Staff\n"
+            . "EMP-2001,Nguyen Test,nguyen.test@example.com,StrongSecret123!,0900000000,Test address,working,,Staff\n"
         );
 
         $this->actingAs($itUser)
@@ -39,7 +39,7 @@ class UserImportTest extends TestCase
         $employee = User::where('email', 'nguyen.test@example.com')->firstOrFail();
 
         $this->assertSame('EMP-2001', $employee->employee_code);
-        $this->assertTrue(Hash::check('secret123', $employee->password));
+        $this->assertTrue(Hash::check('StrongSecret123!', $employee->password));
     }
 
     public function test_duplicate_employee_email_is_skipped_and_reported(): void
