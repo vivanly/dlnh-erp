@@ -32,7 +32,8 @@ class WarehouseNavigationTest extends TestCase
 
         $this->assertSame([
             'Mua hàng',
-            'Nhận đơn mua (NL thô / phụ liệu)',
+            'Nhận đơn mua nguyên liệu',
+            'Nhập kho vật tư QC đạt',
             'Trả hàng nhà cung cấp',
             'Sản xuất',
             'Xuất / nhận lại NL sản xuất',
@@ -42,9 +43,10 @@ class WarehouseNavigationTest extends TestCase
             'Xuất đơn bán dược liệu thô',
             'Đóng gói và xuất hàng',
             'Đơn đã giao',
+            'Hàng khách trả / khu cách ly',
             'Tồn kho',
             'Tồn kho dược liệu / thành phẩm',
-            'Tồn dược liệu thô / phụ liệu',
+            'Tồn nguyên liệu / phụ liệu / bao bì / tá dược',
         ], $items);
 
         foreach ([
@@ -56,6 +58,7 @@ class WarehouseNavigationTest extends TestCase
             'warehouse.material-issues',
             'warehouse.sales-orders',
             'warehouse.delivered-sales-orders',
+            'warehouse.customer-returns',
             'warehouse.stock',
             'warehouse.material-stock',
         ] as $routeName) {

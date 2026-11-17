@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between gap-3">
             <div>
                 <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Đơn bán chờ Kho xác nhận tồn</h2>
-                <p class="mt-1 text-xs text-slate-500">Đối chiếu tồn theo từng lô, nhập số lượng thực tế Kho xác nhận cho mỗi sản phẩm. Đơn thiếu hàng vẫn chuyển QA; bước này không giữ hoặc trừ tồn kho.</p>
+                <p class="mt-1 text-xs text-slate-500">Đối chiếu tồn theo FIFO và nhập số lượng Kho xác nhận. Đơn thiếu hàng được chuyển thẳng sang Kế hoạch; tồn đủ sẽ được giữ theo lô cho đơn.</p>
             </div>
             <span class="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">{{ $orders->total() }} đơn</span>
         </div>
@@ -46,7 +46,7 @@
                                 </td>
                                 <td class="p-2.5">
                                     @if($canManageWarehouse)
-                                    <form id="stock-check-{{ $order->id }}" method="POST" action="{{ route('warehouse.sales-order-stock-checks.confirm', $order) }}" onsubmit="return confirm('Lưu số lượng Kho xác nhận và chuyển đơn sang QA? Thao tác này không giữ hoặc trừ tồn.');">
+                                    <form id="stock-check-{{ $order->id }}" method="POST" action="{{ route('warehouse.sales-order-stock-checks.confirm', $order) }}" onsubmit="return confirm('Lưu số lượng Kho xác nhận và giữ hàng theo FIFO nếu có?');">
                                         @csrf
                                     </form>
                                     @else
@@ -54,7 +54,7 @@
                                     @endif
                                     @foreach($order->items as $item)
                                         @php($availableQuantity = (float) $item->stock_check_available)
-                                        @php($confirmedQuantity = (float) old('confirmed_quantities.' . $item->id, $availableQuantity))
+                                        @php($confirmedQuantity = (float) old('confirmed_quantities.' . $item->id, min((float) $item->quantity, $availableQuantity)))
                                         @php($shortageQuantity = max(0, (float) $item->quantity - $confirmedQuantity))
                                         <label for="confirmed-{{ $item->id }}" class="mb-2 block last:mb-0">
                                             <span class="block text-[10px] text-slate-600">Kho xác nhận ({{ $item->product->unit ?? '' }}):</span>
@@ -63,7 +63,7 @@
                                             <span id="shortage-{{ $item->id }}" role="status" class="block text-[10px] font-semibold {{ $shortageQuantity > 0 ? 'text-amber-700' : 'text-emerald-700' }}">{{ $shortageQuantity > 0 ? 'Thiếu ' . number_format($shortageQuantity, 4) : 'Đủ hàng' }}</span>
                                         </label>
                                     @endforeach
-                                    <button form="stock-check-{{ $order->id }}" class="mt-2 px-3 py-1.5 bg-blue-600 text-[10px] font-bold uppercase text-white hover:bg-blue-700">Lưu xác nhận, chuyển QA</button>
+                                    <button form="stock-check-{{ $order->id }}" class="mt-2 px-3 py-1.5 bg-blue-600 text-[10px] font-bold uppercase text-white hover:bg-blue-700">Xác nhận tồn / chuyển kế hoạch</button>
                                 </td>
                             </tr>
                         @empty

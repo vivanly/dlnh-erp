@@ -44,7 +44,7 @@
                         <footer class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-3">
                             <a href="{{ route('labels.orders.show', $order) }}" class="px-3 py-1.5 border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50">In / xem nhãn</a>
                             @if($canWorkInProduction)
-                            <form method="POST" action="{{ route('production.packaging.confirm', $order) }}" onsubmit="return confirm(@js(__('Xác nhận Sản xuất đã đóng gói đơn :order theo các lô QA chỉ định?', ['order' => $order->order_code])));">
+                            <form method="POST" action="{{ route('production.packaging.confirm', $order) }}" onsubmit="return confirm(@js(__('Xác nhận Sản xuất đã đóng gói đơn :order theo các lô đã phân bổ?', ['order' => $order->order_code])));">
                                 @csrf
                                 <button class="bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white">Xác nhận đơn đã đóng gói</button>
                             </form>

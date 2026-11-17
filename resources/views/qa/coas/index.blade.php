@@ -2,11 +2,11 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">
-                Quản lý & Cập nhật COA (Chứng chỉ chất lượng NCC)
+                COA lô sản phẩm mua từ nhà cung cấp
             </h2>
             <div class="space-x-2">
                 <a href="{{ route('qa.batches.index') }}" class="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white font-bold text-xs uppercase tracking-wider transition inline-block">
-                    ← Quay lại Lô Nhà Cung Cấp
+                    ← Quay lại lô sản phẩm mua từ NCC
                 </a>
             </div>
         </div>

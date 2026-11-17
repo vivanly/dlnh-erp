@@ -1,6 +1,6 @@
 <x-app-layout>
     <x-slot name="header">
-        <div><h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Tồn kho nguyên liệu, phụ liệu, tá dược &amp; bao bì</h2>@if($selectedItemId && $rows->isNotEmpty())<p class="mt-1 text-xs text-slate-500">Đang xem mã <strong class="font-mono text-blue-700">{{ $rows->first()->item->sku }}</strong> · <a href="{{ route('warehouse.material-stock', array_filter(['search' => $search, 'type' => $type])) }}" class="text-blue-700 hover:underline">Quay lại danh sách tồn kho</a></p>@endif</div>
+        <div><h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Tồn kho dược liệu thô, nguyên liệu, phụ liệu, tá dược &amp; bao bì</h2>@if($selectedItemId && $rows->isNotEmpty())<p class="mt-1 text-xs text-slate-500">Đang xem mã <strong class="font-mono text-blue-700">{{ $rows->first()->item->sku }}</strong> · <a href="{{ route('warehouse.material-stock', array_filter(['search' => $search, 'type' => $type])) }}" class="text-blue-700 hover:underline">Quay lại danh sách tồn kho</a></p>@endif</div>
     </x-slot>
 
     <div class="py-2">
@@ -11,9 +11,10 @@
                 <select name="type" class="text-xs border-slate-300">
                     <option value="">Tất cả loại</option>
                     <option value="raw_material" @selected($type === 'raw_material')>Dược liệu thô</option>
+                    <option value="ingredient" @selected($type === 'ingredient')>Nguyên liệu</option>
+                    <option value="accessory" @selected($type === 'accessory')>Phụ liệu</option>
                     <option value="excipient" @selected($type === 'excipient')>Tá dược</option>
                     <option value="packaging" @selected($type === 'packaging')>Bao bì</option>
-                    <option value="accessory" @selected($type === 'accessory')>Nguyên liệu / phụ liệu</option>
                 </select>
                 <button class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold uppercase">Lọc</button>
                 <a href="{{ route('warehouse.material-stock') }}" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs font-bold uppercase">Xóa lọc</a>
@@ -44,7 +45,7 @@
                                     @php $visibleLots = $selectedItemId === (int) $row->item->id ? $row->lots : $row->lots->filter(fn ($lot) => $lot->balance > 0.0001); @endphp
                                     @forelse($visibleLots as $lot)
                                         <span class="block font-mono {{ $lot->balance > 0.0001 ? '' : 'font-semibold text-rose-600 line-through' }}">
-                                            {{ $lot->batch ?: '(không số lô)' }}: <b>{{ number_format($lot->balance, 2) }}</b>
+                                            {{ $row->type === 'raw_material' ? ($lot->batch ?: '(không số lô NCC)') : ($lot->material_lot_id ? 'Lần nhập #'.$lot->material_lot_id : 'Tồn cũ') }}: <b>{{ number_format($lot->balance, 2) }}</b>
                                             <span class="text-slate-500 no-underline">
                                                 (nhập {{ number_format($lot->received, 2) }}, xuất {{ number_format($lot->issued, 2) }}@if($lot->returned > 0), trả {{ number_format($lot->returned, 2) }}@endif)
                                                 @if($lot->balance <= 0.0001) · Hết tồn @endif
@@ -54,7 +55,7 @@
                                             @endif
                                         </span>
                                     @empty
-                                        <span class="text-slate-400">{{ $row->type === 'raw_material' ? '---' : 'Theo tổng khối lượng' }}</span>
+                                        <span class="text-slate-400">{{ $row->type === 'raw_material' ? '---' : 'Theo FIFO từng lần nhập' }}</span>
                                     @endforelse
                                 </td>
                                 <td class="p-2.5 border-r text-right font-mono">{{ number_format($row->in, 2) }} {{ $row->item->unit }}</td>

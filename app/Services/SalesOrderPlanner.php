@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\DB;
 
 class SalesOrderPlanner
 {
-    public function plan(Order $order, ?int $userId, array $plannedQuantities = []): bool
+    public function plan(Order $order, ?int $userId, array $plannedQuantities = [], ?array $selectedItemIds = null): bool
     {
-        return DB::transaction(function () use ($order, $userId, $plannedQuantities) {
+        return DB::transaction(function () use ($order, $userId, $plannedQuantities, $selectedItemIds) {
             $lockedOrder = Order::with([
                 'items.product',
                 'items.lotAllocations.finishedBatch.productionOrder',
@@ -24,7 +24,7 @@ class SalesOrderPlanner
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedOrder->status !== 'pending_planning' || ! $lockedOrder->qa_confirmed_at) {
+            if ($lockedOrder->status !== 'pending_planning') {
                 throw new DomainException('Đơn hàng không còn ở trạng thái chờ hoạch định.');
             }
 
@@ -33,6 +33,15 @@ class SalesOrderPlanner
             }
 
             $orderItemIds = $lockedOrder->items->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $selectedItemIds = $selectedItemIds === null
+                ? null
+                : array_values(array_unique(array_map('intval', $selectedItemIds)));
+            if ($selectedItemIds !== null && array_diff($selectedItemIds, $orderItemIds)) {
+                throw new DomainException('Danh sách dòng hàng được chọn không thuộc đơn này.');
+            }
+            if ($selectedItemIds !== null && $selectedItemIds === []) {
+                throw new DomainException('Chọn ít nhất một mặt hàng còn thiếu để lập kế hoạch.');
+            }
             $submittedItemIds = array_map('intval', array_keys($plannedQuantities));
             if (array_diff($submittedItemIds, $orderItemIds)) {
                 throw new DomainException('Số lượng kế hoạch có dòng hàng không thuộc đơn này.');
@@ -41,7 +50,11 @@ class SalesOrderPlanner
             $hasProductionShortage = false;
 
             foreach ($lockedOrder->items as $item) {
-                $requestedQuantity = (float) $item->quantity;
+                if ($selectedItemIds !== null && ! in_array((int) $item->id, $selectedItemIds, true)) {
+                    continue;
+                }
+
+                $requestedQuantity = max(0, (float) $item->quantity - (float) $item->actual_quantity);
                 $availableQuantity = $this->availableCoverage($item);
                 $shortage = round($requestedQuantity - $availableQuantity, 4);
 
@@ -131,7 +144,9 @@ class SalesOrderPlanner
             ->where('status', 'completed')
             ->sum('pending_finished_quantity');
 
-        return min((float) $item->quantity, $lotCoverage + max(0, $unreceivedProductionOutput));
+        $remainingDemand = max(0, (float) $item->quantity - (float) $item->actual_quantity);
+
+        return min($remainingDemand, $lotCoverage + max(0, $unreceivedProductionOutput));
     }
 
     private function hasUnreceivedProductionOutput(Order $order): bool
@@ -149,7 +164,8 @@ class SalesOrderPlanner
             $allocatedQuantity = $item->lotAllocations
                 ->where('status', 'reserved')
                 ->sum(fn ($allocation) => max(0, (float) $allocation->reserved_quantity - (float) $allocation->shipped_quantity));
-            if ($allocatedQuantity + 0.0001 < (float) $item->quantity) {
+            $remainingDemand = max(0, (float) $item->quantity - (float) $item->actual_quantity);
+            if ($allocatedQuantity + 0.0001 < $remainingDemand) {
                 continue;
             }
 

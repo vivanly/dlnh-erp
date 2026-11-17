@@ -67,13 +67,15 @@ class ProductRegulatoryDocumentTest extends TestCase
             'slug' => 'imported-herb',
             'sku' => 'SKU-GPNK',
             'classification' => 'Dược liệu Trung Quốc',
+            'origin' => 'Trung Quốc',
         ]);
 
         $this->actingAs($qaUser)
             ->get(route('product-regulatory-documents.create', ['product_id' => $product->id]))
             ->assertOk()
             ->assertSee('Giấy phép nhập khẩu (GPNK)')
-            ->assertSee('Imported herb - SKU-GPNK (Dược liệu Trung Quốc)')
+            ->assertSee('Imported herb - SKU-GPNK')
+            ->assertSee('Nguồn gốc: Trung Quốc')
             ->assertSee('Lọc theo phân loại')
             ->assertSee('value="Dược liệu Trung Quốc"', false)
             ->assertSee('data-classification="Dược liệu Trung Quốc"', false);
@@ -81,7 +83,7 @@ class ProductRegulatoryDocumentTest extends TestCase
         $this->actingAs($qaUser)
             ->get(route('product-regulatory-documents.index', ['product_id' => $product->id]))
             ->assertOk()
-            ->assertSee('Imported herb - SKU-GPNK (Dược liệu Trung Quốc)');
+            ->assertSee('Imported herb - SKU-GPNK');
 
         $this->actingAs($qaUser)
             ->post(route('product-regulatory-documents.store'), [
@@ -104,5 +106,39 @@ class ProductRegulatoryDocumentTest extends TestCase
             ->assertOk()
             ->assertSee('Giấy phép nhập khẩu (GPNK)')
             ->assertSee('GPNK-2026-001');
+    }
+
+    public function test_gpnk_is_rejected_for_products_without_chinese_origin(): void
+    {
+        $qaUser = User::factory()->create(['role' => 'qa']);
+        $product = Product::create([
+            'name' => 'Domestic herb',
+            'slug' => 'domestic-herb',
+            'sku' => 'SKU-DOMESTIC-GPNK',
+            'classification' => 'DL',
+            'origin' => 'Việt Nam',
+        ]);
+
+        $this->actingAs($qaUser)
+            ->get(route('product-regulatory-documents.create', ['product_id' => $product->id]))
+            ->assertOk()
+            ->assertSee('data-allows-gpnk="0"', false);
+
+        $this->actingAs($qaUser)
+            ->post(route('product-regulatory-documents.store'), [
+                'product_id' => $product->id,
+                'document_type' => 'gpnk',
+                'document_number' => 'GPNK-DOMESTIC-001',
+                'document_date' => '2026-01-10',
+                'document_form' => 'Giấy phép nhập khẩu',
+            ])
+            ->assertSessionHasErrors([
+                'document_type' => 'Chỉ sản phẩm có nguồn gốc Trung Quốc mới được nhập hồ sơ GPNK.',
+            ]);
+
+        $this->assertDatabaseMissing('product_regulatory_documents', [
+            'product_id' => $product->id,
+            'document_number' => 'GPNK-DOMESTIC-001',
+        ]);
     }
 }

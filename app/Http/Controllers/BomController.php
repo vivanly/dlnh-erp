@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductBom;
 use App\Models\ProductUnitConversion;
 use App\Models\Accessory;
+use App\Models\Ingredient;
 use App\Models\CatalogItem;
 use App\Models\Excipient;
 use App\Models\PackagingMaterial;
@@ -23,6 +24,7 @@ class BomController extends Controller
         return [
             'product' => ['model' => Product::class, 'label' => 'Sản phẩm'],
             'raw_material' => ['model' => RawMaterial::class, 'label' => 'Dược liệu thô'],
+            'ingredient' => ['model' => Ingredient::class, 'label' => 'Nguyên liệu'],
             'accessory' => ['model' => Accessory::class, 'label' => 'Phụ liệu'],
             'excipient' => ['model' => Excipient::class, 'label' => 'Tá dược'],
             'packaging' => ['model' => PackagingMaterial::class, 'label' => 'Bao bì'],
@@ -148,8 +150,8 @@ class BomController extends Controller
             'yield_percent' => 'required|numeric|gt:0|lte:100',
             'notes' => 'nullable|string|max:2000',
             'items' => 'required|array|min:1',
-            'items.*.category' => ['nullable', 'in:raw_material,accessory,excipient,packaging'],
-            'items.*.component' => ['nullable', 'string', 'regex:/^(product|raw_material|accessory|excipient|packaging):[1-9][0-9]*$/'],
+            'items.*.category' => ['nullable', 'in:raw_material,ingredient,accessory,excipient,packaging'],
+            'items.*.component' => ['nullable', 'string', 'regex:/^(product|raw_material|ingredient|accessory|excipient|packaging):[1-9][0-9]*$/'],
             'items.*.component_product_id' => ['nullable', 'integer', 'exists:products,id'],
             'items.*.quantity' => 'required|numeric|min:0.0001',
             'items.*.unit' => 'required|string|max:32',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Ppcb;
 use App\Models\Product;
 use App\Models\ProductionFinishedBatch;
@@ -70,7 +71,7 @@ class ProductionController extends Controller
         abort_unless($user, 403);
 
         $productionOrders = ProductionOrder::with(['order.customer', 'order.productionOrders', 'product', 'materials.product', 'monthlyPlanLine.plan'])
-            ->whereIn('status', ['pending_director_approval', 'released', 'materials_issued', 'production_reported'])
+            ->whereIn('status', ['pending_director_approval', 'released', 'materials_issued', 'production_started', 'production_reported'])
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
                 $query->where(function ($subQuery) use ($search) {
@@ -766,7 +767,15 @@ class ProductionController extends Controller
                     continue;
                 }
                 foreach (\App\Models\MaterialStockMovement::lotBalances($pair->material_type, (int) $pair->material_id) as $lot) {
-                    $materialLots->push((object) ['type' => $pair->material_type, 'id' => $pair->material_id, 'item' => $catalogItem, 'batch' => $lot->batch, 'exp_date' => $lot->exp_date, 'balance' => $lot->balance]);
+                    $materialLots->push((object) [
+                        'type' => $pair->material_type,
+                        'id' => $pair->material_id,
+                        'item' => $catalogItem,
+                        'batch' => $lot->batch,
+                        'material_lot_id' => $pair->material_type === 'raw_material' ? null : $lot->material_lot_id,
+                        'exp_date' => $lot->exp_date,
+                        'balance' => $lot->balance,
+                    ]);
                 }
             }
         }
@@ -807,7 +816,7 @@ class ProductionController extends Controller
                 }
 
                 $ppcbId = $order->orderItem?->ppcb_id ?? $order->monthlyPlanLine?->ppcb_id;
-                ProductionFinishedBatch::create([
+                $finishedBatch = ProductionFinishedBatch::create([
                     'production_order_id' => $order->id,
                     'product_id' => $order->product_id,
                     'batch_number_assigned_at' => now(),
@@ -824,6 +833,28 @@ class ProductionController extends Controller
                     'status' => 'planned',
                 ]);
                 $order->update(['provisional_batch_number' => $batchNumber]);
+
+                if ($order->order_item_id) {
+                    $orderItem = OrderItem::whereKey($order->order_item_id)->lockForUpdate()->firstOrFail();
+                    $alreadyReserved = (float) $orderItem->lotAllocations()
+                        ->where('status', 'reserved')
+                        ->selectRaw('COALESCE(SUM(reserved_quantity - shipped_quantity), 0) as reserved_quantity')
+                        ->value('reserved_quantity');
+                    $quantityToReserve = min(
+                        (float) $order->planned_quantity,
+                        max(0, (float) $orderItem->quantity - (float) $orderItem->actual_quantity - $alreadyReserved),
+                    );
+                    if ($quantityToReserve > 0) {
+                        SalesOrderLotAllocation::create([
+                            'order_item_id' => $orderItem->id,
+                                'production_finished_batch_id' => $finishedBatch->id,
+                            'reserved_quantity' => $quantityToReserve,
+                            'status' => 'reserved',
+                        ]);
+                    }
+                    Order::whereKey($orderItem->order_id)->lockForUpdate()->firstOrFail()
+                        ->update(['qa_confirmed_at' => now()]);
+                }
             });
         } catch (DomainException $exception) {
             return back()->withInput()->with('error', $exception->getMessage());
@@ -837,8 +868,8 @@ class ProductionController extends Controller
     {
         abort_unless($this->userCanWorkInProduction(), 403);
 
-        if ($productionOrder->status !== 'materials_issued') {
-            return back()->with('error', 'Production order is no longer waiting for an output report.');
+        if ($productionOrder->status !== 'production_started') {
+            return back()->with('error', 'Lệnh chỉ được báo sản lượng sau khi Sản xuất xác nhận bắt đầu.');
         }
 
         $validated = $request->validate([
@@ -851,8 +882,8 @@ class ProductionController extends Controller
         try {
             DB::transaction(function () use ($productionOrder, $validated) {
                 $lockedOrder = ProductionOrder::whereKey($productionOrder->id)->lockForUpdate()->firstOrFail();
-                if ($lockedOrder->status !== 'materials_issued') {
-                    throw new DomainException('Production order is no longer waiting for an output report.');
+                if ($lockedOrder->status !== 'production_started') {
+                    throw new DomainException('Lệnh không còn ở trạng thái Sản xuất đang thực hiện.');
                 }
                 $lockedOrder->load('materials.lots');
 
@@ -888,6 +919,16 @@ class ProductionController extends Controller
                     'status' => 'pending_qa',
                     'received_by' => auth()->id(),
                 ]);
+                SalesOrderLotAllocation::where('production_finished_batch_id', $outputBatch->id)
+                    ->where('status', 'reserved')
+                    ->lockForUpdate()
+                    ->get()
+                    ->each(fn (SalesOrderLotAllocation $allocation) => $allocation->update([
+                        'reserved_quantity' => min(
+                            (float) $allocation->reserved_quantity,
+                            $actualOutputQuantity,
+                        ),
+                    ]));
                 $outputBatch->orderAllocations()->updateOrCreate(
                     ['production_order_id' => $lockedOrder->id],
                     ['quantity' => $actualOutputQuantity],
@@ -907,6 +948,29 @@ class ProductionController extends Controller
 
         return redirect()->route('production.work-orders.show', $productionOrder)
             ->with('success', 'Đã báo sản lượng. Lệnh đang chờ Kho kiểm tra nguyên liệu trả và xác nhận hoàn thành.');
+    }
+
+    public function startProduction(ProductionOrder $productionOrder)
+    {
+        abort_unless($this->userCanWorkInProduction(), 403);
+
+        try {
+            DB::transaction(function () use ($productionOrder) {
+                $order = ProductionOrder::whereKey($productionOrder->id)->lockForUpdate()->firstOrFail();
+                if ($order->status !== 'materials_issued' || ! $order->materials_issued_at) {
+                    throw new DomainException('Chỉ bắt đầu sản xuất sau khi Kho đã xuất ít nhất một phiếu nguyên liệu.');
+                }
+
+                $order->update([
+                    'status' => 'production_started',
+                    'production_started_at' => now(),
+                ]);
+            });
+        } catch (DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Đã xác nhận bắt đầu sản xuất. Lệnh này được phép in nhãn.');
     }
 
     public function packagingQueue(Request $request)
@@ -996,16 +1060,29 @@ class ProductionController extends Controller
             'lots' => ['nullable', 'array'],
             'lots.*' => ['nullable', 'numeric', 'min:0'],
             'material_lots' => ['nullable', 'array'],
-            'material_lots.*.type' => ['required', 'in:raw_material,accessory,excipient,packaging'],
+            'material_lots.*.type' => ['required', 'in:raw_material,ingredient,accessory,excipient,packaging'],
             'material_lots.*.id' => ['required', 'integer'],
             'material_lots.*.batch' => ['nullable', 'string', 'max:255'],
+            'material_lots.*.material_lot_id' => ['nullable', 'integer', 'exists:material_lots,id'],
             'material_lots.*.quantity' => ['nullable', 'numeric', 'min:0'],
         ]);
         $materialSelected = collect($validated['material_lots'] ?? [])
-            ->map(fn ($row) => ['type' => $row['type'], 'id' => (int) $row['id'], 'batch' => (string) ($row['batch'] ?? ''), 'quantity' => round((float) ($row['quantity'] ?? 0), 4)])
+            ->map(fn ($row) => [
+                'type' => $row['type'],
+                'id' => (int) $row['id'],
+                'batch' => (string) ($row['batch'] ?? ''),
+                'material_lot_id' => isset($row['material_lot_id']) ? (int) $row['material_lot_id'] : null,
+                'quantity' => round((float) ($row['quantity'] ?? 0), 4),
+            ])
             ->filter(fn ($row) => $row['quantity'] > 0)
-            ->groupBy(fn ($row) => $row['type'] . '|' . $row['id'] . '|' . $row['batch'])
-            ->map(fn ($rows) => ['type' => $rows[0]['type'], 'id' => $rows[0]['id'], 'batch' => $rows[0]['batch'], 'quantity' => round($rows->sum('quantity'), 4)])
+            ->groupBy(fn ($row) => $row['type'] . '|' . $row['id'] . '|' . ($row['material_lot_id'] ?? $row['batch']))
+            ->map(fn ($rows) => [
+                'type' => $rows[0]['type'],
+                'id' => $rows[0]['id'],
+                'batch' => $rows[0]['batch'],
+                'material_lot_id' => $rows[0]['material_lot_id'],
+                'quantity' => round($rows->sum('quantity'), 4),
+            ])
             ->values();
         $selected = collect($validated['lots'] ?? [])
             ->mapWithKeys(fn ($quantity, $batchId) => [(int) $batchId => round((float) $quantity, 4)])
@@ -1071,9 +1148,14 @@ class ProductionController extends Controller
                     if (!$catalogItem) {
                         throw new DomainException('Có nguyên liệu/phụ liệu được chọn không tồn tại.');
                     }
-                    $lotBalance = \App\Models\MaterialStockMovement::lotBalance($row['type'], $row['id'], $row['batch']);
+                    $lotBalance = $row['type'] !== 'raw_material' && $row['material_lot_id']
+                        ? \App\Models\MaterialStockMovement::layerBalance($row['type'], $row['id'], $row['material_lot_id'])
+                        : \App\Models\MaterialStockMovement::lotBalance($row['type'], $row['id'], $row['batch']);
                     if ($row['quantity'] > $lotBalance + 0.0001) {
-                        throw new DomainException("Lô {$row['batch']} của {$catalogItem->name} không đủ tồn để xuất (tồn {$lotBalance}).");
+                        $layerLabel = $row['type'] === 'raw_material'
+                            ? 'Lô ' . $row['batch']
+                            : ($row['material_lot_id'] ? 'Lần nhập #' . $row['material_lot_id'] : 'Tồn cũ');
+                        throw new DomainException("{$layerLabel} của {$catalogItem->name} không đủ tồn để xuất (tồn {$lotBalance}).");
                     }
 
                     $key = $row['type'] . '|' . $row['id'];
@@ -1083,6 +1165,7 @@ class ProductionController extends Controller
                     );
                     $material->lots()->create([
                         'batch_number' => $row['batch'] !== '' ? $row['batch'] : null,
+                        'material_lot_id' => $row['type'] === 'raw_material' ? null : $row['material_lot_id'],
                         'allocated_quantity' => $row['quantity'],
                         'issued_quantity' => $row['quantity'],
                         'issued_at' => now(),
@@ -1095,7 +1178,8 @@ class ProductionController extends Controller
                         'direction' => 'out',
                         'quantity' => $row['quantity'],
                         'unit' => $material->unit,
-                        'batch_number' => $row['batch'] !== '' ? $row['batch'] : null,
+                        'batch_number' => $row['type'] === 'raw_material' && $row['batch'] !== '' ? $row['batch'] : null,
+                        'material_lot_id' => $row['type'] === 'raw_material' ? null : $row['material_lot_id'],
                         'user_id' => auth()->id(),
                         'note' => 'Xuất sản xuất theo lệnh ' . $lockedOrder->id,
                     ]);
@@ -1195,6 +1279,7 @@ class ProductionController extends Controller
                                     'quantity' => $returnedQuantity,
                                     'unit' => $material->unit,
                                     'batch_number' => $lockedAllocation->batch_number,
+                                    'material_lot_id' => $lockedAllocation->material_lot_id,
                                     'user_id' => auth()->id(),
                                     'note' => 'Trả về kho từ lệnh sản xuất ' . $lockedOrder->id,
                                 ]);
@@ -1261,8 +1346,7 @@ class ProductionController extends Controller
                         ->lockForUpdate()
                         ->firstOrFail();
                     $order->update([
-                        'status' => 'pending_qa',
-                        'qa_confirmed_at' => null,
+                        'status' => 'waiting_finished_goods_receipt',
                     ]);
                 }
             });

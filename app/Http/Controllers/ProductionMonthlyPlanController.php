@@ -50,7 +50,9 @@ class ProductionMonthlyPlanController extends Controller
             ? Product::query()->orderBy('name')->get(['id', 'name', 'sku', 'unit', 'classification'])
             : collect();
 
-        return view('production-monthly-plans.index', compact('plans', 'products', 'ppcbs', 'canManagePlans'));
+        $classifications = $products->pluck('classification')->filter()->unique()->sort()->values();
+
+        return view('production-monthly-plans.index', compact('plans', 'products', 'ppcbs', 'canManagePlans', 'classifications'));
     }
 
     public function edit(ProductionMonthlyPlan $plan)
@@ -61,8 +63,9 @@ class ProductionMonthlyPlanController extends Controller
         $plan->load('lines.product');
         $ppcbs = Ppcb::query()->orderBy('ma')->get(['id', 'ma', 'ten_ppcb']);
         $products = Product::query()->orderBy('name')->get(['id', 'name', 'sku', 'unit', 'classification']);
+        $classifications = $products->pluck('classification')->filter()->unique()->sort()->values();
 
-        return view('production-monthly-plans.edit', compact('plan', 'products', 'ppcbs'));
+        return view('production-monthly-plans.edit', compact('plan', 'products', 'ppcbs', 'classifications'));
     }
 
     public function store(Request $request)

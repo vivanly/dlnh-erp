@@ -235,6 +235,7 @@ abstract class CatalogController extends Controller
     {
         return match ($this->materialType()) {
             'raw_material' => 'Dược Liệu Thô',
+            'ingredient' => 'Nguyên Liệu',
             'accessory' => 'Phụ Liệu',
             'excipient' => 'Tá Dược',
             'packaging' => 'Bao Bì',

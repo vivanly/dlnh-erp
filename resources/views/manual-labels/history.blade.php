@@ -1,4 +1,5 @@
 <x-app-layout>
+    @push('scripts') @vite('resources/js/app.js') @endpush
     <x-slot name="header">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -23,13 +24,15 @@
 
             <form method="GET" class="flex flex-wrap items-center gap-2 border border-slate-300 bg-white p-2">
                 <input name="q" value="{{ $q }}" placeholder="Lệnh SX, mã nhãn, tên hàng, số lô, khách hàng" class="h-8 w-80 border border-slate-300 px-2 text-xs focus:border-blue-500 focus:ring-0">
+                <select name="order_code" class="h-8 border border-slate-300 py-0 pl-2 pr-7 text-xs"><option value="">Tất cả lệnh SX</option>@foreach($orderCodes as $code)<option value="{{ $code }}" @selected($orderCode === $code)>{{ $code }}</option>@endforeach</select>
+                <input name="label_code" value="{{ $labelCode }}" placeholder="Mã nhãn chính xác" class="h-8 w-36 border border-slate-300 px-2 text-xs">
                 <select name="status" class="h-8 border border-slate-300 py-0 pl-2 pr-7 text-xs focus:border-blue-500 focus:ring-0">
                     <option value="">Tất cả</option>
                     <option value="stock" @selected($status === 'stock')>Còn tồn</option>
                     <option value="empty" @selected($status === 'empty')>Hết tồn</option>
                 </select>
                 <button class="h-8 bg-blue-700 px-4 text-[11px] font-bold uppercase text-white hover:bg-blue-600">Lọc</button>
-                @if($q !== '' || $status !== '')<a href="{{ route('manual-labels.history') }}" class="text-[11px] font-semibold text-slate-500 hover:underline">Bỏ lọc</a>@endif
+                @if($q !== '' || $status !== '' || $orderCode !== '' || $labelCode !== '')<a href="{{ route('manual-labels.history') }}" class="text-[11px] font-semibold text-slate-500 hover:underline">Bỏ lọc</a>@endif
                 <div class="ml-auto flex flex-wrap items-center gap-x-5 text-[11px] text-slate-500">
                     <span>Số nhãn in: <strong class="text-slate-800">{{ number_format($totals['printed']) }}</strong></span>
                     <span>Thực xuất: <strong class="text-emerald-700">{{ number_format($totals['delivered']) }}</strong></span>
@@ -44,6 +47,7 @@
                         <tr>
                             <th class="{{ $th }} text-right">STT</th>
                             <th class="{{ $th }}">Lệnh SX</th>
+                            <th class="{{ $th }}">Mã nhãn</th>
                             <th class="{{ $th }}">VT/DL</th>
                             <th class="{{ $th }} text-right">Số nhãn in</th>
                             <th class="{{ $th }}">Quy cách</th>
@@ -62,7 +66,8 @@
                         <tbody x-data="{ form: null, log: false }">
                             <tr class="align-top odd:bg-white even:bg-slate-50/70 hover:bg-blue-50/40">
                                 <td class="{{ $td }} text-right text-slate-400">{{ $prints->firstItem() + $loop->index }}</td>
-                                <td class="{{ $td }} font-mono font-semibold text-slate-700">{{ $print->order_code ?: '—' }}@if($print->label_code)<span class="ml-1 font-normal text-slate-500">{{ $print->label_code }}</span>@endif</td>
+                                <td class="{{ $td }} font-mono font-semibold text-slate-700">{{ $print->order_code ?: '—' }}</td>
+                                <td class="{{ $td }} font-mono text-slate-700">{{ $print->label_code ?: '—' }}</td>
                                 <td class="{{ $td }} font-semibold text-slate-800" title="{{ $print->note }}">{{ $print->product_name }}</td>
                                 <td class="{{ $td }} text-right font-mono">{{ number_format($print->copies_count) }}</td>
                                 <td class="{{ $td }}">{{ $print->net_weight }}</td>
@@ -84,7 +89,7 @@
                                 </td>
                             </tr>
                             <tr x-show="form" x-cloak class="bg-emerald-50/60">
-                                <td colspan="15" class="px-2.5 py-1">
+                                <td colspan="16" class="px-2.5 py-1">
                                     <form method="POST" action="{{ route('manual-labels.deliver', $print) }}" class="flex flex-wrap items-center gap-1.5">
                                         @csrf
                                         <input type="hidden" name="kind" :value="form">
@@ -100,7 +105,7 @@
                             </tr>
                             @if($print->deliveries->isNotEmpty())
                                 <tr x-show="log" x-cloak class="bg-slate-50">
-                                    <td colspan="15" class="px-2.5 py-1 text-[11px] text-slate-600">
+                                    <td colspan="16" class="px-2.5 py-1 text-[11px] text-slate-600">
                                         @foreach($print->deliveries as $delivery)
                                             <div><strong class="{{ $delivery->kind === 'return' ? 'text-amber-700' : 'text-slate-800' }}">{{ $delivery->kind === 'return' ? 'Trả' : 'Xuất' }} {{ number_format($delivery->quantity) }} nhãn</strong> · {{ $delivery->delivered_at->format('d/m/Y H:i') }}@if($delivery->received_by) · Nhận: {{ $delivery->received_by }}@endif · Thực hiện: {{ $delivery->deliveredBy->name ?? '---' }}@if($delivery->note) · <em>{{ $delivery->note }}</em>@endif</div>
                                         @endforeach
@@ -109,7 +114,7 @@
                             @endif
                         </tbody>
                     @empty
-                        <tbody><tr><td colspan="15" class="px-4 py-12 text-center text-slate-500">Chưa có lần in nhãn tay nào.</td></tr></tbody>
+                        <tbody><tr><td colspan="16" class="px-4 py-12 text-center text-slate-500">Chưa có lần in nhãn tay nào.</td></tr></tbody>
                     @endforelse
                 </table>
             </div>

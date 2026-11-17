@@ -50,6 +50,7 @@
         html, body { margin: 0; padding: 0; background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .page { width: 293mm; height: 206mm; zoom: .96; margin: 6mm auto 0; display: grid; grid-template-columns: 144.5mm 144.5mm; grid-template-rows: 101mm 101mm; column-gap: 4mm; row-gap: 4mm; align-content: start; overflow: hidden; break-after: page; page-break-after: always; }
         .page:last-child { break-after: auto; page-break-after: auto; }
+        .page.column-first { grid-auto-flow: column; }
         .slot { width: 144.5mm; height: 101mm; }
         .label { position: relative; width: 144.5mm; height: 101mm; display: grid; border: 1mm double #000; line-height: 1.12; overflow: hidden; }
         .label > div { min-width: 0; min-height: 0; overflow: hidden; padding: .25mm .7mm; }
@@ -93,7 +94,7 @@
 </head>
 <body>
 @foreach (collect($labels)->chunk(4) as $pageLabels)
-    <section class="page">
+    <section class="page{{ !empty($columnFirst) ? ' column-first' : '' }}">
         @foreach ($pageLabels as $label)
             @php
                 $type = isset($templates[$label['label_type']]) ? $label['label_type'] : 'dl_n';

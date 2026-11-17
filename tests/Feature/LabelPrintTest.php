@@ -7,6 +7,9 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductBom;
+use App\Models\ProductionFinishedBatch;
+use App\Models\ProductionOrder;
 use App\Models\SalesOrderLabelPrint;
 use App\Models\SalesOrderLotAllocation;
 use App\Models\SupplierBatch;
@@ -19,6 +22,85 @@ use Tests\TestCase;
 class LabelPrintTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_production_order_labels_are_blocked_until_work_is_started(): void
+    {
+        $production = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
+        $customer = Customer::create(['code' => 'LABEL-START-CUST', 'name' => 'Label Start Customer', 'type' => 'Retail']);
+        $product = Product::create([
+            'name' => 'Label start product',
+            'slug' => 'label-start-product',
+            'sku' => 'LABEL-START-TEST',
+            'unit' => 'kg',
+            'classification' => 'DL',
+        ]);
+        $order = Order::create([
+            'order_code' => 'DL'.today()->format('ym').'9997',
+            'customer_id' => $customer->id,
+            'order_type' => 'DL',
+            'order_date' => today(),
+            'delivery_date' => today()->addDays(3),
+            'province_city' => 'Hà Nội',
+            'status' => 'waiting_production',
+        ]);
+        $item = OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'packaging_spec' => '1',
+            'finished_quantity' => 1,
+        ]);
+        $bom = ProductBom::create([
+            'product_id' => $product->id,
+            'version' => 1,
+            'output_quantity' => 1,
+            'output_unit' => 'kg',
+            'yield_rate' => 1,
+            'is_active' => true,
+        ]);
+        $productionOrder = ProductionOrder::create([
+            'production_code' => 'MO-LABEL-START-TEST',
+            'order_id' => $order->id,
+            'order_item_id' => $item->id,
+            'product_bom_id' => $bom->id,
+            'product_id' => $product->id,
+            'planned_quantity' => 1,
+            'unit' => 'kg',
+            'yield_rate' => 1,
+            'status' => 'materials_issued',
+            'materials_issued_at' => now(),
+        ]);
+        $batch = ProductionFinishedBatch::create([
+            'production_order_id' => $productionOrder->id,
+            'product_id' => $product->id,
+            'batch_number' => 'LABEL-START-LOT',
+            'planned_quantity' => 1,
+            'initial_quantity' => 0,
+            'current_quantity' => 0,
+            'pending_warehouse_quantity' => 0,
+            'unit' => 'kg',
+            'status' => 'planned',
+        ]);
+        SalesOrderLotAllocation::create([
+            'order_item_id' => $item->id,
+            'production_finished_batch_id' => $batch->id,
+            'reserved_quantity' => 1,
+            'status' => 'reserved',
+        ]);
+
+        $this->actingAs($production)
+            ->get(route('labels.orders.show', $order))
+            ->assertForbidden();
+
+        $productionOrder->update([
+            'status' => 'production_started',
+            'production_started_at' => now(),
+        ]);
+        $batch->update(['status' => 'pending_qa']);
+        $this->actingAs($production)
+            ->get(route('labels.orders.show', $order))
+            ->assertOk();
+    }
 
     public function test_order_print_tracks_required_and_additional_copies(): void
     {

@@ -6,6 +6,7 @@ use App\Models\Accessory;
 use App\Models\Customer;
 use App\Models\Department;
 use App\Models\Excipient;
+use App\Models\Ingredient;
 use App\Models\ManualLabelPrint;
 use App\Models\Order;
 use App\Models\PackagingMaterial;
@@ -29,11 +30,14 @@ class RawMaterialCatalogTest extends TestCase
         return User::factory()->create(['department_id' => $department->id, 'role' => 'it']);
     }
 
-    public function test_it_can_create_raw_material_and_accessory(): void
+    public function test_it_can_create_separate_ingredient_and_accessory_catalogs(): void
     {
         $user = $this->itUser();
 
         $this->actingAs($user)->post(route('raw-materials.store'), [
+            'sku' => 'DLT001', 'name' => 'Dược liệu A', 'unit' => 'Kg',
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($user)->post(route('ingredients.store'), [
             'sku' => 'NL001', 'name' => 'Nguyên liệu A', 'unit' => 'Kg',
         ])->assertSessionHasNoErrors();
         $this->actingAs($user)->post(route('accessories.store'), [
@@ -46,11 +50,13 @@ class RawMaterialCatalogTest extends TestCase
             'sku' => 'BB001', 'name' => 'Bao bì A', 'unit' => 'Cái',
         ])->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('raw_materials', ['sku' => 'NL001']);
+        $this->assertDatabaseHas('raw_materials', ['sku' => 'DLT001']);
+        $this->assertDatabaseHas('ingredients', ['sku' => 'NL001']);
         $this->assertDatabaseHas('accessories', ['sku' => 'PL001']);
         $this->assertDatabaseHas('excipients', ['sku' => 'TD001']);
         $this->assertDatabaseHas('packaging_materials', ['sku' => 'BB001']);
         $this->actingAs($user)->get(route('raw-materials.index'))->assertOk();
+        $this->actingAs($user)->get(route('ingredients.index'))->assertOk();
         $this->actingAs($user)->get(route('accessories.index'))->assertOk();
         $this->actingAs($user)->get(route('excipients.index'))->assertOk();
         $this->actingAs($user)->get(route('packaging.index'))->assertOk();
@@ -69,7 +75,8 @@ class RawMaterialCatalogTest extends TestCase
     {
         $user = $this->itUser();
         $supplier = Supplier::create(['name' => 'NCC', 'code' => 'NCC1']);
-        $raw = RawMaterial::create(['sku' => 'NL010', 'name' => 'NL', 'slug' => 'nl', 'unit' => 'Kg']);
+        $raw = RawMaterial::create(['sku' => 'DLT010', 'name' => 'DLT', 'slug' => 'dlt-010', 'unit' => 'Kg']);
+        $ingredient = Ingredient::create(['sku' => 'NL010', 'name' => 'NL', 'slug' => 'nl-010', 'unit' => 'Kg']);
         $acc = Accessory::create(['sku' => 'PL010', 'name' => 'PL', 'slug' => 'pl', 'unit' => 'Cái']);
         $excipient = Excipient::create(['sku' => 'TD010', 'name' => 'TD', 'slug' => 'td', 'unit' => 'Kg']);
         $packaging = PackagingMaterial::create(['sku' => 'BB010', 'name' => 'BB', 'slug' => 'bb', 'unit' => 'Cái']);
@@ -88,9 +95,13 @@ class RawMaterialCatalogTest extends TestCase
         $this->assertDatabaseHas('purchase_order_items', ['material_type' => 'PL', 'material_id' => $acc->id, 'quantity' => 3]);
         $this->actingAs($user)->post(route('purchase-orders.store'), [
             'po_number' => 'PO-INGREDIENT-1', 'supplier_id' => $supplier->id, 'order_date' => today()->toDateString(), 'item_type' => 'ingredient',
-            'items' => [['item_id' => $acc->id, 'quantity' => 4, 'unit_price' => 10]],
+            'items' => [['item_id' => $ingredient->id, 'quantity' => 4, 'unit_price' => 10]],
         ])->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('purchase_order_items', ['material_type' => 'NL', 'material_id' => $acc->id, 'quantity' => 4]);
+        $this->assertDatabaseHas('purchase_order_items', ['material_type' => 'NL', 'material_id' => $ingredient->id, 'quantity' => 4]);
+        $this->actingAs($user)->get(route('api.purchase-items.search', ['type' => 'NL', 'q' => 'NL010']))
+            ->assertOk()->assertJsonFragment(['id' => $ingredient->id, 'sku' => 'NL010']);
+        $this->actingAs($user)->get(route('api.purchase-items.search', ['type' => 'PL', 'q' => 'PL010']))
+            ->assertOk()->assertJsonFragment(['id' => $acc->id, 'sku' => 'PL010']);
         $this->actingAs($user)->post(route('purchase-orders.store'), [
             'po_number' => 'PO-EXCIPIENT-1', 'supplier_id' => $supplier->id, 'order_date' => today()->toDateString(), 'item_type' => 'excipient',
             'items' => [['item_id' => $excipient->id, 'quantity' => 5, 'unit_price' => 10]],
@@ -126,7 +137,7 @@ class RawMaterialCatalogTest extends TestCase
         $this->assertDatabaseHas('purchase_order_items', ['purchase_order_id' => $po->id, 'material_type' => 'DLT', 'material_id' => $raw->id, 'product_id' => null]);
         $this->assertDatabaseHas('purchase_order_items', ['purchase_order_id' => $po->id, 'material_type' => 'PL', 'material_id' => $acc->id]);
 
-        $this->actingAs($user)->get(route('purchase-orders.show', $po))->assertOk()->assertSee('NL010');
+        $this->actingAs($user)->get(route('purchase-orders.show', $po))->assertOk()->assertSee('DLT010');
 
         $this->actingAs($user)->delete(route('raw-materials.destroy', $raw))->assertSessionHas('error');
         $this->assertDatabaseHas('raw_materials', ['id' => $raw->id]);
@@ -251,6 +262,7 @@ class RawMaterialCatalogTest extends TestCase
         $user = $this->itUser();
         foreach ([
             'raw-materials' => \App\Models\RawMaterial::class,
+            'ingredients' => Ingredient::class,
             'accessories' => \App\Models\Accessory::class,
             'excipients' => Excipient::class,
             'packaging' => PackagingMaterial::class,

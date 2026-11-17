@@ -30,7 +30,8 @@
         <select id="product-select" name="product_id" required class="mt-1 block w-full border-slate-300 rounded-none focus:border-blue-600 focus:ring-0">
             <option value="">-- Chọn sản phẩm --</option>
             @foreach($products as $product)
-                <option value="{{ $product->id }}" data-classification="{{ $product->classification ?? '' }}" @selected((string) old('product_id', $document?->product_id ?? ($selectedProductId ?? null)) === (string) $product->id)>
+                @php($normalizedOrigin = \Illuminate\Support\Str::lower(\Illuminate\Support\Str::ascii((string) $product->origin)))
+                <option value="{{ $product->id }}" data-classification="{{ $product->classification ?? '' }}" data-allows-gpnk="{{ str_contains($normalizedOrigin, 'trung quoc') || str_contains($normalizedOrigin, 'china') ? '1' : '0' }}" @selected((string) old('product_id', $document?->product_id ?? ($selectedProductId ?? null)) === (string) $product->id)>
                     {{ $product->name }} - {{ $product->sku }} ({{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }}) - Nguồn gốc: {{ $product->origin ?: 'Chưa có' }}
                 </option>
             @endforeach
@@ -38,9 +39,21 @@
     </div>
 
     <script>
-        (() => {
+        document.addEventListener('DOMContentLoaded', () => {
             const classificationFilter = document.getElementById('product-classification-filter');
             const productSelect = document.getElementById('product-select');
+            const documentTypeSelect = document.querySelector('[name="document_type"]');
+            const gpnkOption = document.querySelector('[name="document_type"] option[value="gpnk"]');
+
+            const updateGpnkAvailability = () => {
+                const selectedProduct = productSelect.selectedOptions[0];
+                const allowsGpnk = selectedProduct?.dataset.allowsGpnk === '1';
+                gpnkOption.hidden = !allowsGpnk;
+                gpnkOption.disabled = !allowsGpnk;
+                if (!allowsGpnk && documentTypeSelect.value === 'gpnk') {
+                    documentTypeSelect.value = '';
+                }
+            };
 
             classificationFilter.addEventListener('change', () => {
                 const selectedClassification = classificationFilter.value;
@@ -62,8 +75,11 @@
                     && productSelect.selectedOptions[0].disabled) {
                     productSelect.value = '';
                 }
+                updateGpnkAvailability();
             });
-        })();
+            productSelect.addEventListener('change', updateGpnkAvailability);
+            updateGpnkAvailability();
+        });
     </script>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">

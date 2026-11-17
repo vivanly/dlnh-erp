@@ -42,7 +42,6 @@ class LabelController extends Controller
 
         $orders = Order::with(['customer', 'items.product', 'items.labelPrints', 'items.lotAllocations'])
             ->whereIn('status', ['pending_planning', 'waiting_production', 'processing', 'ready_to_ship', 'completed'])
-            ->whereNotNull('qa_confirmed_at')
             ->whereHas('items.lotAllocations', fn ($query) => $query->whereIn('status', ['reserved', 'shipped']))
             ->latest()
             ->paginate($this->perPage(request()))
@@ -315,7 +314,13 @@ class LabelController extends Controller
 
     private function ensureLabelOrder(Order $order): void
     {
-        abort_unless(in_array($order->status, ['pending_planning', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true) && $order->qa_confirmed_at, 404);
+        abort_unless(in_array($order->status, ['pending_planning', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true), 404);
+        $order->loadMissing('items.lotAllocations.finishedBatch.productionOrder');
+        $hasUnstartedProductionLot = $order->items
+            ->flatMap(fn ($item) => $item->lotAllocations)
+            ->filter(fn ($allocation) => $allocation->status === 'reserved' && $allocation->finishedBatch?->productionOrder)
+            ->contains(fn ($allocation) => ! $allocation->finishedBatch->productionOrder->production_started_at);
+        abort_unless(! $hasUnstartedProductionLot, 403, 'Chỉ được in nhãn sau khi Sản xuất xác nhận bắt đầu.');
     }
 
     private function itemHasCompleteLotAllocation(OrderItem $item): bool

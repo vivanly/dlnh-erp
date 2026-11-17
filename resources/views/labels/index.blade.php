@@ -25,7 +25,7 @@
                                 <td class="p-2.5 text-right"><a href="{{ route('labels.orders.show', $order) }}" class="inline-flex items-center gap-1 bg-slate-800 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-slate-700">Chi tiết nhãn</a></td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="p-8 text-center text-slate-500">Chưa có đơn QA chốt lô để quản lý nhãn.</td></tr>
+                            <tr><td colspan="7" class="p-8 text-center text-slate-500">Chưa có đơn hàng cần quản lý nhãn.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

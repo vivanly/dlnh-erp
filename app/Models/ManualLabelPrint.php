@@ -61,7 +61,7 @@ class ManualLabelPrint extends Model
             'part' => $this->part_used,
             'exp' => $this->exp_date,
             'origin' => $this->origin,
-            'weight' => $this->net_weight,
+            'weight' => $this->net_weight === null ? null : mb_strtoupper($this->net_weight),
             'registration' => $this->registration,
             'standard' => $this->standard,
             'storage' => $this->storage,

@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\ProductRegulatoryDocument;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProductRegulatoryDocumentController extends Controller
 {
@@ -57,6 +59,7 @@ class ProductRegulatoryDocumentController extends Controller
         $this->authorizeQa();
 
         $validated = $request->validate($this->rules());
+        $this->ensureGpnkAllowed($validated);
         ProductRegulatoryDocument::create($validated);
 
         return redirect()->route('product-regulatory-documents.index', ['product_id' => $validated['product_id']])
@@ -78,6 +81,7 @@ class ProductRegulatoryDocumentController extends Controller
         $this->authorizeQa();
 
         $validated = $request->validate($this->rules($productRegulatoryDocument));
+        $this->ensureGpnkAllowed($validated);
         $productRegulatoryDocument->update($validated);
 
         return redirect()->route('product-regulatory-documents.index', ['product_id' => $validated['product_id']])
@@ -111,6 +115,21 @@ class ProductRegulatoryDocumentController extends Controller
             'document_form' => ['required', 'string', 'max:80'],
             'note' => ['nullable', 'string'],
         ];
+    }
+
+    private function ensureGpnkAllowed(array $validated): void
+    {
+        if ($validated['document_type'] !== 'gpnk') {
+            return;
+        }
+
+        $product = Product::findOrFail($validated['product_id']);
+        $origin = Str::lower(Str::ascii((string) $product->origin));
+        if (! str_contains($origin, 'trung quoc') && ! str_contains($origin, 'china')) {
+            throw ValidationException::withMessages([
+                'document_type' => 'Chỉ sản phẩm có nguồn gốc Trung Quốc mới được nhập hồ sơ GPNK.',
+            ]);
+        }
     }
 
     private function authorizeQa(): void

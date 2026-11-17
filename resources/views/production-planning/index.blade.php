@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between gap-3">
             <div>
                 <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Nhu cầu tồn thành phẩm / bán thành phẩm</h2>
-                <p class="mt-1 text-xs text-slate-500">QA chọn lô đang có trước; Kế hoạch lập sản xuất cho phần còn thiếu.</p>
+                <p class="mt-1 text-xs text-slate-500">Kho đã xác nhận tồn theo FIFO. Chọn các mặt hàng còn thiếu cần lập kế hoạch sản xuất.</p>
             </div>
             <div class="flex items-center gap-2">
                 <a href="{{ route('production-planning.approvals') }}" class="px-3 py-1.5 bg-amber-100 text-xs font-bold uppercase text-amber-900 hover:bg-amber-200">Kế hoạch chờ duyệt</a>
@@ -33,15 +33,21 @@
                                 <td class="p-2.5 border-r">{{ date('d/m/Y', strtotime($order->delivery_date)) }}</td>
                                 <td class="p-2.5 min-w-[240px]">
                                     @if($canPlan)
-                                        <form method="POST" action="{{ route('production-planning.plan', $order) }}" onsubmit="return confirm('Lập lệnh theo lượng kế hoạch đã nhập? Sản lượng dư sẽ nhập kho cho nhu cầu sau.');">
+                                        <form method="POST" action="{{ route('production-planning.plan', $order) }}" onsubmit="return confirm('Lập kế hoạch cho các mặt hàng đã chọn và gửi duyệt?');">
                                             @csrf
                                             @foreach($order->items as $item)
                                                 @php($plannedShortage = $item->production_shortage)
-                                                <label class="mb-2 block text-[10px] font-medium text-slate-600">{{ $item->product->name ?? 'Sản phẩm' }} · thiếu {{ number_format($plannedShortage, 4) }} {{ $item->product->unit ?? '' }}
-                                                    <span class="mt-1 flex items-center gap-2"><input type="number" name="planned_quantities[{{ $item->id }}]" value="{{ old('planned_quantities.'.$item->id, $plannedShortage > 0 ? number_format($plannedShortage, 4, '.', '') : '0') }}" min="{{ number_format($plannedShortage, 4, '.', '') }}" step="0.0001" class="w-full text-right text-xs font-mono border-slate-300 rounded-none"><span>{{ $item->product->unit ?? '' }}</span></span>
-                                                </label>
+                                                @if($plannedShortage > 0)
+                                                    <div class="mb-3 border border-slate-200 p-2">
+                                                        <label class="flex items-start gap-2 text-[10px] font-medium text-slate-700">
+                                                            <input type="checkbox" name="selected_item_ids[]" value="{{ $item->id }}" class="mt-0.5 border-slate-300" onchange="document.getElementById('planned-quantity-{{ $item->id }}').disabled = !this.checked">
+                                                            <span>{{ $item->product->name ?? 'Sản phẩm' }} · còn thiếu {{ number_format($plannedShortage, 4) }} {{ $item->product->unit ?? '' }}</span>
+                                                        </label>
+                                                        <span class="mt-2 flex items-center gap-2"><input id="planned-quantity-{{ $item->id }}" type="number" name="planned_quantities[{{ $item->id }}]" value="{{ old('planned_quantities.'.$item->id, number_format($plannedShortage, 4, '.', '')) }}" min="{{ number_format($plannedShortage, 4, '.', '') }}" step="0.0001" disabled class="w-full text-right text-xs font-mono border-slate-300 rounded-none"><span>{{ $item->product->unit ?? '' }}</span></span>
+                                                    </div>
+                                                @endif
                                             @endforeach
-                                            <button class="mt-1 px-3 py-1.5 bg-emerald-600 text-[10px] font-bold uppercase text-white hover:bg-emerald-700">Lập kế hoạch / lệnh</button>
+                                            <button class="mt-1 px-3 py-1.5 bg-emerald-600 text-[10px] font-bold uppercase text-white hover:bg-emerald-700">Lập kế hoạch và gửi duyệt</button>
                                         </form>
                                     @else
                                         <span class="text-slate-500">Chờ Kế hoạch lập lệnh</span>
@@ -49,7 +55,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="p-8 text-center text-slate-500">Chưa có đơn QA chốt lô cần hoạch định.</td></tr>
+                            <tr><td colspan="5" class="p-8 text-center text-slate-500">Chưa có đơn thiếu hàng cần hoạch định.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

@@ -36,7 +36,8 @@
                                 <td class="p-2.5 border-r text-center">{{ [
                                     'pending_director_approval' => 'Chờ Tổng Giám đốc/Giám đốc duyệt kế hoạch',
                                     'released' => 'Đã duyệt - Kho chờ xuất nguyên liệu FIFO',
-                                    'materials_issued' => 'Đang sản xuất',
+                                    'materials_issued' => 'Kho đã xuất - Chờ bắt đầu',
+                                    'production_started' => 'Đang sản xuất',
                                     'production_reported' => 'Sản xuất đã báo sản lượng - Chờ Kho xác nhận',
                                 ][$productionOrder->status] ?? $productionOrder->status }}</td>
                                 <td class="p-2.5 text-center whitespace-nowrap">

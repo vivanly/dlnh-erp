@@ -52,37 +52,12 @@ class OrderItemController extends Controller
             'qcdg' => 'nullable|numeric|min:0',
             'ppcb_name' => 'nullable|string|max:255',
             'ppcb_ma' => 'nullable|string|max:50',
-            'qa_batch_or_supplier' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:500',
         ]);
 
         $order->items()->create($validated);
 
         return redirect()->route('orders.show', $order->id)->with('success', 'Đã thêm vị thuốc vào đơn hàng thành công!');
-    }
-
-    /**
-     * QA cập nhật chỉ định lô nội bộ hoặc nhà cung cấp cho vị thuốc.
-     */
-    public function updateQa(Request $request, string $itemId)
-    {
-        $item = OrderItem::findOrFail($itemId);
-        $order = $item->order;
-        abort_unless(auth()->user() && (
-            (method_exists(auth()->user(), 'isQADepartment') && auth()->user()->isQADepartment()) ||
-            $this->canManageLockedOrder()
-        ), 403);
-        if ($order && $this->orderIsLocked($order) && ! $this->canManageLockedOrder()) {
-            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã gửi sản xuất, chỉ IT mới được sửa số lô.');
-        }
-
-        $validated = $request->validate([
-            'qa_batch_or_supplier' => 'nullable|string|max:255',
-        ]);
-
-        $item->update($validated);
-
-        return redirect()->route('orders.show', $item->order_id)->with('success', 'QA đã cập nhật chỉ định lô/nhà cung cấp thành công!');
     }
 
     /**

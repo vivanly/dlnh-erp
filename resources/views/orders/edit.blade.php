@@ -2,7 +2,7 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">
-                {{ $canManageQaLots ? 'QA Chốt Số Lô' : 'Chỉnh Sửa Đơn Hàng' }}: <span class="font-mono text-blue-600">{{ $order->order_code }}</span>
+                Chỉnh Sửa Đơn Hàng: <span class="font-mono text-blue-600">{{ $order->order_code }}</span>
             </h2>
             <a href="{{ route('orders.show', $order->id) }}" class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs uppercase font-bold rounded-none hover:bg-slate-300 transition">
                 Quay lại chi tiết
@@ -16,23 +16,14 @@
         // Kiểm tra quyền IT
         $isItOrAdmin = $user && method_exists($user, 'isITDepartment') && $user->isITDepartment();
 
-        // Kiểm tra quyền QA
-        $isQA = $user && (method_exists($user, 'isQADepartment') && $user->isQADepartment());
-
         // Kiểm tra quyền Sales
         $isSales = $user && method_exists($user, 'isSalesDepartment' ) && $user->isSalesDepartment();
 
-        // Cấp quyền sửa thông tin chung và danh sách vị thuốc (IT, Admin, Sales được sửa; QA bị khóa)
-        $canEditGeneralInfo = ($isItOrAdmin || $isSales) && !$canManageQaLots;
+        $canEditGeneralInfo = $isItOrAdmin || $isSales;
     @endphp
 
     <div class="py-2">
         <div class="max-w-none px-2 space-y-3">
-            @if($canManageQaLots)
-                <div class="flex flex-wrap items-center justify-between gap-2 border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-                    <span>Với lô nội bộ, PPCB trên đơn phải khớp PPCB của lô. Có thể đổi PPCB tại đơn hoặc mở sửa PPCB lô; không thể chốt khi còn lệch. QA có thể phân bổ lượng dự kiến của lô nội bộ vừa tạo độc lập với lệnh sản xuất.</span>
-                </div>
-            @endif
             <form action="{{ route('orders.update', $order->id) }}" method="POST" class="space-y-3">
                 @csrf
                 @method('PUT')
@@ -140,10 +131,6 @@
                                     <th class="py-2.5 px-3 border-r border-slate-300 min-w-[160px]">Yêu Cầu Bào Chế</th>
                                     <th class="py-2.5 px-3 border-r border-slate-300">PPCB đơn hàng</th>
                                     
-                                    @if($canManageQaLots)
-                                        <th class="py-2.5 px-3 border-r border-slate-300 min-w-[340px]">QA chọn lô · hệ thống tự phân bổ lượng</th>
-                                    @endif
-
                                     <th class="py-2.5 px-3 border-r border-slate-300">Ghi chú</th>
                                     @if($canEditGeneralInfo)
                                         <th class="py-2.5 px-2 text-center w-12">Xóa</th>
@@ -187,7 +174,7 @@
                                     </td>
                                     <td class="py-2 px-3 border-r border-slate-200">
                                         @php($selectedPpcb = $ppcbList->firstWhere('id', old("items.$index.ppcb_id", $item->ppcb_id)))
-                                        <select name="items[{{ $index }}][ppcb_id]" {{ !($canEditGeneralInfo || $canManageQaLots) ? 'disabled' : '' }} class="ppcb-select w-full text-xs">
+                                        <select name="items[{{ $index }}][ppcb_id]" {{ !$canEditGeneralInfo ? 'disabled' : '' }} class="ppcb-select w-full text-xs">
                                             @if($selectedPpcb)
                                                 <option value="{{ $selectedPpcb->id }}" selected>{{ $selectedPpcb->ma }} · {{ $selectedPpcb->ten_ppcb }}</option>
                                             @endif
@@ -197,28 +184,6 @@
                                         {{ $selectedPpcb->ma ?? $item->ppcb_ma ?? '-' }}
                                     </td>
 
-
-                                    @if($canManageQaLots)
-                                        <td class="py-2 px-3 border-r border-slate-200 min-w-[340px]">
-                                            <div class="max-h-56 overflow-y-auto divide-y divide-slate-200">
-                                                @forelse(($qaLotsByProduct[$item->id] ?? collect()) as $lotIndex => $lotOption)
-                                                    <div class="grid grid-cols-[1.25rem_1fr] items-center gap-2 py-1.5">
-                                                        <input id="lot-{{ $item->id }}-{{ $lotIndex }}" type="checkbox" name="items[{{ $index }}][allocations][{{ $lotIndex }}][lot]" value="{{ $lotOption['lot'] }}" @checked($lotOption['reserved_quantity'] > 0) @disabled($lotOption['available_quantity'] <= 0 && $lotOption['reserved_quantity'] <= 0) class="border-slate-300 text-blue-600 focus:ring-blue-500">
-                                                        <label for="lot-{{ $item->id }}-{{ $lotIndex }}" class="min-w-0">
-                                                            <span class="block truncate font-mono font-semibold">{{ $lotOption['code'] }}</span>
-                                                            <span class="block text-[10px] text-slate-500">Tồn {{ number_format($lotOption['current_quantity'], 4) }} · Chờ nhập {{ number_format($lotOption['pending_quantity'], 4) }} · Khả dụng {{ number_format($lotOption['available_quantity'], 4) }} · Đơn này {{ number_format($lotOption['reserved_quantity'], 4) }}</span>
-                                                            @if($lotOption['ppcb'] !== null)
-                                                                <span class="block text-[10px] font-semibold text-violet-700">PPCB lô: {{ $lotOption['ppcb'] }} · <a href="{{ $lotOption['edit_url'] }}" target="_blank" rel="noopener" class="underline">Sửa PPCB lô</a></span>
-                                                            @endif
-                                                        </label>
-                                                    </div>
-                                                @empty
-                                                    <p class="py-2 text-xs text-rose-600">Không có lô khả dụng cho sản phẩm này.</p>
-                                                @endforelse
-                                            </div>
-                                            <p class="mt-1 text-[10px] text-slate-500">Chỉ chọn lô; hệ thống tự phân bổ theo lượng khả dụng đến tối đa {{ number_format((float) $item->quantity, 4) }} {{ $item->product->unit ?? '' }}. Phần thiếu sẽ được Kế hoạch lập lệnh sản xuất.</p>
-                                        </td>
-                                    @endif
 
                                     <td class="py-2 px-3 border-r border-slate-200">
                                         <input type="text" name="items[{{ $index }}][notes]" value="{{ $item->notes ?? '' }}" {{ !$canEditGeneralInfo ? 'readonly' : '' }} class="w-full text-xs border-slate-300 rounded px-1 py-1 focus:border-blue-500 focus:ring-blue-500 {{ !$canEditGeneralInfo ? 'bg-slate-50 text-slate-600' : '' }}">
@@ -238,7 +203,7 @@
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs uppercase tracking-wider rounded-none transition shadow-none">
-                        {{ $canManageQaLots ? 'Lưu phân bổ lô và chuyển Kế hoạch' : 'Cập Nhật Đơn Hàng' }}
+                        Cập Nhật Đơn Hàng
                     </button>
                 </div>
             </form>
@@ -248,7 +213,7 @@
     @push('scripts')
     <script>
         const canEditGeneralInfo = @json($canEditGeneralInfo);
-        const canEditPpcb = @json($canEditGeneralInfo || $canManageQaLots);
+        const canEditPpcb = @json($canEditGeneralInfo);
 
         $(document).ready(function() {
             // Khởi tạo autocomplete cho khách hàng

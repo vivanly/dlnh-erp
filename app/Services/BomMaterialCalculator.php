@@ -41,6 +41,7 @@ class BomMaterialCalculator
                 $component instanceof Product => 'product',
                 default => match ($component::class) {
                     \App\Models\RawMaterial::class => 'raw_material',
+                    \App\Models\Ingredient::class => 'ingredient',
                     \App\Models\Accessory::class => 'accessory',
                     \App\Models\Excipient::class => 'excipient',
                     \App\Models\PackagingMaterial::class => 'packaging',

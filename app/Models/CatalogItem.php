@@ -9,7 +9,7 @@ abstract class CatalogItem extends Model
 {
     private const TYPE_ALIASES = [
         'DLT' => 'raw_material',
-        'NL' => 'accessory',
+        'NL' => 'ingredient',
         'PL' => 'accessory',
         'TD' => 'excipient',
         'BB' => 'packaging',
@@ -19,6 +19,7 @@ abstract class CatalogItem extends Model
     {
         return match (self::normalizeType($type)) {
             'raw_material' => RawMaterial::class,
+            'ingredient' => Ingredient::class,
             'accessory' => Accessory::class,
             'excipient' => Excipient::class,
             'packaging' => PackagingMaterial::class,
@@ -32,7 +33,7 @@ abstract class CatalogItem extends Model
             return self::TYPE_ALIASES[$type];
         }
 
-        return $type === 'ingredient' ? 'accessory' : $type;
+        return $type;
     }
 
     public static function codeForType(string $type): string

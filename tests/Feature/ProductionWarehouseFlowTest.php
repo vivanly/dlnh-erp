@@ -13,10 +13,10 @@ use App\Models\ProductionBatchCodeHistory;
 use App\Models\ProductionBatchInput;
 use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionOrder;
+use App\Models\SalesOrderLotAllocation;
 use App\Models\ProductionOrderMaterial;
 use App\Models\SupplierBatch;
 use App\Models\User;
-use App\Services\SalesOrderPlanner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -162,6 +162,13 @@ class ProductionWarehouseFlowTest extends TestCase
             'unit' => 'kg',
             'status' => 'planned',
         ]);
+        SalesOrderLotAllocation::create([
+            'order_item_id' => $orderItem->id,
+            'production_finished_batch_id' => ProductionFinishedBatch::where('production_order_id', $productionOrder->id)->value('id'),
+            'reserved_quantity' => 8,
+            'status' => 'reserved',
+        ]);
+        $order->update(['qa_confirmed_at' => now()]);
         $firstRawBatch = SupplierBatch::create([
             'goods_receipt_item_id' => 1,
             'product_id' => $rawProduct->id,
@@ -212,14 +219,25 @@ class ProductionWarehouseFlowTest extends TestCase
             ->assertRedirect();
         $this->assertEquals(12, InventoryMovement::where('movement_type', 'EXPORT_PRODUCTION')->sum('quantity'));
 
+        $this->actingAs($warehouseUser)
+            ->post(route('production-orders.report-output', $productionOrder), ['actual_quantity' => 8])
+            ->assertForbidden();
+
+        $this->actingAs($productionUser)
+            ->get(route('production.work-orders.show', $productionOrder))
+            ->assertOk()
+            ->assertSee('Bắt đầu sản xuất');
+        $this->actingAs($productionUser)
+            ->post(route('production-orders.start-production', $productionOrder))
+            ->assertRedirect();
         $this->actingAs($productionUser)
             ->get(route('production.work-orders.show', $productionOrder))
             ->assertOk()
             ->assertSee('reported_returned_materials['.$firstAllocation->id.']', false);
 
-        $this->actingAs($warehouseUser)
-            ->post(route('production-orders.report-output', $productionOrder), ['actual_quantity' => 8])
-            ->assertForbidden();
+        $this->actingAs($productionUser)
+            ->post(route('production-orders.start-production', $productionOrder))
+            ->assertSessionHas('error');
 
         $this->actingAs($productionUser)
             ->post(route('production-orders.report-output', $productionOrder), [
@@ -285,18 +303,6 @@ class ProductionWarehouseFlowTest extends TestCase
         $this->assertEquals(0, $finishedBatch->pending_warehouse_quantity);
         $this->assertEquals(8, InventoryMovement::where('movement_type', 'RECEIVE_PRODUCTION')->sum('quantity'));
 
-        $this->actingAs($qaUser)
-            ->put(route('orders.update', $order), [
-                'items' => [[
-                    'id' => $orderItem->id,
-                    'allocations' => [
-                        ['lot' => 'finished:'.$finishedBatches[0]->id],
-                    ],
-                ]],
-            ])
-            ->assertRedirect(route('orders.show', $order));
-        $this->assertSame('pending_planning', $order->fresh()->status);
-        $this->assertFalse(app(SalesOrderPlanner::class)->plan($order->fresh(), $qaUser->id));
         $this->assertSame('ready_to_ship', $order->fresh()->status);
 
         $this->actingAs($productionUser)

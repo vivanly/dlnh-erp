@@ -44,6 +44,11 @@ class PurchaseOrderItem extends Model
         return $this->belongsTo(Accessory::class, 'material_id');
     }
 
+    public function ingredient()
+    {
+        return $this->belongsTo(Ingredient::class, 'material_id');
+    }
+
     public function excipient()
     {
         return $this->belongsTo(Excipient::class, 'material_id');
@@ -97,7 +102,7 @@ class PurchaseOrderItem extends Model
             : 'Dược liệu / Sản phẩm';
     }
 
-    // Lượng đã xử lý (đạt + trả) của dòng hàng, kể cả dược liệu thô/phụ liệu
+    // Lượng đã xử lý (đạt + trả) của dòng hàng, kể cả các nhóm vật tư
     public function processedQuantity(): float
     {
         if ($this->material_type) {
@@ -105,7 +110,9 @@ class PurchaseOrderItem extends Model
                 ->where('material_type', CatalogItem::normalizeType($this->material_type))
                 ->whereIn('movement_type', ['RECEIVE_PURCHASE', 'REJECT_PURCHASE'])
                 ->sum('quantity')
-                + (float) MaterialLot::where('purchase_order_item_id', $this->id)->where('status', 'pending_qa')->sum('quantity');
+                + (float) MaterialLot::where('purchase_order_item_id', $this->id)
+                    ->whereIn('status', ['pending_qa', 'pending_reinspection', 'qc_passed_pending_receipt', 'rejected'])
+                    ->sum('quantity');
         }
 
         return (float) GoodsReceiptItem::where('purchase_order_item_id', $this->id)

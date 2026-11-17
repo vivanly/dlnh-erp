@@ -64,7 +64,6 @@
                         <select name="status" class="w-full rounded-md border-slate-300 text-sm shadow-sm focus:border-blue-600 focus:ring-blue-600">
                             <option value="">-- Tất cả trạng thái --</option>
                             <option value="draft" {{ request('status') == 'draft' ? 'selected' : '' }}>Nháp · chờ gửi duyệt</option>
-                            <option value="pending_qa" {{ request('status') == 'pending_qa' ? 'selected' : '' }}>Chờ QA chốt số lô</option>
                             <option value="pending_sales_approval" {{ request('status') == 'pending_sales_approval' ? 'selected' : '' }}>Chờ Giám đốc Kinh doanh duyệt</option>
                             <option value="sales_rejected" {{ request('status') == 'sales_rejected' ? 'selected' : '' }}>Kinh doanh từ chối</option>
                             <option value="pending_warehouse_check" {{ request('status') == 'pending_warehouse_check' ? 'selected' : '' }}>Chờ Kho xác nhận tồn</option>
@@ -133,9 +132,9 @@
                                 <td class="py-2.5 px-3 border-r border-slate-200 text-center">
                                     @php
                                         $lotStatus = $order->lot_assignment_status;
-                                        $lotStatusClass = $lotStatus === 'Đã Có Số Lô'
+                                        $lotStatusClass = $lotStatus === 'Đã phân lô'
                                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                            : ($lotStatus === 'QA đang Cập Nhật'
+                                            : ($lotStatus === 'Phân lô một phần'
                                                 ? 'bg-amber-50 text-amber-700 border-amber-200'
                                                 : 'bg-slate-50 text-slate-600 border-slate-200');
                                     @endphp
@@ -149,7 +148,6 @@
                                             'sales_rejected' => 'Kinh doanh từ chối',
                                             'pending_warehouse_check' => 'Chờ Kho kiểm tồn',
                                             'pending_material_issue' => 'Chờ Kho xuất nguyên liệu',
-                                            'pending_qa' => 'Chờ QA chốt lô',
                                             'pending_planning' => 'Chờ Kế hoạch',
                                             'waiting_finished_goods_receipt' => 'Chờ Kho nhập lô thành phẩm',
                                             'waiting_production' => 'Chờ sản xuất',

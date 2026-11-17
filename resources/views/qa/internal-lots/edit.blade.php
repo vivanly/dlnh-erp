@@ -95,7 +95,7 @@
                 </section>
 
                 <section class="border border-slate-200 bg-slate-50 p-3">
-                    <h3 class="text-[10px] font-bold uppercase text-slate-600">PKN do QC quản lý</h3>
+                    <h3 class="text-[10px] font-bold uppercase text-slate-600">PKN gắn với lô nội bộ QA đã cấp</h3>
                     <p class="mt-2 text-xs">Số phiếu: <strong class="font-mono">{{ $productionFinishedBatch->qc_test_report ?: 'Chưa có' }}</strong> · Ngày ra phiếu: {{ optional($productionFinishedBatch->qc_date)->format('d/m/Y') ?: '---' }} · Kết quả: {{ $productionFinishedBatch->qc_result === 'passed' ? 'Đạt' : ($productionFinishedBatch->qc_result === 'failed' ? 'Không đạt' : 'Chưa kiểm nghiệm') }}</p>
                     @if($productionFinishedBatch->qc_test_report_file)<a href="{{ route('private-documents.production-qc-report', $productionFinishedBatch) }}" target="_blank" rel="noopener" class="mt-2 inline-block text-xs font-semibold text-blue-700 underline">Xem tệp PKN</a>@endif
                 </section>

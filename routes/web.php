@@ -17,6 +17,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\OrderItemController;
 use App\Http\Controllers\WarehouseController;
+use App\Http\Controllers\SalesOrderReturnController;
 use App\Http\Controllers\BomController;
 use App\Http\Controllers\ProductionController;
 use App\Http\Controllers\ProductionMonthlyPlanController;
@@ -210,6 +211,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/production/work-orders/{productionOrder}', [ProductionController::class, 'show'])->name('production.work-orders.show');
     Route::get('/warehouse/production-issues/{productionOrder}', [ProductionController::class, 'show'])->name('warehouse.production-issues.show');
     Route::post('/production-orders/{productionOrder}/issue-materials', [ProductionController::class, 'issueMaterials'])->name('production-orders.issue-materials');
+    Route::post('/production-orders/{productionOrder}/start-production', [ProductionController::class, 'startProduction'])->name('production-orders.start-production');
     Route::post('/production-orders/{productionOrder}/assign-batch-number', [ProductionController::class, 'assignBatchNumber'])->name('production-orders.assign-batch-number');
     Route::post('/production-orders/{productionOrder}/report-output', [ProductionController::class, 'reportProductionOutput'])->name('production-orders.report-output');
     Route::post('/production-orders/{productionOrder}/confirm-completion', [ProductionController::class, 'confirmProductionCompletion'])->name('production-orders.confirm-completion');
@@ -233,6 +235,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('products', ProductController::class)->except(['show']);
     foreach ([
         'raw-materials' => \App\Http\Controllers\RawMaterialController::class,
+        'ingredients' => \App\Http\Controllers\IngredientController::class,
         'accessories' => \App\Http\Controllers\AccessoryController::class,
         'excipients' => \App\Http\Controllers\ExcipientController::class,
         'packaging' => \App\Http\Controllers\PackagingMaterialController::class,
@@ -242,10 +245,12 @@ Route::middleware('auth')->group(function () {
         Route::post("/{$catalogPrefix}/import", [$catalogController, 'import'])->name("{$catalogPrefix}.import");
     }
     Route::resource('raw-materials', \App\Http\Controllers\RawMaterialController::class)->except(['show']);
+    Route::resource('ingredients', \App\Http\Controllers\IngredientController::class)->except(['show']);
     Route::resource('accessories', \App\Http\Controllers\AccessoryController::class)->except(['show']);
     Route::resource('excipients', \App\Http\Controllers\ExcipientController::class)->except(['show']);
     Route::resource('packaging', \App\Http\Controllers\PackagingMaterialController::class)->except(['show']);
     Route::get('/api/raw-materials/search', [\App\Http\Controllers\RawMaterialController::class, 'searchAjax'])->name('api.raw-materials.search');
+    Route::get('/api/ingredients/search', [\App\Http\Controllers\IngredientController::class, 'searchAjax'])->name('api.ingredients.search');
     Route::get('/api/accessories/search', [\App\Http\Controllers\AccessoryController::class, 'searchAjax'])->name('api.accessories.search');
     Route::get('/api/excipients/search', [\App\Http\Controllers\ExcipientController::class, 'searchAjax'])->name('api.excipients.search');
     Route::get('/api/packaging/search', [\App\Http\Controllers\PackagingMaterialController::class, 'searchAjax'])->name('api.packaging.search');
@@ -285,11 +290,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/warehouse/purchase-orders', [WarehouseController::class, 'purchaseOrders'])->name('warehouse.purchase-orders');
     Route::post('/warehouse/purchase-orders/{purchaseOrder}/mark-delivered', [WarehouseController::class, 'markPurchaseOrderDelivered'])->name('warehouse.purchase-orders.mark-delivered');
     Route::get('/warehouse/material-stock', [WarehouseController::class, 'materialStock'])->name('warehouse.material-stock');
+    Route::get('/warehouse/material-lots/ready-for-receipt', [\App\Http\Controllers\MaterialLotController::class, 'readyForStockReceipt'])->name('warehouse.material-lots.ready');
+    Route::post('/warehouse/material-lots/{materialLot}/post-stock-receipt', [\App\Http\Controllers\MaterialLotController::class, 'postStockReceipt'])->name('material-lots.stock-receipt.post');
     Route::get('/warehouse/production-issues', [WarehouseController::class, 'productionIssues'])->name('warehouse.production-issues');
     Route::get('/warehouse/material-issues', [WarehouseController::class, 'materialIssues'])->name('warehouse.material-issues');
     Route::post('/warehouse/material-issues/{order}/issue', [WarehouseController::class, 'issueMaterialOrder'])->name('warehouse.material-issues.issue');
     Route::get('/purchase-orders/{purchaseOrder}/material-receipt', [\App\Http\Controllers\MaterialReceiptController::class, 'create'])->name('material-receipts.create');
     Route::post('/purchase-orders/{purchaseOrder}/material-receipt', [\App\Http\Controllers\MaterialReceiptController::class, 'store'])->name('material-receipts.store');
+    Route::get('/warehouse/material-receipts/{materialReceipt}', [\App\Http\Controllers\MaterialReceiptController::class, 'show'])->name('material-receipts.show');
     Route::get('/warehouse/stock', [WarehouseController::class, 'stockOverview'])->name('warehouse.stock');
     Route::get('/warehouse/stock/{product}', [WarehouseController::class, 'showStockProduct'])->name('warehouse.stock.product');
     Route::get('/labels', [LabelController::class, 'index'])->name('labels.index');
@@ -302,6 +310,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/manual-labels/{manualLabel}/deliver', [\App\Http\Controllers\ManualLabelController::class, 'deliver'])->name('manual-labels.deliver');
     Route::delete('/manual-labels/{manualLabel}', [\App\Http\Controllers\ManualLabelController::class, 'destroy'])->name('manual-labels.destroy');
     Route::get('/manual-label-orders', [\App\Http\Controllers\ManualLabelOrderController::class, 'index'])->name('manual-labels.orders');
+    Route::get('/manual-label-orders/print', [\App\Http\Controllers\ManualLabelBatchController::class, 'create'])->name('manual-labels.batch.create');
+    Route::post('/manual-label-orders/print', [\App\Http\Controllers\ManualLabelBatchController::class, 'store'])->name('manual-labels.batch.store');
 Route::get('/manual-label-orders/create', [\App\Http\Controllers\ManualLabelOrderController::class, 'create'])->name('manual-labels.orders.create');
 Route::post('/manual-label-orders', [\App\Http\Controllers\ManualLabelOrderController::class, 'store'])->name('manual-labels.orders.store');
 Route::get('/manual-label-orders/{order}/edit', [\App\Http\Controllers\ManualLabelOrderController::class, 'edit'])->name('manual-labels.orders.edit');
@@ -313,10 +323,7 @@ Route::post('/manual-label-products', [\App\Http\Controllers\ManualLabelProductC
 Route::get('/manual-label-products/{product}/edit', [\App\Http\Controllers\ManualLabelProductController::class, 'edit'])->name('manual-labels.products.edit');
 Route::put('/manual-label-products/{product}', [\App\Http\Controllers\ManualLabelProductController::class, 'update'])->name('manual-labels.products.update');
 Route::delete('/manual-label-products/{product}', [\App\Http\Controllers\ManualLabelProductController::class, 'destroy'])->name('manual-labels.products.destroy');
-    Route::get('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'index'])->name('manual-labels.import.form');
     Route::get('/manual-label-sources/search', [\App\Http\Controllers\ManualLabelSourceController::class, 'search'])->name('manual-labels.sources.search');
-    Route::post('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'import'])->name('manual-labels.import');
-    Route::delete('/manual-label-sources', [\App\Http\Controllers\ManualLabelSourceController::class, 'destroyAll'])->name('manual-labels.sources.destroy');
     Route::get('/warehouse/sales-order-stock-checks', [WarehouseController::class, 'salesOrderStockChecks'])->name('warehouse.sales-order-stock-checks');
     Route::post('/warehouse/sales-order-stock-checks/{order}/confirm', [WarehouseController::class, 'confirmSalesOrderStockCheck'])->name('warehouse.sales-order-stock-checks.confirm');
     Route::get('/warehouse/production-batches', [WarehouseController::class, 'productionBatchReceipts'])->name('warehouse.production-batches');
@@ -326,6 +333,9 @@ Route::delete('/manual-label-products/{product}', [\App\Http\Controllers\ManualL
     Route::get('/warehouse/sales-orders/{order}/confirm', [WarehouseController::class, 'showSalesOrder'])->name('warehouse.sales-orders.confirm-form');
     Route::post('/warehouse/sales-orders/{order}/confirm', [WarehouseController::class, 'confirmSalesOrder'])->name('warehouse.sales-orders.confirm');
     Route::post('/warehouse/sales-orders/{order}/ship', [WarehouseController::class, 'confirmSalesOrderShipment'])->name('warehouse.sales-orders.ship');
+    Route::get('/warehouse/customer-returns', [SalesOrderReturnController::class, 'index'])->name('warehouse.customer-returns');
+    Route::post('/warehouse/customer-returns/{order}', [SalesOrderReturnController::class, 'receive'])->name('warehouse.customer-returns.receive');
+    Route::patch('/warehouse/customer-returns/items/{salesOrderReturnItem}/inspect', [SalesOrderReturnController::class, 'inspect'])->name('warehouse.customer-returns.inspect');
 
     // ==========================================
     // MODULE: QA & LÔ HÀNG NHÀ CUNG CẤP (SUPPLIER BATCHES & COA)
@@ -337,6 +347,8 @@ Route::delete('/manual-label-products/{product}', [\App\Http\Controllers\ManualL
     Route::patch('/qa/material-lots/{materialLot}', [\App\Http\Controllers\MaterialLotController::class, 'updateCoa'])->name('material-lots.update-coa');
     Route::post('/qa/material-lots/{materialLot}/approve', [\App\Http\Controllers\MaterialLotController::class, 'approve'])->name('material-lots.approve');
     Route::post('/qa/material-lots/{materialLot}/reject', [\App\Http\Controllers\MaterialLotController::class, 'reject'])->name('material-lots.reject'); 
+    Route::post('/qa/material-lots/{materialLot}/reinspect', [\App\Http\Controllers\MaterialLotController::class, 'requestReinspection'])->name('material-lots.reinspect');
+    Route::get('/qa/material-lots/{materialLot}/stock-receipt', [\App\Http\Controllers\MaterialLotController::class, 'stockReceipt'])->name('material-lots.stock-receipt');
     
     Route::patch('/supplier-batches/{supplierBatch}/update-coa', [SupplierBatchController::class, 'updateCoa'])
         ->name('supplier-batches.update-coa');
@@ -360,14 +372,12 @@ Route::delete('/manual-label-products/{product}', [\App\Http\Controllers\ManualL
     Route::post('/orders/{order}/submit-sales', [OrderController::class, 'submitSalesOrder'])->name('orders.submit-sales');
     Route::post('/orders/{order}/approve-sales', [OrderController::class, 'approveSalesOrder'])->name('orders.approve-sales');
     Route::post('/orders/{order}/reject-sales', [OrderController::class, 'rejectSalesOrder'])->name('orders.reject-sales');
-    Route::get('/qa/order-batches', [OrderController::class, 'qaBatchQueue'])->name('qa.order-batches');
     Route::get('/production-planning', [OrderController::class, 'productionPlanningIndex'])->name('production-planning.index');
     Route::get('/production-planning/history', [OrderController::class, 'productionPlanningHistory'])->name('production-planning.history');
     Route::post('/production-planning/orders/{order}/plan', [OrderController::class, 'sendToProduction'])->name('production-planning.plan');
     Route::get('/orders/suggested-code', [OrderController::class, 'suggestedCode'])->name('orders.suggested-code');
     Route::resource('orders', OrderController::class);
     Route::post('/orders/{order}/items', [OrderItemController::class, 'store'])->name('order-items.store');
-    Route::patch('/order-items/{item}/qa', [OrderItemController::class, 'updateQa'])->name('order-items.update-qa');
     Route::delete('/order-items/{item}', [OrderItemController::class, 'destroy'])->name('order-items.destroy');
     
     // ==========================================

@@ -11,7 +11,6 @@
                         'sales_rejected' => 'Kinh doanh từ chối',
                         'pending_warehouse_check' => 'Chờ Kho kiểm tồn',
                         'pending_material_issue' => 'Chờ Kho xuất nguyên liệu',
-                        'pending_qa' => 'Chờ QA chốt lô',
                         'pending_planning' => 'Chờ Kế hoạch',
                         'waiting_finished_goods_receipt' => 'Chờ Kho nhập lô thành phẩm',
                         'waiting_production' => 'Chờ sản xuất',
@@ -23,9 +22,9 @@
                 <span class="px-2.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-none text-xs font-semibold uppercase">{{ $orderStatusLabel }}</span>
                 @php
                     $lotStatus = $order->lot_assignment_status;
-                    $lotStatusClass = $lotStatus === 'Đã Có Số Lô'
+                    $lotStatusClass = $lotStatus === 'Đã phân lô'
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : ($lotStatus === 'QA đang Cập Nhật'
+                        : ($lotStatus === 'Phân lô một phần'
                             ? 'bg-amber-50 text-amber-700 border-amber-200'
                             : 'bg-slate-50 text-slate-600 border-slate-200');
                 @endphp
@@ -34,7 +33,7 @@
                 </span>
             </div>
             <div class="flex items-center gap-2">
-                @if(!$order->isEditLockedAfterQa() && (!in_array($order->status, ['pending_sales_approval', 'pending_warehouse_check', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true) || $canManageLockedOrders || ($canManageOrderLots && $order->status === 'pending_qa')))
+                @if(!$order->isEditLockedAfterProgress() && (!in_array($order->status, ['pending_sales_approval', 'pending_warehouse_check', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true) || $canManageLockedOrders))
                                         <div>
                                             <span class="text-slate-500 text-[10px] font-bold block">Giám đốc Kinh doanh duyệt:</span>
                                             <span class="font-medium text-slate-800">{{ $order->salesApprovedBy->name ?? ($order->sales_approved_at ? 'Đã duyệt' : 'Chưa duyệt') }}</span>
@@ -47,7 +46,7 @@
                                             </div>
                                         @endif
                     <a href="{{ route('orders.edit', $order->id) }}" class="erp-action-edit-button text-xs uppercase">
-                        {{ $canManageOrderLots && !$canManageLockedOrders && $order->status === 'pending_qa' ? 'QA Chốt Số Lô' : 'Sửa Đơn Hàng' }}
+                        Sửa Đơn Hàng
                     </a>
                 @endif
                 <a href="{{ route('orders.index') }}" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs uppercase font-bold rounded-none transition">
@@ -70,7 +69,7 @@
             @endif
             @if($order->status === 'waiting_finished_goods_receipt')
                 <div class="border-l-4 border-amber-500 bg-amber-50 p-3 text-xs text-amber-900">
-                    QA đã phân bổ lô thành phẩm cho đơn. Đơn sẽ chuyển sang đóng gói khi Kho nhập đủ số lượng đã giữ.
+                    Đơn chờ Kho nhập đủ số lượng lô thành phẩm trước khi đóng gói.
                 </div>
             @endif
 
@@ -232,9 +231,6 @@
                                         {{ optional($item->ppcb)->ma ?? $item->ppcb_ma ?? '-' }}
                                     </td>
                                     <td class="py-2.5 px-3 border-r border-slate-200 text-xs">
-                                        @if($order->status === 'pending_qa')
-                                            <span class="px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-none text-xs font-semibold uppercase">Chờ QA chốt lô</span>
-                                        @endif
                                         @php($lotAllocations = $item->lotAllocations->whereIn('status', ['reserved', 'shipped']))
                                         @forelse($lotAllocations as $allocation)
                                             @php($lot = $allocation->supplierBatch ?? $allocation->finishedBatch)
@@ -246,9 +242,7 @@
                                                 </div>
                                             </div>
                                         @empty
-                                            @if($order->status !== 'pending_qa')
-                                                <span class="text-slate-400">Chưa phân lô</span>
-                                            @endif
+                                            <span class="text-slate-400">Chưa phân lô</span>
                                         @endforelse
                                     </td>
                                     <td class="py-2.5 px-3 border-r border-slate-200">

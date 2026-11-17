@@ -82,7 +82,10 @@ class ProductionMonthlyPlanTest extends TestCase
             ->get(route('production-monthly-plans.index'))
             ->assertOk()
             ->assertSee('Kế hoạch sản xuất tháng')
-            ->assertSee($finishedProduct->name);
+            ->assertSee($finishedProduct->name)
+            ->assertSee('class="plan-classification', false)
+            ->assertSee('value="VT"', false)
+            ->assertSee('data-classification="VT"', false);
         $this->actingAs($planner)
             ->post(route('production-monthly-plans.submit', $plan))
             ->assertRedirect()
@@ -126,6 +129,9 @@ class ProductionMonthlyPlanTest extends TestCase
             ->assertOk()
             ->assertDontSee('name="finished_batch_id"', false)
             ->assertSee('MONTHLY-FIN-LOT-1');
+        $this->actingAs($production)
+            ->post(route('production-orders.start-production', $productionOrder))
+            ->assertSessionHas('success');
         $this->actingAs($production)
             ->post(route('production-orders.report-output', $productionOrder), [
                 'actual_quantity' => 5,

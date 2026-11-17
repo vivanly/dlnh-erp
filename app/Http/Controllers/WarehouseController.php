@@ -153,28 +153,63 @@ class WarehouseController extends Controller
                     throw new DomainException('Vui lòng xác nhận số lượng cho tất cả sản phẩm trong đơn.');
                 }
 
+                $hasShortage = false;
                 foreach ($items as $item) {
-                    $lots = $this->availableSalesLots($lockedOrder, $item);
+                    $lots = $this->availableSalesLots($lockedOrder, $item, true);
+                    $availableQuantity = collect($lots)->sum('available_quantity');
+                    $confirmedQuantity = round((float) $validated['confirmed_quantities'][$item->id], 4);
+                    if ($confirmedQuantity > (float) $item->quantity + 0.0001) {
+                        throw new DomainException("Số lượng Kho xác nhận của {$item->product->name} không được vượt số lượng đơn ({$item->quantity}).");
+                    }
+                    if ($confirmedQuantity > $availableQuantity + 0.0001) {
+                        throw new DomainException("Số lượng Kho xác nhận của {$item->product->name} vượt tồn khả dụng ({$availableQuantity}).");
+                    }
+
+                    $remainingToReserve = $confirmedQuantity;
+                    foreach ($lots as $lot) {
+                        if ($remainingToReserve <= 0.0001) {
+                            break;
+                        }
+                        $reserveQuantity = min($remainingToReserve, (float) $lot['available_quantity']);
+                        if ($reserveQuantity <= 0.0001) {
+                            continue;
+                        }
+                        SalesOrderLotAllocation::create([
+                            'order_item_id' => $item->id,
+                            'supplier_batch_id' => $lot['allocation_column'] === 'supplier_batch_id' ? $lot['id'] : null,
+                            'production_finished_batch_id' => $lot['allocation_column'] === 'production_finished_batch_id' ? $lot['id'] : null,
+                            'reserved_quantity' => $reserveQuantity,
+                            'status' => 'reserved',
+                        ]);
+                        $remainingToReserve -= $reserveQuantity;
+                    }
+
+                    $shortage = max(0, (float) $item->quantity - $confirmedQuantity);
+                    $hasShortage = $hasShortage || $shortage > 0.0001;
                     $item->update([
-                        'warehouse_stock_available_quantity' => collect($lots)->sum('available_quantity'),
-                        'warehouse_stock_confirmed_quantity' => $validated['confirmed_quantities'][$item->id],
+                        'warehouse_stock_available_quantity' => $availableQuantity,
+                        'warehouse_stock_confirmed_quantity' => $confirmedQuantity,
                     ]);
                 }
 
                 $lockedOrder->update([
-                    'status' => 'pending_qa',
+                    'status' => $hasShortage ? 'pending_planning' : 'ready_to_ship',
                     'warehouse_stock_checked_at' => now(),
                     'warehouse_stock_checked_by' => auth()->id(),
                 ]);
+
+                if (! $hasShortage) {
+                    $lockedOrder->update(['qa_confirmed_at' => now()]);
+                }
             });
         } catch (DomainException $exception) {
             return back()->with('error', $exception->getMessage());
         }
 
-        return redirect()->route('warehouse.sales-order-stock-checks')->with('success', 'Đã xác nhận kiểm tồn; đơn được chuyển sang QA chốt lô. Tồn kho chưa bị giữ hoặc trừ.');
+        return redirect()->route('warehouse.sales-order-stock-checks')->with('success', 'Đã xác nhận tồn theo FIFO và giữ lượng khả dụng. Đơn đủ hàng chờ Kho đóng/gửi; đơn thiếu được chuyển sang Kế hoạch.');
     }
 
-    private function availableSalesLots(Order $order, OrderItem $item): array
+    private function availableSalesLots(Order $order, OrderItem $item, bool $lockLots = false): array
     {
         $definitions = $order->order_type === 'DL'
             ? [
@@ -194,7 +229,8 @@ class WarehouseController extends Controller
                 ->where(function ($query) {
                     $query->whereNull('exp_date')->orWhereDate('exp_date', '>=', today());
                 })
-                ->orderBy('exp_date')
+                ->orderBy('id')
+                ->when($lockLots, fn ($query) => $query->lockForUpdate())
                 ->get();
 
             foreach ($batches as $batch) {
@@ -216,14 +252,22 @@ class WarehouseController extends Controller
                 }
 
                 $rows[] = [
+                    'id' => (int) $batch->id,
+                    'allocation_column' => $allocationColumn,
                     'type' => $typeLabel,
                     'code' => $batch->{$codeColumn},
                     'exp_date' => $batch->exp_date,
+                    'fifo_timestamp' => ($batch instanceof ProductionFinishedBatch
+                        ? ($batch->warehouse_received_at ?? $batch->created_at)
+                        : $batch->created_at)?->getTimestamp() ?? 0,
                     'current_quantity' => (float) $batch->current_quantity,
                     'available_quantity' => $available,
                 ];
             }
         }
+
+        usort($rows, fn (array $left, array $right) => ($left['fifo_timestamp'] <=> $right['fifo_timestamp'])
+            ?: ($left['id'] <=> $right['id']));
 
         return $rows;
     }
@@ -584,7 +628,8 @@ class WarehouseController extends Controller
                     0,
                     (float) $allocation->reserved_quantity - (float) $allocation->shipped_quantity,
                 ));
-                if ($allocatedQuantity + 0.0001 < (float) $item->quantity) {
+                $remainingDemand = max(0, (float) $item->quantity - (float) $item->actual_quantity);
+                if ($allocatedQuantity + 0.0001 < $remainingDemand) {
                     return false;
                 }
 
@@ -627,13 +672,14 @@ class WarehouseController extends Controller
         $search = trim((string) $request->input('search'));
         $selectedItemId = $request->integer('item_id') ?: null;
 
-        $allowedTypes = ['raw_material', 'accessory', 'excipient', 'packaging'];
+        $allowedTypes = ['raw_material', 'ingredient', 'accessory', 'excipient', 'packaging'];
         $validated = $request->validate([
             'type' => ['nullable', 'in:' . implode(',', $allowedTypes)],
         ]);
         $type = $validated['type'] ?? null;
         $rows = collect([
             'raw_material' => \App\Models\RawMaterial::class,
+            'ingredient' => \App\Models\Ingredient::class,
             'accessory' => \App\Models\Accessory::class,
             'excipient' => \App\Models\Excipient::class,
             'packaging' => \App\Models\PackagingMaterial::class,
@@ -649,7 +695,7 @@ class WarehouseController extends Controller
                         $in = (float) \App\Models\MaterialStockMovement::where('material_type', $materialType)->where('material_id', $item->id)->where('direction', 'in')->sum('quantity');
                         $out = (float) \App\Models\MaterialStockMovement::where('material_type', $materialType)->where('material_id', $item->id)->where('direction', 'out')->sum('quantity');
 
-                        $lots = $materialType === 'raw_material' ? \App\Models\MaterialStockMovement::lotBalances($materialType, $item->id, false) : collect();
+                        $lots = \App\Models\MaterialStockMovement::lotBalances($materialType, $item->id, false);
 
                         return (object) ['type' => $materialType, 'item' => $item, 'in' => $in, 'out' => $out, 'balance' => $in - $out, 'lots' => $lots];
                     });
@@ -668,7 +714,7 @@ class WarehouseController extends Controller
         $this->ensureWarehouseViewAccess();
 
         $productionOrders = \App\Models\ProductionOrder::with(['order.customer', 'product', 'finishedBatches'])
-            ->whereIn('status', ['released', 'materials_issued', 'production_reported'])
+            ->whereIn('status', ['released', 'materials_issued', 'production_started', 'production_reported'])
             ->latest()
             ->paginate(20);
 

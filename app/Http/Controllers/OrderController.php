@@ -5,12 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\Customer;
 use App\Models\Ppcb;
-use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionMonthlyPlan;
 use Carbon\Carbon;
-use App\Models\ProductionMaterialLot;
-use App\Models\SalesOrderLotAllocation;
-use App\Models\SupplierBatch;
 use App\Services\SalesOrderPlanner;
 use DomainException;
 use Illuminate\Http\Request;
@@ -184,30 +180,6 @@ class OrderController extends Controller
         return back()->with('success', 'Đã từ chối đơn bán và lưu lý do.');
     }
 
-    public function qaBatchQueue(Request $request)
-    {
-        $user = auth()->user();
-        abort_unless($user, 403);
-
-        $orders = Order::with(['customer', 'items.product', 'items.ppcb', 'warehouseStockCheckedBy'])
-            ->where('status', 'pending_qa')
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = trim($request->input('search'));
-                $query->where(function ($subQuery) use ($search) {
-                    $subQuery->where('order_code', 'like', "%{$search}%")
-                        ->orWhereHas('customer', fn ($customerQuery) => $customerQuery->where('name', 'like', "%{$search}%"))
-                        ->orWhereHas('items.product', fn ($productQuery) => $productQuery->where('name', 'like', "%{$search}%"));
-                });
-            })
-            ->latest()
-            ->paginate($this->perPage($request))
-            ->withQueryString();
-
-        $canManageQaLots = $user && ((method_exists($user, 'isQADepartment') && $user->isQADepartment()) || $this->isItOrAdmin($user));
-
-        return view('qa.order-batches', compact('orders', 'canManageQaLots'));
-    }
-
     public function productionPlanningIndex(Request $request, SalesOrderPlanner $planner)
     {
         $user = auth()->user();
@@ -219,7 +191,6 @@ class OrderController extends Controller
 
         $orders = Order::with(['customer', 'items.product', 'items.lotAllocations'])
             ->where('status', 'pending_planning')
-            ->whereNotNull('qa_confirmed_at')
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = trim($request->input('search'));
                 $query->where(function ($subQuery) use ($search) {
@@ -235,7 +206,10 @@ class OrderController extends Controller
             foreach ($order->items as $item) {
                 $selectedQuantity = $planner->availableCoverage($item);
                 $item->setAttribute('qa_selected_quantity', $selectedQuantity);
-                $item->setAttribute('production_shortage', max(0, (float) $item->quantity - $selectedQuantity));
+                $item->setAttribute('production_shortage', max(
+                    0,
+                    (float) $item->quantity - (float) $item->actual_quantity - $selectedQuantity,
+                ));
             }
         });
 
@@ -312,11 +286,13 @@ class OrderController extends Controller
                 if ($lockedOrder->status !== 'pending_production_approval' || $lockedOrder->productionOrders->isEmpty()) {
                     throw new DomainException('Kế hoạch không còn chờ giám đốc duyệt hoặc chưa có lệnh sản xuất.');
                 }
-                if ($lockedOrder->productionOrders->contains(fn ($productionOrder) => $productionOrder->status !== 'pending_director_approval')) {
-                    throw new DomainException('Các lệnh sản xuất trong kế hoạch đã thay đổi; không thể duyệt.');
+                $ordersToApprove = $lockedOrder->productionOrders
+                    ->where('status', 'pending_director_approval');
+                if ($ordersToApprove->isEmpty()) {
+                    throw new DomainException('Không có lệnh sản xuất mới đang chờ duyệt.');
                 }
 
-                foreach ($lockedOrder->productionOrders as $productionOrder) {
+                foreach ($ordersToApprove as $productionOrder) {
                     $productionOrder->update(['status' => 'released']);
                 }
                 $lockedOrder->update([
@@ -516,11 +492,9 @@ class OrderController extends Controller
             'productionOrders.finishedBatches',
         ])->findOrFail($id);
         $canManageLockedOrders = $this->isItOrAdmin(auth()->user());
-        $user = auth()->user();
-        $canManageOrderLots = $user && method_exists($user, 'isQADepartment') && $user->isQADepartment();
         $orderProgress = $progressTimeline->build($order);
 
-        return view('orders.show', compact('order', 'canManageLockedOrders', 'canManageOrderLots', 'orderProgress'));
+        return view('orders.show', compact('order', 'canManageLockedOrders', 'orderProgress'));
     }
 
     public function sendToProduction(Request $request, Order $order, SalesOrderPlanner $planner)
@@ -536,19 +510,26 @@ class OrderController extends Controller
         $validated = $request->validate([
             'planned_quantities' => 'nullable|array',
             'planned_quantities.*' => 'nullable|numeric|min:0',
+            'selected_item_ids' => 'nullable|array|min:1',
+            'selected_item_ids.*' => 'required|integer|exists:order_items,id',
         ]);
 
         try {
-            $hasProductionShortage = $planner->plan($order, $user->id, $validated['planned_quantities'] ?? []);
+            $hasProductionShortage = $planner->plan(
+                $order,
+                $user->id,
+                $validated['planned_quantities'] ?? [],
+                $validated['selected_item_ids'] ?? null
+            );
         } catch (DomainException $exception) {
             return back()->with('error', $exception->getMessage());
         }
 
         $order->refresh();
         $message = match (true) {
-            $hasProductionShortage => 'Đã kiểm tồn theo các lô QA chọn và lập lệnh sản xuất cho phần còn thiếu.',
-            $order->status === 'waiting_finished_goods_receipt' => 'QA đã phân bổ lô sản xuất vào đơn; đơn chờ Kho nhập đủ số lượng lô trước khi đóng gói.',
-            default => 'Các lô QA chọn đã đủ số lượng; đơn sẵn sàng chuyển Kho đóng hàng.',
+            $hasProductionShortage => 'Đã kiểm tồn theo FIFO và lập lệnh sản xuất cho phần còn thiếu.',
+            $order->status === 'waiting_finished_goods_receipt' => 'Đơn chờ Kho nhập đủ số lượng lô thành phẩm trước khi đóng gói.',
+            default => 'Đã kiểm tồn theo FIFO; đơn sẵn sàng chuyển Kho đóng hàng.',
         };
 
         return back()->with('success', $message);
@@ -563,16 +544,14 @@ class OrderController extends Controller
         if ($order->order_type === 'DLT') {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn dược liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
         }
-        if ($order->isEditLockedAfterQa()) {
-            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã được QA chốt số lô, không thể chỉnh sửa.');
+        if ($order->isEditLockedAfterProgress()) {
+            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã chuyển sang công đoạn tiếp theo, không thể chỉnh sửa.');
         }
         $user = auth()->user();
-        $isQA = $user && method_exists($user, 'isQADepartment') && $user->isQADepartment();
         $isSales = $user && method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment();
-        $canManageQaLots = ($isQA || $this->isItOrAdmin($user)) && $order->status === 'pending_qa';
         $canEditDraft = ($isSales || $this->isItOrAdmin($user))
             && in_array($order->status, ['draft', 'sales_rejected'], true);
-        abort_unless($canManageQaLots || $canEditDraft || $this->isItOrAdmin($user), 403);
+        abort_unless($canEditDraft || $this->isItOrAdmin($user), 403);
 
         if (in_array($order->status, ['pending_sales_approval', 'pending_warehouse_check', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true) && ! $this->isItOrAdmin($user)) {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã gửi sản xuất, chỉ IT mới được chỉnh sửa.');
@@ -580,85 +559,8 @@ class OrderController extends Controller
 
         // Lấy danh sách PPCB/YCBC để truyền sang form
         $ppcbList = Ppcb::all();
-        $finishedBatchesByProduct = ProductionFinishedBatch::query()
-            ->whereIn('product_id', $order->items->pluck('product_id'))
-            ->where('status', 'active')
-            ->where('current_quantity', '>', 0)
-            ->get()
-            ->groupBy('product_id');
-        $qaLotsByProduct = [];
-        if ($canManageQaLots) {
-            $lotSources = $order->order_type === 'DL'
-                ? [
-                    'supplier' => [SupplierBatch::class, 'supplier_batch_id', 'batch_number'],
-                    'finished' => [ProductionFinishedBatch::class, 'production_finished_batch_id', 'batch_number'],
-                ]
-                : ['finished' => [ProductionFinishedBatch::class, 'production_finished_batch_id', 'batch_number']];
 
-            foreach ($order->items as $item) {
-                $qaLotsByProduct[$item->id] = collect();
-                foreach ($lotSources as $lotType => [$model, $allocationColumn, $codeColumn]) {
-                    $batches = $model::query()
-                        ->when($model === ProductionFinishedBatch::class, fn ($query) => $query->with('ppcb'))
-                        ->where('product_id', $item->product_id)
-                        ->when($model === ProductionFinishedBatch::class, fn ($query) => $query->where(function ($query) {
-                            $query->where(function ($activeQuery) {
-                                $activeQuery->where('status', 'active')->where('current_quantity', '>', 0);
-                            })->orWhere(function ($pendingQuery) {
-                                $pendingQuery->where('status', 'pending_qa')
-                                    ->where('pending_warehouse_quantity', '>', 0);
-                            });
-                        }), fn ($query) => $query->where('status', 'active')->where('current_quantity', '>', 0))
-                        ->when($model === ProductionFinishedBatch::class, fn ($query) => $query->where(function ($qcQuery) {
-                            $qcQuery->whereNull('qc_result')->orWhere('qc_result', '!=', 'failed');
-                        }))
-                        ->where(function ($query) {
-                            $query->whereNull('exp_date')->orWhereDate('exp_date', '>=', today());
-                        })
-                        ->orderBy('exp_date')
-                        ->limit(50)
-                        ->get();
-
-                    foreach ($batches as $batch) {
-                        $lotQuantity = (float) $batch->current_quantity
-                            + ($batch instanceof ProductionFinishedBatch ? (float) $batch->pending_warehouse_quantity : 0);
-                        $reservedQuantity = $item->lotAllocations
-                            ->filter(fn ($allocation) => $allocation->status === 'reserved'
-                                && (int) $allocation->{$allocationColumn} === (int) $batch->id)
-                            ->sum(fn ($allocation) => (float) $allocation->reserved_quantity);
-                        $otherSalesReservations = (float) SalesOrderLotAllocation::query()
-                            ->where($allocationColumn, $batch->id)
-                            ->where('order_item_id', '!=', $item->id)
-                            ->where('status', 'reserved')
-                            ->selectRaw('COALESCE(SUM(reserved_quantity - shipped_quantity), 0) as reserved_quantity')
-                            ->value('reserved_quantity');
-                        $productionReservations = $allocationColumn === 'supplier_batch_id'
-                            ? (float) ProductionMaterialLot::query()
-                                ->where($allocationColumn, $batch->id)
-                                ->whereHas('material.productionOrder', fn ($query) => $query->whereIn('status', ['planned', 'materials_assigned', 'released']))
-                                ->selectRaw('COALESCE(SUM(allocated_quantity - issued_quantity), 0) as reserved_quantity')
-                                ->value('reserved_quantity')
-                            : 0.0;
-                        $qaLotsByProduct[$item->id]->push([
-                            'lot' => $lotType.':'.$batch->id,
-                            'code' => $batch->{$codeColumn},
-                            'ppcb' => $batch instanceof ProductionFinishedBatch
-                                ? ($batch->ppcb ? $batch->ppcb->ma.' · '.$batch->ppcb->ten_ppcb : 'Chưa khai báo')
-                                : null,
-                            'edit_url' => $batch instanceof ProductionFinishedBatch
-                                ? route('qa.internal-lots.edit', $batch)
-                                : null,
-                            'current_quantity' => $lotQuantity,
-                            'available_quantity' => max(0, $lotQuantity - $otherSalesReservations - $productionReservations),
-                            'pending_quantity' => $batch instanceof ProductionFinishedBatch ? (float) $batch->pending_warehouse_quantity : 0,
-                            'reserved_quantity' => $reservedQuantity,
-                        ]);
-                    }
-                }
-            }
-        }
-
-        return view('orders.edit', compact('order', 'ppcbList', 'finishedBatchesByProduct', 'canManageQaLots', 'qaLotsByProduct'));
+        return view('orders.edit', compact('order', 'ppcbList'));
     }
 
     /**
@@ -670,19 +572,17 @@ class OrderController extends Controller
         if ($order->order_type === 'DLT') {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn dược liệu thô chưa hỗ trợ chỉnh sửa; hãy xóa và tạo lại đơn.');
         }
-        if ($order->isEditLockedAfterQa()) {
-            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã được QA chốt số lô, không thể chỉnh sửa.');
+        if ($order->isEditLockedAfterProgress()) {
+            return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã chuyển sang công đoạn tiếp theo, không thể chỉnh sửa.');
         }
         $user = auth()->user();
 
         $isItOrAdmin = $this->isItOrAdmin($user);
-        $isQA = $user && method_exists($user, 'isQADepartment') && $user->isQADepartment();
         $isSales = $user && method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment();
-        $canManageQaLots = ($isQA || $isItOrAdmin) && $order->status === 'pending_qa';
         $canEditDraft = ($isSales || $isItOrAdmin) && in_array($order->status, ['draft', 'sales_rejected'], true);
-        abort_unless($canManageQaLots || $canEditDraft || $isItOrAdmin, 403);
+        abort_unless($canEditDraft || $isItOrAdmin, 403);
 
-        if (in_array($order->status, ['pending_sales_approval', 'pending_warehouse_check', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true) && ! $isItOrAdmin && ! $canManageQaLots) {
+        if (in_array($order->status, ['pending_sales_approval', 'pending_warehouse_check', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true) && ! $isItOrAdmin) {
             return redirect()->route('orders.show', $order->id)->with('error', 'Đơn đã gửi sản xuất, chỉ IT mới được chỉnh sửa.');
         }
 
@@ -690,60 +590,8 @@ class OrderController extends Controller
             && $user
             && (method_exists($user, 'isSalesDepartment') && $user->isSalesDepartment());
 
-        $canManageBatch = $isItOrAdmin || $isQA;
-
         DB::beginTransaction();
         try {
-            // ==========================================
-            // LUỒNG 1: TÀI KHOẢN LÀ QA (Chỉ cập nhật số lô)
-            // ==========================================
-            if ($canManageQaLots) {
-                $validatedQA = $request->validate([
-                    'items' => 'nullable|array',
-                    'items.*.id' => 'required|exists:order_items,id',
-                    'items.*.ppcb_id' => 'nullable|exists:ppcb,id',
-                    'items.*.allocations' => 'nullable|array',
-                    'items.*.allocations.*.lot' => 'required|string',
-                ]);
-
-                if (! $canManageQaLots) {
-                    throw new DomainException('QA chỉ được chốt lô khi đơn đang chờ QA.');
-                }
-
-                $lockedOrder = Order::with('items.lotAllocations')
-                    ->whereKey($order->id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
-                if ($lockedOrder->status !== 'pending_qa') {
-                    throw new DomainException('Đơn hàng không còn chờ QA chốt lô.');
-                }
-                if (count($validatedQA['items'] ?? []) !== $lockedOrder->items->count()) {
-                    throw new DomainException('QA cần chốt số lô cho tất cả dòng sản phẩm.');
-                }
-
-                foreach ($lockedOrder->items as $item) {
-                    $itemData = collect($validatedQA['items'])->firstWhere('id', $item->id);
-                    if (! $itemData) {
-                        throw new DomainException('Danh sách sản phẩm cần QA chốt lô không hợp lệ.');
-                    }
-
-                    if (array_key_exists('ppcb_id', $itemData)) {
-                        $item->update(['ppcb_id' => $itemData['ppcb_id'] ?: null]);
-                    }
-
-                    $this->assignQaSalesOrderLots($lockedOrder, $item, $itemData['allocations'] ?? []);
-                }
-
-                $lockedOrder->update([
-                    'qa_confirmed_at' => now(),
-                    'status' => 'pending_planning',
-                ]);
-                DB::commit();
-
-                return redirect()->route('orders.show', $order->id)
-                    ->with('success', 'QA đã chốt lô xuất bán cho toàn bộ sản phẩm.');
-            }
-
             // ==========================================
             // LUỒNG 2: ADMIN / IT / SALES (Cập nhật toàn bộ)
             // ==========================================
@@ -765,7 +613,7 @@ class OrderController extends Controller
                 'province_city' => 'required|string',
                 'contact_person' => 'nullable|string|max:255',
                 'notes' => 'nullable|string',
-                'status' => 'required|string',
+                'status' => 'required|string|not_in:pending_qa',
 
                 'items' => 'nullable|array',
                 'items.*.id' => 'nullable|exists:order_items,id',
@@ -838,120 +686,6 @@ class OrderController extends Controller
 
             return back()->withInput()->with('error', 'Có lỗi xảy ra: '.$e->getMessage());
         }
-    }
-
-    private function assignQaSalesOrderLots(Order $order, $item, array $allocationRows): void
-    {
-        if ((float) $item->actual_quantity > 0) {
-            throw new DomainException("Không thể đổi lô {$item->product->name} sau khi đã giao một phần.");
-        }
-
-        $definitions = $order->order_type === 'DL'
-            ? [
-                'supplier' => [SupplierBatch::class, 'supplier_batch_id'],
-                'finished' => [ProductionFinishedBatch::class, 'production_finished_batch_id'],
-            ]
-            : ['finished' => [ProductionFinishedBatch::class, 'production_finished_batch_id']];
-        $newAllocations = [];
-        $reservedByLot = [];
-        $allocatedQuantity = 0.0;
-        $remainingDemand = (float) $item->quantity;
-
-        foreach ($allocationRows as $row) {
-            if ($remainingDemand <= 0.0001) {
-                continue;
-            }
-
-            [$type, $id] = array_pad(explode(':', $row['lot'], 2), 2, null);
-            if (! isset($definitions[$type]) || ! ctype_digit((string) $id)) {
-                throw new DomainException("Số lô chọn cho {$item->product->name} không hợp lệ.");
-            }
-
-            [$model, $allocationColumn] = $definitions[$type];
-            $batchQuery = $model::query()
-                ->whereKey($id)
-                ->where('product_id', $item->product_id)
-                ->when($model === ProductionFinishedBatch::class, fn ($query) => $query->where(function ($query) {
-                    $query->where('status', 'active')
-                        ->orWhere(function ($pendingQuery) {
-                            $pendingQuery->where('status', 'pending_qa')
-                                ->where('pending_warehouse_quantity', '>', 0);
-                        });
-                }), fn ($query) => $query->where('status', 'active'))
-                ->where(function ($query) {
-                    $query->whereNull('exp_date')->orWhereDate('exp_date', '>=', today());
-                })
-                ->when($model === ProductionFinishedBatch::class, fn ($query) => $query->where(function ($qcQuery) {
-                    $qcQuery->whereNull('qc_result')->orWhere('qc_result', '!=', 'failed');
-                }))
-                ->lockForUpdate();
-            $batch = $batchQuery->first();
-
-            if (! $batch) {
-                throw new DomainException("Lô chọn cho {$item->product->name} không còn hoạt động, đã hết hạn hoặc không đúng sản phẩm.");
-            }
-
-            if ($batch instanceof ProductionFinishedBatch
-                && (int) ($batch->ppcb_id ?? 0) !== (int) ($item->ppcb_id ?? 0)) {
-                throw new DomainException(
-                    "PPCB đơn hàng của {$item->product->name} không khớp PPCB lô {$batch->batch_number}. "
-                    .'Hãy sửa PPCB đơn hàng hoặc PPCB lô nội bộ trước khi chốt.'
-                );
-            }
-
-            $key = $type.':'.$batch->id;
-            $salesReservations = (float) SalesOrderLotAllocation::query()
-                ->where($allocationColumn, $batch->id)
-                ->where('order_item_id', '!=', $item->id)
-                ->where('status', 'reserved')
-                ->selectRaw('COALESCE(SUM(reserved_quantity - shipped_quantity), 0) as reserved_quantity')
-                ->value('reserved_quantity');
-
-            $productionReservations = $allocationColumn === 'supplier_batch_id'
-                ? (float) ProductionMaterialLot::query()
-                    ->where($allocationColumn, $batch->id)
-                    ->whereHas('material.productionOrder', fn ($query) => $query->whereIn('status', ['planned', 'materials_assigned', 'released']))
-                    ->selectRaw('COALESCE(SUM(allocated_quantity - issued_quantity), 0) as reserved_quantity')
-                    ->value('reserved_quantity')
-                : 0.0;
-
-            $batchQuantity = (float) $batch->current_quantity
-                + ($batch instanceof ProductionFinishedBatch ? (float) $batch->pending_warehouse_quantity : 0);
-            $availableQuantity = max(0, $batchQuantity - $salesReservations - $productionReservations);
-            $quantity = min($remainingDemand, max(0, $availableQuantity - ($reservedByLot[$key] ?? 0)));
-            if ($quantity <= 0.0001) {
-                throw new DomainException("Lô {$batch->batch_number} không còn lượng khả dụng để phân bổ.");
-            }
-            $reservedByLot[$key] = ($reservedByLot[$key] ?? 0) + $quantity;
-            if ($reservedByLot[$key] > $availableQuantity + 0.0001) {
-                throw new DomainException("Lô {$batch->batch_number} không đủ tồn khả dụng cho {$item->product->name}.");
-            }
-
-            $newAllocations[] = [
-                'supplier_batch_id' => $type === 'supplier' ? $batch->id : null,
-                'production_finished_batch_id' => $type === 'finished' ? $batch->id : null,
-                'reserved_quantity' => $quantity,
-                'status' => 'reserved',
-            ];
-            $allocatedQuantity += $quantity;
-            $remainingDemand -= $quantity;
-        }
-
-        if ($allocatedQuantity - (float) $item->quantity > 0.0001) {
-            throw new DomainException("Tổng số lượng lô đã chọn cho {$item->product->name} không được vượt số lượng đơn {$item->quantity}.");
-        }
-
-        if ($item->lotAllocations()->where('status', 'reserved')->whereHas('labelPrints')->exists()) {
-            throw new DomainException("Đã in nhãn cho {$item->product->name}; không thể đổi lô để bảo toàn lịch sử tem.");
-        }
-
-        $item->lotAllocations()->where('status', 'reserved')->update([
-            'status' => 'replaced',
-        ]);
-        foreach ($newAllocations as $allocation) {
-            $item->lotAllocations()->create($allocation);
-        }
-
     }
 
     /**

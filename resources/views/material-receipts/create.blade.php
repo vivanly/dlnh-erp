@@ -11,11 +11,37 @@
     <div class="py-2">
         <div class="max-w-none px-2 space-y-3">
             @if(session('error'))<div class="p-2 bg-rose-50 border border-rose-300 text-rose-700 text-xs font-semibold">{{ session('error') }}</div>@endif
+            @if($errors->any())<div class="p-2 bg-rose-50 border border-rose-300 text-rose-700 text-xs font-semibold">{{ $errors->first() }}</div>@endif
             <form action="{{ route('material-receipts.store', $purchaseOrder) }}" method="POST" class="space-y-3">
                 @csrf
+                <div class="bg-white border border-slate-300 p-3">
+                    <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-2">Kiểm tra sơ bộ và tiếp nhận tạm</h3>
+                    <p class="mb-3 text-[11px] text-slate-600">Chọn tài khoản QA và QC đã cùng kiểm tra hàng đến. Số lượng nhận ở bước này chỉ vào khu vực tạm, chưa cộng vào tồn sử dụng.</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label class="text-xs font-semibold text-slate-700">Người QA kiểm tra sơ bộ
+                            <select name="preliminary_qa_by" required class="mt-1 w-full text-xs border-slate-300">
+                                <option value="">-- Chọn tài khoản QA --</option>
+                                @foreach($preliminaryQaUsers as $user)
+                                    <option value="{{ $user->id }}" @selected(old('preliminary_qa_by') == $user->id)>{{ $user->name }}{{ $user->employee_code ? ' · '.$user->employee_code : '' }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="text-xs font-semibold text-slate-700">Người QC kiểm tra sơ bộ
+                            <select name="preliminary_qc_by" required class="mt-1 w-full text-xs border-slate-300">
+                                <option value="">-- Chọn tài khoản QC --</option>
+                                @foreach($preliminaryQcUsers as $user)
+                                    <option value="{{ $user->id }}" @selected(old('preliminary_qc_by') == $user->id)>{{ $user->name }}{{ $user->employee_code ? ' · '.$user->employee_code : '' }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="text-xs font-semibold text-slate-700 sm:col-span-2">Ghi chú kiểm tra sơ bộ
+                            <textarea name="preliminary_note" rows="2" maxlength="2000" class="mt-1 w-full text-xs border-slate-300">{{ old('preliminary_note') }}</textarea>
+                        </label>
+                    </div>
+                </div>
                 <div class="bg-white border border-slate-300 overflow-x-auto">
                     <div class="p-3 bg-slate-100 border-b border-slate-300">
-                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Hàng chờ QC xác nhận đạt mới được cộng vào tồn (dược liệu thô cần QA cập nhật số lô NCC/COA trước)</h3>
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">QA cập nhật COA, sau đó QC kiểm tra; chỉ hàng đạt mới lập phiếu nhập kho</h3>
                     </div>
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
@@ -23,9 +49,9 @@
                                 <th class="p-2.5 border-r">Hàng hóa</th>
                                 <th class="p-2.5 border-r text-center">SL theo PO</th>
                                 <th class="p-2.5 border-r text-center">Còn xử lý</th>
-                                <th class="p-2.5 border-r text-center w-28">SL nhập kho</th>
-                                <th class="p-2.5 border-r text-center w-28">SL trả lại</th>
-                                <th class="p-2.5">Ghi chú</th>
+                                <th class="p-2.5 border-r text-center w-28">SL tiếp nhận tạm</th>
+                                <th class="p-2.5 border-r text-center w-28">SL trả sơ bộ</th>
+                                <th class="p-2.5">Ghi chú sơ bộ</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200">
@@ -44,7 +70,7 @@
                     </table>
                 </div>
                 <div class="flex justify-end">
-                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition">Lưu nhập kho</button>
+                    <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider transition">Lập phiếu tiếp nhận tạm</button>
                 </div>
             </form>
         </div>

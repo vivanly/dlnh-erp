@@ -46,6 +46,7 @@ class SupplierReturnController extends Controller
         $items = PurchaseOrderItem::with([
             'purchaseOrder.supplier',
             'rawMaterial',
+            'ingredient',
             'accessory',
             'excipient',
             'packagingMaterial',
@@ -57,6 +58,7 @@ class SupplierReturnController extends Controller
                 $query->where(fn ($subQuery) => $subQuery
                     ->whereHas('purchaseOrder', fn ($po) => $po->where('po_number', 'like', "%{$search}%"))
                     ->orWhereHas('rawMaterial', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
+                    ->orWhereHas('ingredient', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
                     ->orWhereHas('accessory', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
                     ->orWhereHas('excipient', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
                     ->orWhereHas('packagingMaterial', fn ($material) => $material->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")));
@@ -91,8 +93,8 @@ class SupplierReturnController extends Controller
             'material_lot_id' => ['required', 'integer', 'exists:material_lots,id'],
             'quantity' => ['required', 'numeric', 'min:0.0001'],
             'reason' => ['required', 'string', 'max:1000'],
-            'qc_test_report' => ['required', 'string', 'max:255'],
-            'qc_date' => ['required', 'date'],
+            'qc_test_report' => ['nullable', 'string', 'max:255'],
+            'qc_date' => ['nullable', 'date'],
         ]);
 
         try {
@@ -127,8 +129,8 @@ class SupplierReturnController extends Controller
                     'quantity' => $quantity,
                     'unit' => $item->unit ?: 'kg',
                     'reason' => trim($validated['reason']),
-                    'qc_test_report' => trim($validated['qc_test_report']),
-                    'qc_date' => $validated['qc_date'],
+                    'qc_test_report' => isset($validated['qc_test_report']) ? trim($validated['qc_test_report']) : null,
+                    'qc_date' => $validated['qc_date'] ?? null,
                     'status' => 'pending_dispatch',
                     'created_by' => auth()->id(),
                 ]);

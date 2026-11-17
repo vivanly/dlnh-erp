@@ -33,7 +33,8 @@ class PurchaseOrderController extends Controller
     {
         $controller = match ($request->get('type')) {
             'DLT', 'raw_material' => app(RawMaterialController::class),
-            'NL', 'PL', 'ingredient', 'accessory' => app(AccessoryController::class),
+            'NL', 'ingredient' => app(IngredientController::class),
+            'PL', 'accessory' => app(AccessoryController::class),
             'TD', 'excipient' => app(ExcipientController::class),
             'BB', 'packaging' => app(PackagingMaterialController::class),
             default => abort(422, 'Loại hàng đặt mua không hợp lệ.'),
@@ -49,6 +50,7 @@ class PurchaseOrderController extends Controller
             'user',
             'items.product',
             'items.rawMaterial',
+            'items.ingredient',
             'items.accessory',
             'items.excipient',
             'items.packagingMaterial',
@@ -208,6 +210,7 @@ class PurchaseOrderController extends Controller
             'supplier',
             'items.product',
             'items.rawMaterial',
+            'items.ingredient',
             'items.accessory',
             'items.excipient',
             'items.packagingMaterial',
@@ -424,6 +427,7 @@ class PurchaseOrderController extends Controller
             'user', 
             'items.product',
             'items.rawMaterial',
+            'items.ingredient',
             'items.accessory', 
             'goodsReceipts.items'
         ])->findOrFail($id);

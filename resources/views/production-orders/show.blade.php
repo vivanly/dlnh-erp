@@ -39,7 +39,8 @@
                 Trạng thái lệnh: <strong>{{ [
                     'pending_director_approval' => 'Chờ duyệt',
                     'released' => 'Đã duyệt · Chờ QA gán lô hoặc Kho xuất nguyên liệu',
-                    'materials_issued' => 'Đã xuất nguyên liệu · Đang sản xuất',
+                    'materials_issued' => 'Đã xuất nguyên liệu · Chờ Sản xuất bắt đầu',
+                    'production_started' => 'Đang sản xuất',
                     'production_reported' => 'Đã báo sản lượng · Chờ Kho xác nhận',
                     'completed' => 'Hoàn thành',
                 ][$productionOrder->status] ?? $productionOrder->status }}</strong>
@@ -104,11 +105,11 @@
                     @csrf
                     <div class="p-3 bg-amber-50 border-b border-amber-200">
                         <h3 class="text-xs font-bold uppercase text-amber-900">Kho xác nhận phiếu xuất nguyên liệu sản xuất</h3>
-                        <p class="mt-1 text-xs text-amber-800">Chọn lô NCC của dược liệu thô hoặc đợt mua của phụ liệu (tồn lấy từ kho nguyên liệu) và nhập số lượng thực xuất cho từng lô (không phụ thuộc BOM). Có thể lập nhiều phiếu để xuất bổ sung khi lần trước chưa đủ; lượng xuất thực tế có thể cao hơn kế hoạch.</p>
+                        <p class="mt-1 text-xs text-amber-800">Dược liệu thô chọn theo lô NCC; nguyên liệu, phụ liệu, tá dược và bao bì được xuất FIFO theo từng lần nhập. Nhập số lượng thực xuất cho từng dòng; có thể lập nhiều phiếu để xuất bổ sung.</p>
                     </div>
                     <div class="divide-y divide-slate-200">
                         <div class="p-3">
-                            <h4 class="mb-2 text-xs font-bold uppercase text-slate-700">Dược liệu thô (chọn lô NCC) &amp; phụ liệu (chọn loại, trừ theo tổng)</h4>
+                            <h4 class="mb-2 text-xs font-bold uppercase text-slate-700">Dược liệu thô theo lô NCC · các vật tư khác theo FIFO</h4>
                             @forelse($materialLots->groupBy(fn ($l) => $l->type . '|' . $l->id) as $group)
                                 @php
                                     $first = $group->first();
@@ -122,17 +123,17 @@
                                     </span>
                                     <table class="mt-1 w-full table-fixed border border-slate-200 text-[11px]">
                                         <colgroup><col style="width:26%"><col style="width:18%"><col style="width:18%"><col style="width:18%"><col style="width:20%"></colgroup>
-                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'raw_material' ? 'Lô NCC' : 'Tồn tổng' }}</th><th class="px-2 py-1.5">Mã SP</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 text-right">Số lượng xuất</th></tr></thead>
+                                        <thead class="bg-slate-100 text-left uppercase text-slate-600"><tr><th class="px-2 py-1.5">{{ $first->type === 'raw_material' ? 'Lô NCC' : 'Lần nhập FIFO' }}</th><th class="px-2 py-1.5">Mã SP</th><th class="px-2 py-1.5">Hạn dùng</th><th class="px-2 py-1.5 text-right">Tồn</th><th class="px-2 py-1.5 text-right">Số lượng xuất</th></tr></thead>
                                         <tbody class="divide-y divide-slate-200">
                                             @foreach($group as $lot)
                                                 @php $i = $loop->parent->index . '_' . $loop->index; @endphp
                                                 <tr>
-                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $first->type === 'raw_material' ? ($lot->batch ?: '(không số lô)') : 'Toàn bộ' }}</td>
+                                                    <td class="px-2 py-1.5 font-mono font-semibold">{{ $first->type === 'raw_material' ? ($lot->batch ?: '(không số lô)') : ($lot->material_lot_id ? 'Lần nhập #'.$lot->material_lot_id : 'Tồn cũ') }}</td>
                                                     <td class="px-2 py-1.5 font-mono text-blue-700">{{ $lot->item->sku ?: '---' }}</td>
                                                     <td class="px-2 py-1.5">{{ $lot->exp_date ? \Illuminate\Support\Carbon::parse($lot->exp_date)->format('d/m/Y') : 'Không hạn' }}</td>
                                                     <td class="px-2 py-1.5 text-right font-mono">{{ number_format($lot->balance, 4) }} {{ $lot->item->unit }}</td>
                                                     <td class="px-2 py-1.5">
-                                                        <input type="hidden" name="material_lots[{{ $i }}][type]" value="{{ $lot->type }}"><input type="hidden" name="material_lots[{{ $i }}][id]" value="{{ $lot->id }}"><input type="hidden" name="material_lots[{{ $i }}][batch]" value="{{ $lot->batch }}">
+                                                        <input type="hidden" name="material_lots[{{ $i }}][type]" value="{{ $lot->type }}"><input type="hidden" name="material_lots[{{ $i }}][id]" value="{{ $lot->id }}"><input type="hidden" name="material_lots[{{ $i }}][batch]" value="{{ $lot->batch }}"><input type="hidden" name="material_lots[{{ $i }}][material_lot_id]" value="{{ $lot->material_lot_id }}">
                                                         <input type="number" name="material_lots[{{ $i }}][quantity]" value="0" min="0" max="{{ $lot->balance }}" step="0.0001" class="w-full text-right font-mono text-xs border-slate-300 rounded-none">
                                                     </td>
                                                 </tr>
@@ -152,6 +153,13 @@
             @endif
 
             @if($workArea === 'production' && $canWorkInProduction && $productionOrder->status === 'materials_issued')
+                <form method="POST" action="{{ route('production-orders.start-production', $productionOrder) }}" class="flex items-center justify-between gap-3 border border-emerald-300 bg-emerald-50 p-4" onsubmit="return confirm('Xác nhận lệnh đã bắt đầu sản xuất? Sau đó mới được in nhãn.');">
+                    @csrf
+                    <span class="text-xs text-emerald-900">Kho đã xuất nguyên liệu. Sản xuất xác nhận bắt đầu để mở quyền in nhãn.</span>
+                    <button class="whitespace-nowrap bg-emerald-700 px-4 py-2 text-xs font-bold uppercase text-white hover:bg-emerald-800">Bắt đầu sản xuất</button>
+                </form>
+            @endif
+            @if($workArea === 'production' && $canWorkInProduction && $productionOrder->status === 'production_started')
                 <form method="POST" action="{{ route('production-orders.report-output', $productionOrder) }}" class="space-y-3 border border-slate-300 bg-white p-4" onsubmit="return confirm('Xác nhận sản lượng thực tế và nguyên liệu dự kiến trả kho?');">
                     @csrf
                     <div class="border-b border-slate-200 bg-emerald-50 p-3">

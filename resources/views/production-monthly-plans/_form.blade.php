@@ -29,12 +29,24 @@
     </div>
     <div class="plan-lines space-y-2">
         @foreach($existingLines as $index => $line)
+            @php($selectedProduct = $products->firstWhere('id', (int) ($line['product_id'] ?? 0)))
             <div class="plan-line grid items-end gap-2 border border-slate-200 p-3" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+                <label class="text-[11px] font-semibold text-slate-600">Phân loại
+                    <select data-name="classification" class="plan-classification mt-1 w-full border-slate-300 text-xs">
+                        <option value="">Chọn phân loại</option>
+                        @foreach($classifications as $classification)
+                            <option value="{{ $classification }}" @selected(($selectedProduct?->classification ?? '') === $classification)>{{ $classification }} · {{ \App\Models\Product::classificationLabel($classification) }}</option>
+                        @endforeach
+                        @if($products->contains(fn ($product) => blank($product->classification)))
+                            <option value="__unclassified" @selected($selectedProduct && blank($selectedProduct->classification))>Chưa phân loại</option>
+                        @endif
+                    </select>
+                </label>
                 <label class="text-[11px] font-semibold text-slate-600">Sản phẩm
-                    <select name="lines[{{ $index }}][product_id]" required class="mt-1 w-full border-slate-300 text-xs">
+                    <select name="lines[{{ $index }}][product_id]" required class="plan-product mt-1 w-full border-slate-300 text-xs" @disabled(blank($selectedProduct?->classification) && $selectedProduct)>
                         <option value="">Chọn sản phẩm</option>
                         @foreach($products as $product)
-                            <option value="{{ $product->id }}" {{ (string) ($line['product_id'] ?? '') === (string) $product->id ? 'selected' : '' }}>{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }} · {{ $product->unit }}</option>
+                            <option value="{{ $product->id }}" data-classification="{{ $product->classification ?: '__unclassified' }}" {{ (string) ($line['product_id'] ?? '') === (string) $product->id ? 'selected' : '' }}>{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->unit }}</option>
                         @endforeach
                     </select>
                 </label>
@@ -58,11 +70,22 @@
     </div>
     <template id="plan-line-template">
         <div class="plan-line grid items-end gap-2 border border-slate-200 p-3" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+            <label class="text-[11px] font-semibold text-slate-600">Phân loại
+                <select data-name="classification" class="plan-classification mt-1 w-full border-slate-300 text-xs">
+                    <option value="">Chọn phân loại</option>
+                    @foreach($classifications as $classification)
+                        <option value="{{ $classification }}">{{ $classification }} · {{ \App\Models\Product::classificationLabel($classification) }}</option>
+                    @endforeach
+                    @if($products->contains(fn ($product) => blank($product->classification)))
+                        <option value="__unclassified">Chưa phân loại</option>
+                    @endif
+                </select>
+            </label>
             <label class="text-[11px] font-semibold text-slate-600">Sản phẩm
-                <select data-name="product_id" required class="mt-1 w-full border-slate-300 text-xs">
+                <select data-name="product_id" required disabled class="plan-product mt-1 w-full border-slate-300 text-xs">
                     <option value="">Chọn sản phẩm</option>
                     @foreach($products as $product)
-                        <option value="{{ $product->id }}">{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }} · {{ $product->unit }}</option>
+                        <option value="{{ $product->id }}" data-classification="{{ $product->classification ?: '__unclassified' }}">{{ $product->sku ? $product->sku . ' · ' : '' }}{{ $product->name }} · {{ $product->unit }}</option>
                     @endforeach
                 </select>
             </label>
@@ -90,6 +113,37 @@
 
 @push('scripts')
 <script>
+    const filterPlanLineProducts = (row, resetInvalidSelection) => {
+        const classification = row.querySelector('.plan-classification');
+        const product = row.querySelector('.plan-product');
+        if (!classification || !product) return;
+
+        const previousValue = product.value;
+        const hasClassification = classification.value !== '';
+        product.disabled = !hasClassification;
+        Array.from(product.options).forEach((option) => {
+            if (!option.value) return;
+            const visible = hasClassification && option.dataset.classification === classification.value;
+            option.hidden = !visible;
+            option.disabled = !visible;
+        });
+
+        if (resetInvalidSelection && previousValue && product.selectedOptions[0]?.disabled) {
+            product.value = '';
+        }
+    };
+
+    document.querySelectorAll('.plan-line').forEach((row) => {
+        const classification = row.querySelector('.plan-classification');
+        const product = row.querySelector('.plan-product');
+        const selectedOption = product?.selectedOptions[0];
+        if (selectedOption?.value && classification) {
+            classification.value = selectedOption.dataset.classification || '__unclassified';
+        }
+        filterPlanLineProducts(row, false);
+        classification?.addEventListener('change', () => filterPlanLineProducts(row, true));
+    });
+
     document.addEventListener('click', function (event) {
         if (event.target.closest('.add-plan-line')) {
             const container = document.querySelector('.plan-lines');
@@ -99,6 +153,7 @@
             row.querySelectorAll('[data-name]').forEach(function (field) {
                 field.name = 'lines[' + index + '][' + field.dataset.name + ']';
             });
+            row.querySelector('.plan-classification').addEventListener('change', () => filterPlanLineProducts(row, true));
             container.append(row);
         }
         if (event.target.closest('.remove-plan-line')) {

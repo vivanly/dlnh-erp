@@ -39,8 +39,8 @@
     @endforeach
 </select>
                                             <input type="number" step="0.0001" min="0.0001" max="{{ $item->lots->where('returnable', '>', 0)->first()->returnable }}" name="quantity" data-return-quantity required placeholder="Số lượng trả" class="text-[10px] border-slate-300 py-1">
-                                            <input type="date" name="qc_date" required value="{{ today()->toDateString() }}" class="text-[10px] border-slate-300 py-1">
-                                            <input name="qc_test_report" required maxlength="255" placeholder="Số phiếu kiểm nghiệm" class="text-[10px] border-slate-300 py-1">
+                                            <input type="date" name="qc_date" value="{{ today()->toDateString() }}" class="text-[10px] border-slate-300 py-1" title="Ngày kiểm tra QC (không bắt buộc)">
+                                            <input name="qc_test_report" maxlength="255" placeholder="Mã biên bản QC (nếu có)" class="text-[10px] border-slate-300 py-1">
                                             <input name="reason" required maxlength="1000" placeholder="Lý do trả" class="text-[10px] border-slate-300 py-1">
                                             <button class="col-span-2 px-2 py-1 bg-rose-700 text-white text-[10px] font-bold uppercase">Lập đơn trả NCC</button>
                                         </form>
@@ -60,14 +60,14 @@
             <section class="bg-white border border-slate-300 overflow-x-auto">
                 <div class="border-b border-slate-300 bg-slate-100 px-3 py-2"><h3 class="text-xs font-bold uppercase text-slate-700">Đơn trả nhà cung cấp</h3></div>
                 <table class="w-full text-left text-xs">
-                    <thead><tr class="border-b border-slate-200 text-[10px] uppercase text-slate-500"><th class="p-2.5">Mã đơn</th><th class="p-2.5">Nhà cung cấp / hàng</th><th class="p-2.5 text-right">Số lượng</th><th class="p-2.5">Lý do / PKN</th><th class="p-2.5">Trạng thái</th></tr></thead>
+                    <thead><tr class="border-b border-slate-200 text-[10px] uppercase text-slate-500"><th class="p-2.5">Mã đơn</th><th class="p-2.5">Nhà cung cấp / hàng</th><th class="p-2.5 text-right">Số lượng</th><th class="p-2.5">Lý do / biên bản QC</th><th class="p-2.5">Trạng thái</th></tr></thead>
                     <tbody class="divide-y divide-slate-200">
                         @forelse($returnOrders as $returnOrder)
                             <tr>
                                 <td class="p-2.5 font-mono font-semibold">{{ $returnOrder->return_code }}</td>
                                 <td class="p-2.5">{{ $returnOrder->supplier->name ?? '---' }}<span class="block text-[10px] text-slate-500">{{ $returnOrder->catalog_item->name ?? 'Lô NCC #'.$returnOrder->supplier_batch_id }} · {{ $returnOrder->purchaseOrder->po_number ?? '' }}</span></td>
                                 <td class="p-2.5 text-right font-mono">{{ number_format($returnOrder->quantity, 4) }} {{ $returnOrder->unit }}</td>
-                                <td class="p-2.5">{{ $returnOrder->reason }}<span class="block text-[10px] text-slate-500">{{ $returnOrder->qc_test_report }} · {{ optional($returnOrder->qc_date)->format('d/m/Y') }}</span></td>
+                                <td class="p-2.5">{{ $returnOrder->reason }}@if($returnOrder->qc_test_report || $returnOrder->qc_date)<span class="block text-[10px] text-slate-500">{{ $returnOrder->qc_test_report }} · {{ optional($returnOrder->qc_date)->format('d/m/Y') }}</span>@endif</td>
                                 <td class="p-2.5">
                                     @if($returnOrder->status === 'pending_dispatch')
                                         <span class="block mb-1">Chờ giao trả NCC</span>

@@ -49,7 +49,7 @@
                     <div class="flex items-center justify-between gap-2 border-b border-slate-300 bg-slate-100 p-3">
                         <div>
                             <h3 class="text-xs font-bold uppercase text-slate-700">Thành phần cho sản lượng định mức</h3>
-                            <p class="mt-1 text-[11px] text-slate-600">Thành phần gồm Dược liệu thô, Phụ liệu, Tá dược và Bao bì. Hãy tạo danh mục trước khi thêm vào BOM.</p>
+                            <p class="mt-1 text-[11px] text-slate-600">Thành phần gồm Dược liệu thô, Nguyên liệu, Phụ liệu, Tá dược và Bao bì. Hãy tạo danh mục trước khi thêm vào BOM.</p>
                         </div>
                         <button type="button" id="add-bom-item" class="shrink-0 px-3 py-1.5 bg-blue-600 text-xs font-bold uppercase text-white hover:bg-blue-700">Thêm thành phần</button>
                     </div>

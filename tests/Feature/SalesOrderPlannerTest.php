@@ -23,7 +23,7 @@ class SalesOrderPlannerTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_sales_order_waits_for_warehouse_stock_confirmation_before_qa(): void
+    public function test_sales_order_reserves_confirmed_fifo_stock_and_skips_qa_lot_selection(): void
     {
         $salesUser = User::factory()->create(['role' => 'sales']);
         $salesDirector = User::factory()->create(['role' => 'sales_director']);
@@ -52,7 +52,7 @@ class SalesOrderPlannerTest extends TestCase
 
         $this->actingAs($salesUser)
             ->post(route('orders.store'), [
-                'order_code' => 'SO-WAIT-QA-TEST',
+                'order_code' => 'DL'.today()->format('ym').'0001',
                 'customer_id' => $customer->id,
                 'order_type' => 'DL',
                 'order_date' => today()->toDateString(),
@@ -68,6 +68,11 @@ class SalesOrderPlannerTest extends TestCase
             ->assertRedirect(route('orders.index'));
 
         $order = Order::with('items')->sole();
+        $this->assertSame('draft', $order->status);
+        $this->actingAs($salesUser)
+            ->post(route('orders.submit-sales', $order))
+            ->assertRedirect();
+        $order->refresh();
         $this->assertSame('pending_sales_approval', $order->status);
         $this->assertNull($order->qa_confirmed_at);
         $this->assertNull($order->sales_approved_at);
@@ -76,9 +81,8 @@ class SalesOrderPlannerTest extends TestCase
         $this->assertSame(0, InventoryMovement::count());
 
         $this->actingAs($qaUser)
-            ->get(route('qa.order-batches'))
-            ->assertOk()
-            ->assertDontSee($order->order_code);
+            ->get('/qa/order-batches')
+            ->assertNotFound();
 
         $this->actingAs($warehouseUser)
             ->get(route('warehouse.sales-order-stock-checks'))
@@ -123,6 +127,9 @@ class SalesOrderPlannerTest extends TestCase
                 ]],
             ])
             ->assertRedirect(route('orders.show', $order));
+        $this->actingAs($salesUser)
+            ->post(route('orders.submit-sales', $order))
+            ->assertRedirect();
         $this->assertSame('pending_sales_approval', $order->fresh()->status);
         $this->assertNull($order->fresh()->sales_rejection_reason);
 
@@ -148,22 +155,23 @@ class SalesOrderPlannerTest extends TestCase
             ])
             ->assertRedirect(route('warehouse.sales-order-stock-checks'));
 
-        $this->assertSame('pending_qa', $order->fresh()->status);
+        $this->assertSame('ready_to_ship', $order->fresh()->status);
+        $this->assertNotNull($order->fresh()->qa_confirmed_at);
         $this->assertNotNull($order->fresh()->warehouse_stock_checked_at);
         $this->assertSame($warehouseUser->id, $order->fresh()->warehouse_stock_checked_by);
         $this->assertEquals(6, $order->items->first()->fresh()->warehouse_stock_available_quantity);
         $this->assertEquals(5, $order->items->first()->fresh()->warehouse_stock_confirmed_quantity);
         $this->assertEquals(6, $batch->fresh()->current_quantity);
-        $this->assertSame(0, SalesOrderLotAllocation::count());
+        $this->assertSame(1, SalesOrderLotAllocation::count());
+        $this->assertEquals(5, SalesOrderLotAllocation::sole()->reserved_quantity);
         $this->assertSame(0, InventoryMovement::count());
 
         $this->actingAs($qaUser)
-            ->get(route('qa.order-batches'))
-            ->assertOk()
-            ->assertSee($order->order_code);
+            ->get('/qa/order-batches')
+            ->assertNotFound();
     }
 
-    public function test_warehouse_can_confirm_partial_stock_and_record_shortage_before_sending_order_to_qa(): void
+    public function test_warehouse_partial_fifo_confirmation_sends_shortage_to_planning(): void
     {
         $warehouseUser = User::factory()->create(['name' => 'Kho xác nhận', 'role' => 'warehouse']);
         $qaUser = User::factory()->create(['role' => 'qa']);
@@ -178,6 +186,22 @@ class SalesOrderPlannerTest extends TestCase
             'sku' => 'STOCK-SHORTAGE-TEST',
             'unit' => 'kg',
             'classification' => 'DL',
+        ]);
+        $batch = SupplierBatch::create([
+            'goods_receipt_item_id' => 1,
+            'product_id' => $product->id,
+            'batch_number' => 'STOCK-SHORTAGE-LOT',
+            'initial_quantity' => 3,
+            'current_quantity' => 3,
+            'status' => 'active',
+        ]);
+        $newerBatch = SupplierBatch::create([
+            'goods_receipt_item_id' => 2,
+            'product_id' => $product->id,
+            'batch_number' => 'STOCK-SHORTAGE-LOT-2',
+            'initial_quantity' => 7,
+            'current_quantity' => 7,
+            'status' => 'active',
         ]);
         $order = Order::create([
             'order_code' => 'SO-STOCK-SHORTAGE-TEST',
@@ -197,7 +221,7 @@ class SalesOrderPlannerTest extends TestCase
         $this->actingAs($warehouseUser)
             ->get(route('warehouse.sales-order-stock-checks'))
             ->assertOk()
-            ->assertSee('0.0000')
+            ->assertSee('Khả dụng 10.0000')
             ->assertSee('Thiếu');
 
         $this->actingAs($warehouseUser)
@@ -208,101 +232,42 @@ class SalesOrderPlannerTest extends TestCase
 
         $order->refresh();
         $item->refresh();
-        $this->assertSame('pending_qa', $order->status);
+        $this->assertSame('pending_planning', $order->status);
         $this->assertSame($warehouseUser->id, $order->warehouse_stock_checked_by);
         $this->assertNotNull($order->warehouse_stock_checked_at);
-        $this->assertEquals(0, $item->warehouse_stock_available_quantity);
+        $this->assertEquals(10, $item->warehouse_stock_available_quantity);
         $this->assertEquals(7, $item->warehouse_stock_confirmed_quantity);
+        $allocations = SalesOrderLotAllocation::orderBy('id')->get();
+        $this->assertCount(2, $allocations);
+        $this->assertSame($batch->id, $allocations[0]->supplier_batch_id);
+        $this->assertEquals(3, $allocations[0]->reserved_quantity);
+        $this->assertSame($newerBatch->id, $allocations[1]->supplier_batch_id);
+        $this->assertEquals(4, $allocations[1]->reserved_quantity);
 
         $this->actingAs($warehouseUser)
             ->get(route('orders.show', $order))
             ->assertOk()
             ->assertSee('Thiếu 13.0000')
             ->assertSee('Kho xác nhận 7.0000 / cần 20.0000')
-            ->assertSee('Tồn hệ thống lúc kiểm: 0.0000')
+            ->assertSee('Tồn hệ thống lúc kiểm: 10.0000')
             ->assertSee('Kho xác nhận');
 
-        $this->actingAs($qaUser)
-            ->get(route('qa.order-batches'))
-            ->assertOk()
-            ->assertSee('Kho xác nhận 7.0000')
-            ->assertSee('Thiếu 13.0000')
-            ->assertSee('Kho kiểm')
-            ->assertSee('Kho xác nhận');
-    }
-
-    public function test_qa_can_assign_existing_finished_inventory_without_editing_order_details(): void
-    {
-        $qaUser = User::factory()->create(['role' => 'qa']);
-        $customer = Customer::create([
-            'code' => 'CUST-IT-QA-LOTS',
-            'name' => 'IT QA lots customer',
-            'type' => 'Retail',
-        ]);
-        $product = Product::create([
-            'name' => 'IT QA lots product',
-            'slug' => 'it-qa-lots-product',
-            'sku' => 'IT-QA-LOTS-TEST',
-            'unit' => 'kg',
-            'classification' => 'VT',
-        ]);
-        $order = Order::create([
-            'order_code' => 'SO-IT-QA-LOTS-TEST',
-            'customer_id' => $customer->id,
-            'order_type' => 'VT',
-            'order_date' => today(),
-            'delivery_date' => today()->addDays(3),
-            'province_city' => 'Hà Nội',
-            'status' => 'pending_qa',
-        ]);
-        $item = $order->items()->create([
-            'product_id' => $product->id,
-            'quantity' => 20,
-            'packaging_spec' => '1',
-        ]);
-        $qaLot = ProductionFinishedBatch::create([
-            'product_id' => $product->id,
-            'batch_number' => 'QA-ACTIVE-LOT',
-            'provisional_batch_number' => 'QA-ACTIVE-LOT',
-            'planned_quantity' => 20,
-            'initial_quantity' => 20,
-            'current_quantity' => 20,
-            'pending_warehouse_quantity' => 0,
-            'unit' => 'kg',
-            'status' => 'active',
-            'warehouse_received_at' => now(),
-        ]);
-
-        $this->actingAs($qaUser)
-            ->get(route('qa.order-batches'))
+        $planningUser = User::factory()->create(['role' => 'production_planner']);
+        $this->actingAs($planningUser)
+            ->get(route('production-planning.index'))
             ->assertOk()
             ->assertSee($order->order_code)
-            ->assertSee('Cập nhật số lô');
+            ->assertSee('13.0000');
 
-        $this->actingAs($qaUser)
-            ->get(route('orders.edit', $order))
-            ->assertOk()
-            ->assertSee('QA Chốt Số Lô')
-            ->assertSee('QA có thể phân bổ lượng dự kiến của lô nội bộ vừa tạo độc lập')
-            ->assertSee('Lưu phân bổ lô và chuyển Kế hoạch')
-            ->assertSee('name="order_code"', false)
-            ->assertSee('readonly', false);
-
-        $this->actingAs($qaUser)
-            ->put(route('orders.update', $order), [
-                'items' => [[
-                    'id' => $item->id,
-                    'allocations' => [['lot' => 'finished:'.$qaLot->id]],
-                ]],
+        $this->actingAs($planningUser)
+            ->post(route('production-planning.plan', $order), [
+                'selected_item_ids' => [$item->id],
+                'planned_quantities' => [$item->id => 13],
             ])
-            ->assertRedirect(route('orders.show', $order))
-            ->assertSessionHas('success');
-
-        $this->assertSame('pending_planning', $order->fresh()->status);
-        $this->assertNotNull($order->fresh()->qa_confirmed_at);
-        $this->assertSame($order->order_code, $order->fresh()->order_code);
-        $this->assertEquals(20, $item->fresh()->quantity);
-        $this->assertEquals(20, $item->lotAllocations()->sole()->reserved_quantity);
+            ->assertRedirect(route('production-planning.index'));
+        $this->assertSame('pending_production_approval', $order->fresh()->status);
+        $this->assertEquals(13, ProductionOrder::sole()->planned_quantity);
+        $this->assertSame($planningUser->id, ProductionOrder::sole()->created_by);
     }
 
     public function test_shortage_creates_bom_material_demand_without_decrementing_inventory(): void

@@ -55,11 +55,8 @@ class OrderProgressTimeline
                 $movement ? "Đã xuất cho {$issuedLines}/{$items->count()} dòng hàng" : null
             );
         } else {
-            $afterStockCheck = in_array($status, ['pending_qa', 'pending_planning', 'pending_production_approval', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true);
+            $afterStockCheck = in_array($status, ['pending_planning', 'pending_production_approval', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true);
             $add('warehouse_stock', 'Kho kiểm tra tồn', (bool) $order->warehouse_stock_checked_at || $afterStockCheck, $order->warehouse_stock_checked_at, by: $order->warehouseStockCheckedBy?->name);
-
-            $afterQa = in_array($status, ['pending_planning', 'pending_production_approval', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true);
-            $add('qa_lots', 'QA chốt và phân lô', (bool) $order->qa_confirmed_at || $afterQa, $order->qa_confirmed_at);
 
             $noProductionRequired = $productionOrders->isEmpty() && in_array($status, ['waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true);
             $planDone = (bool) $order->production_plan_approved_at || $noProductionRequired || ($productionOrders->isEmpty() && $status === 'waiting_finished_goods_receipt');
@@ -217,7 +214,6 @@ class OrderProgressTimeline
             'draft', 'pending_sales_approval', 'sales_rejected' => 'sales_approval',
             'pending_material_issue' => 'raw_material_issue',
             'pending_warehouse_check' => 'warehouse_stock',
-            'pending_qa' => 'qa_lots',
             'pending_planning' => 'production_plan',
             'pending_production_approval' => 'production_plan',
             'waiting_production' => 'materials_issue',

@@ -37,32 +37,35 @@
         'warehouse' => [
             'title' => 'Kho',
             'mine' => $u->isWarehouseDepartment(),
-            'rights' => 'Nhận hàng và lập phiếu nhập; kiểm tra tồn đơn bán; xuất nguyên liệu; nhập thành phẩm; đóng hàng và xác nhận gửi.',
+            'rights' => 'Xác nhận hàng đến, ghi số lượng và người QA/QC kiểm tra sơ bộ; lập phiếu tiếp nhận tạm; nhập kho chính thức sau khi QC đạt.',
             'steps' => [
-                'Đơn mua đã duyệt: xác nhận hàng đến, lập phiếu nhận (lô chuyển sang Chờ QC).',
-                'Đơn bán đã duyệt: kiểm tra tồn và xác nhận.',
+                'Đơn mua đã duyệt: xác nhận hàng đến, ghi người QA/QC kiểm tra sơ bộ và lập phiếu tiếp nhận tạm.',
+                'Hàng tạm chưa được tính vào tồn sử dụng; sau khi QA cập nhật COA và QC xác nhận đạt, Kho lập phiếu nhập chính thức.',
+                'Đơn bán đã duyệt: Kho xác nhận tồn theo FIFO; đủ hàng thì giữ lô, thiếu hàng chuyển thẳng Kế hoạch chọn dòng và gửi duyệt.',
                 'Lệnh sản xuất: xuất nguyên liệu; khi hoàn tất nhập thành phẩm.',
                 'Sau khi Sản xuất xác nhận đóng gói: đóng hàng, rồi chỉ xác nhận gửi khi hàng thực sự rời kho (đây là lúc hệ thống trừ tồn).',
+                'Hàng khách trả trong 30 ngày được đưa vào khu cách ly; QC quyết định nhập lại đúng lô, tái sản xuất hoặc hủy.',
             ],
         ],
         'qa' => [
             'title' => 'QA',
             'mine' => $u->isQADepartment(),
-            'rights' => 'Cập nhật số lô NCC/COA; tạo mã lô thành phẩm nội bộ; phân bổ/chốt lô cho đơn bán.',
+            'rights' => 'Chỉ cập nhật COA và số lô nhà cung cấp cho dược liệu thô; cấp số lô thành phẩm nội bộ cho lệnh sản xuất.',
             'steps' => [
-                'Cập nhật số lô nhà cung cấp và COA cho dược liệu thô.',
-                'Tạo mã lô nội bộ cho thành phẩm và chốt lô cho đơn bán.',
+                'Cập nhật COA, số lô NCC, ngày sản xuất và hạn dùng cho dược liệu thô; nhóm hàng mua khác không cần COA.',
+                'Sau khi kế hoạch được duyệt, cấp số lô nội bộ cho lệnh sản xuất.',
                 'Phối hợp QC để lô đạt mới được sử dụng.',
             ],
         ],
         'qc' => [
             'title' => 'QC',
             'mine' => $u->isQCDepartment(),
-            'rights' => 'Kết luận Đạt/Không đạt cho lô dược liệu thô, phụ liệu; cập nhật PKN lô thành phẩm.',
+            'rights' => 'Kiểm tra chất lượng và kết luận Đạt/Không đạt; có thể yêu cầu kiểm tra lại hoặc chuyển lô không đạt sang trả NCC.',
             'steps' => [
-                'Mở danh sách lô Chờ QC.',
-                'Kiểm tra COA/mẫu, ghi kết luận Đạt hoặc Không đạt.',
-                'Cập nhật PKN cho lô thành phẩm nếu thuộc quyền.',
+                'Kiểm tra từng nhóm hàng mua sau khi QA cập nhật COA; dược liệu thô được nhận diện theo số lô NCC.',
+                'Lô đạt: hệ thống lập phiếu nhập kho. Lô không đạt: yêu cầu kiểm tra lại hoặc lập phiếu trả NCC.',
+                'PKN thành phẩm vẫn gắn với đúng lô nội bộ do QA cấp.',
+                'Kiểm tra hàng khách trả và quyết định nhập lại đúng lô, tái sản xuất hoặc hủy.',
             ],
         ],
         'production' => [
@@ -91,11 +94,12 @@
     $flow = [
         ['Chuẩn bị danh mục', 'Sản phẩm, khách hàng, nhà cung cấp, PPCB'],
         ['Mua hàng', 'Kinh doanh lập đơn → Ban Giám Đốc duyệt → Kho nhận'],
-        ['Kiểm tra chất lượng', 'QA cập nhật COA → QC kết luận lô'],
-        ['Bán hàng', 'Kinh doanh lập đơn → duyệt → Kho kiểm tồn → QA chốt lô'],
+        ['Kiểm tra chất lượng', 'Kho tiếp nhận tạm và ghi QA/QC sơ bộ → QA nhập COA → QC đánh giá → Kho nhập chính thức hoặc trả NCC'],
+        ['Bán hàng', 'Kinh doanh lập đơn → duyệt → Kho xác nhận FIFO → đủ hàng giữ lô hoặc thiếu chuyển Kế hoạch'],
         ['BOM, MRP, kế hoạch', 'Kế hoạch lập → Ban Giám Đốc duyệt'],
-        ['Sản xuất', 'Kho xuất NL → Sản xuất chốt sản lượng → QA mã lô → Kho nhập TP'],
+        ['Sản xuất', 'Kế hoạch gửi duyệt → QA cấp số lô → Kho xuất NL → Sản xuất xác nhận bắt đầu → Kho nhập TP'],
         ['Nhãn, đóng gói, giao', 'In nhãn → Sản xuất đóng gói → Kho gửi hàng'],
+        ['Hàng khách trả', 'Trong 30 ngày: Kho nhận vào khu cách ly → QC quyết định nhập lại tồn, tái sản xuất hoặc hủy'],
         ['Tồn kho & truy xuất', 'Tra tồn, tra nguồn gốc lô'],
     ];
 

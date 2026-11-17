@@ -1,4 +1,5 @@
 <x-app-layout>
+    @push('scripts') @vite('resources/js/app.js') @endpush
     <x-slot name="header">
         <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -20,7 +21,7 @@
             @if(session('error'))<div class="border-l-4 border-rose-600 bg-rose-50 p-3 text-xs text-rose-900">{{ session('error') }}</div>@endif
             @if($errors->any())<div class="border-l-4 border-rose-600 bg-rose-50 p-3 text-xs text-rose-900">Vui lòng kiểm tra lại các trường được đánh dấu lỗi.</div>@endif
 
-            <form method="POST" action="{{ route('manual-labels.store') }}" target="_blank" class="border border-slate-300 bg-white p-4 space-y-4" x-data="{ type: '{{ old('label_type', $prefill['label_type'] ?? 'dl_n') }}', ref: @js(trim(($prefill['label_code'] ?? '') . (isset($prefill['order_code']) ? ' · Lệnh SX ' . $prefill['order_code'] : ''))), q: '', results: [], timer: null, search() { clearTimeout(this.timer); if (this.q.trim().length < 2) { this.results = []; return; } this.timer = setTimeout(async () => { const r = await fetch(@js(route('manual-labels.sources.search')) + '?q=' + encodeURIComponent(this.q), { headers: { Accept: 'application/json' } }); this.results = r.ok ? await r.json() : []; this.$nextTick(() => this.positionResults()); }, 250); }, positionResults() { if (this.results.length) window.positionAutocompleteDropdown(this.$refs.searchInput, this.$refs.searchResults); }, fill(t) { this.type = t.label_type; this.ref = (t.label_code ?? '') + (t.order_code ? ' · Lệnh SX ' + t.order_code : ''); for (const k of ['product_name','scientific_name','part_used','batch','mfg_date','exp_date','origin','registration','standard','net_weight','copies_count','order_code','label_code']) { const el = $root.elements[k]; if (el) { el.value = t[k] ?? ''; el.dispatchEvent(new Event('input')); } } const tm = $root.elements['traditional_medicine_name']; if (tm) tm.checked = !!t.traditional_medicine_name; this.results = []; this.q = ''; } }">
+            <form method="POST" action="{{ route('manual-labels.store') }}" target="_blank" class="border border-slate-300 bg-white p-4 space-y-4" x-data="{ type: '{{ old('label_type', $prefill['label_type'] ?? 'dl_n') }}', ref: @js(trim(($prefill['label_code'] ?? '') . (isset($prefill['order_code']) ? ' · Lệnh SX ' . $prefill['order_code'] : ''))), q: '', results: [], timer: null, search() { clearTimeout(this.timer); if (this.q.trim().length < 2) { this.results = []; return; } this.timer = setTimeout(async () => { const r = await fetch(@js(route('manual-labels.sources.search')) + '?q=' + encodeURIComponent(this.q), { headers: { Accept: 'application/json' } }); this.results = r.ok ? await r.json() : []; this.$nextTick(() => this.positionResults()); }, 250); }, positionResults() { if (this.results.length) window.positionAutocompleteDropdown(this.$refs.searchInput, this.$refs.searchResults); }, fill(t) { this.type = t.label_type; this.ref = (t.label_code ?? '') + (t.order_code ? ' · Lệnh SX ' + t.order_code : ''); for (const k of ['product_name','scientific_name','part_used','batch','mfg_date','exp_date','origin','registration','standard','net_weight','storage','qr_content','copies_count','order_code','label_code']) { const el = $root.elements[k]; if (el) { el.value = t[k] ?? ''; el.dispatchEvent(new Event('input')); } } const tm = $root.elements['traditional_medicine_name']; if (tm) tm.checked = !!t.traditional_medicine_name; this.results = []; this.q = ''; } }">
                 @csrf
                 <input type="hidden" name="order_code" value="{{ old('order_code', $prefill['order_code'] ?? null) }}">
                 <input type="hidden" name="label_code" value="{{ old('label_code', $prefill['label_code'] ?? null) }}">
@@ -48,7 +49,6 @@
                     </div>
                     <div class="flex items-end gap-4 pb-1.5 text-xs text-slate-700">
                         <label x-show="type === 'vt'" class="inline-flex items-center gap-1.5"><input type="checkbox" name="traditional_medicine_name" value="1" @checked(old('traditional_medicine_name', $prefill['traditional_medicine_name'] ?? null)) class="rounded border-slate-300"> Tên vị thuốc cổ truyền</label>
-                        <label class="inline-flex items-center gap-1.5"><input type="checkbox" name="watermark" value="1" @checked(old('watermark', $prefill['watermark'] ?? null)) class="rounded border-slate-300"> Watermark</label>
                     </div>
 
                     <div class="sm:col-span-2">

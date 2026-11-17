@@ -68,9 +68,14 @@ class Order extends Model
         return $this->hasMany(ProductionOrder::class, 'order_id');
     }
 
+    public function returns()
+    {
+        return $this->hasMany(SalesOrderReturn::class, 'order_id');
+    }
+
     public function isApproved(): bool
     {
-        return in_array($this->status, ['pending_warehouse_check', 'pending_qa', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true);
+        return in_array($this->status, ['pending_warehouse_check', 'pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'processing', 'ready_to_ship', 'completed'], true);
     }
 
     public function getOrderTypeLabelAttribute(): string
@@ -87,7 +92,7 @@ class Order extends Model
         };
     }
 
-    public function isEditLockedAfterQa(): bool
+    public function isEditLockedAfterProgress(): bool
     {
         return in_array($this->status, ['pending_planning', 'waiting_finished_goods_receipt', 'waiting_production', 'pending_production_approval', 'processing', 'ready_to_ship', 'completed'], true);
     }
@@ -124,10 +129,10 @@ class Order extends Model
         })->count();
 
         if ($assignedCount === 0) {
-            return 'Chờ QA Cập Nhật';
+            return 'Chưa phân lô';
         }
 
-        return $assignedCount === $items->count() ? 'Đã Có Số Lô' : 'QA đang Cập Nhật';
+        return $assignedCount === $items->count() ? 'Đã phân lô' : 'Phân lô một phần';
     }
 
 }

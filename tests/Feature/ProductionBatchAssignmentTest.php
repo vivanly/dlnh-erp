@@ -62,6 +62,10 @@ class ProductionBatchAssignmentTest extends TestCase
         $this->actingAs($it)->get(route('warehouse.production-issues.show', $order))
             ->assertOk()->assertSee('Lập phiếu xuất và trừ kho')
             ->assertDontSee('name="actual_quantity"', false)->assertDontSee('name="batch_number"', false);
+        $this->actingAs($production)->get(route('production.work-orders.show', $order))
+            ->assertOk()->assertSee('Bắt đầu sản xuất')
+            ->assertDontSee('name="actual_quantity"', false);
+        $order->update(['status' => 'production_started', 'production_started_at' => now()]);
         $this->actingAs($it)->get(route('production.work-orders.show', $order))
             ->assertOk()->assertSee('name="actual_quantity"', false)
             ->assertDontSee('Lập phiếu xuất và trừ kho')->assertDontSee('name="batch_number"', false);
@@ -142,6 +146,9 @@ class ProductionBatchAssignmentTest extends TestCase
 
         $this->actingAs($warehouse)
             ->post(route('production-orders.issue-materials', $productionOrder), ['lots' => [$rawBatch->id => 2]])
+            ->assertSessionHas('success');
+        $this->actingAs($production)
+            ->post(route('production-orders.start-production', $productionOrder))
             ->assertSessionHas('success');
         $this->actingAs($production)
             ->post(route('production-orders.report-output', $productionOrder), [

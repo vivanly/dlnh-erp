@@ -4,10 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Department;
+use App\Models\Accessory;
+use App\Models\Excipient;
 use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
+use App\Models\Ingredient;
+use App\Models\MaterialLot;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\PackagingMaterial;
 use App\Models\Product;
 use App\Models\ProductionFinishedBatch;
 use App\Models\ProductionOrder;
@@ -60,14 +65,20 @@ class NotificationBellTest extends TestCase
     public function test_each_role_only_sees_its_own_tasks(): void
     {
         $this->order('pending_sales_approval');
-        $this->order('pending_qa');
+        $this->order('pending_planning');
         $this->order('pending_warehouse_check');
 
         $this->assertContains('Đơn hàng cần duyệt', $this->labels($this->user('HCNS', 'Tổng Giám Đốc')));
 
-        $qa = $this->labels($this->user('QA'));
-        $this->assertContains('Đơn hàng cần chốt lô', $qa);
+        $qaUser = $this->user('QA');
+        $qa = $this->labels($qaUser);
+        $this->assertNotContains('Đơn hàng cần chốt lô', $qa);
         $this->assertNotContains('Đơn hàng cần duyệt', $qa);
+        $this->actingAs($qaUser)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('Cập nhật lô cho đơn hàng');
+        $this->actingAs($qaUser)->get('/qa/order-batches')->assertNotFound();
 
         $this->assertContains('Đơn hàng cần xác nhận tồn kho', $this->labels($this->user('KHO')));
         $this->assertSame([], $this->labels($this->user('KE-TOAN')));
@@ -76,7 +87,7 @@ class NotificationBellTest extends TestCase
     public function test_department_directors_only_receive_board_notifications(): void
     {
         $this->order('pending_sales_approval');
-        $this->order('pending_qa');
+        $this->order('pending_planning');
 
         $director = $this->user('QA', 'Giám Đốc');
         $items = collect($this->actingAs($director)->getJson(route('notifications.summary'))->assertOk()->json('items'));
@@ -158,15 +169,15 @@ class NotificationBellTest extends TestCase
 
         $this->actingAs($qa);
         $items = collect($this->getJson(route('notifications.summary'))->assertOk()->json('items'));
-        $notice = $items->firstWhere('label', 'Lô NCC chờ QA cập nhật COA');
+        $notice = $items->firstWhere('label', 'Lô sản phẩm mua từ NCC chờ QA cập nhật COA');
         $this->assertSame(1, $notice['count']);
         $this->assertSame(route('qa.coas.index'), $notice['url']);
         $this->get($notice['url'])->assertOk()->assertSee(route('goods-receipts.show', $receipt));
         $this->get(route('goods-receipts.show', $receipt))->assertOk()->assertSee(route('supplier-batches.update-coa', $batch));
 
         $batch->update(['coa_file' => 'coas/test.pdf', 'mfg_date' => today(), 'exp_date' => today()->addYear()]);
-        $this->assertNotContains('Lô NCC chờ QA cập nhật COA', $this->labels($qa));
-        $this->assertContains('Lô NCC chờ QC xác nhận', $this->labels($this->user('QC')));
+        $this->assertNotContains('Lô sản phẩm mua từ NCC chờ QA cập nhật COA', $this->labels($qa));
+        $this->assertContains('Lô sản phẩm mua từ NCC chờ QC xác nhận', $this->labels($this->user('QC')));
     }
 
     public function test_raw_material_issue_notification_matches_warehouse_queue_type(): void
@@ -328,11 +339,11 @@ class NotificationBellTest extends TestCase
             'pending_warehouse_quantity' => 5,
         ]);
         $qcResponse = $this->actingAs($qcUser)->getJson(route('notifications.summary'))->assertOk();
-        $this->assertContains('Lô thành phẩm chờ phiếu kiểm nghiệm', collect($qcResponse->json('items'))->pluck('label')->all());
+        $this->assertContains('Lô nội bộ do QA cấp chờ PKN', collect($qcResponse->json('items'))->pluck('label')->all());
 
         $batch->update(['pending_warehouse_quantity' => 0]);
         $qcResponse = $this->actingAs($qcUser)->getJson(route('notifications.summary'))->assertOk();
-        $this->assertContains('Lô thành phẩm chờ phiếu kiểm nghiệm', collect($qcResponse->json('items'))->pluck('label')->all());
+        $this->assertContains('Lô nội bộ do QA cấp chờ PKN', collect($qcResponse->json('items'))->pluck('label')->all());
 
         $this->assertSame(0.0, (float) $productionOrder->fresh()->pending_finished_quantity);
     }
@@ -371,6 +382,8 @@ class NotificationBellTest extends TestCase
 
         $order->update(['status' => 'materials_issued']);
         $this->assertNotContains('Lệnh sản xuất chờ Kho xuất nguyên liệu', $this->labels($warehouse));
+        $this->assertContains('Lệnh sản xuất cần xác nhận bắt đầu', $this->labels($production));
+        $order->update(['status' => 'production_started']);
         $this->assertContains('Lệnh sản xuất cần báo sản lượng', $this->labels($production));
 
         $order->update(['status' => 'production_reported', 'actual_quantity' => 10]);
@@ -392,11 +405,62 @@ class NotificationBellTest extends TestCase
         $batch->update(['status' => 'active', 'warehouse_received_at' => now(), 'pending_warehouse_quantity' => 5]);
         $qc = $this->user('QC');
         $items = collect($this->actingAs($qc)->getJson(route('notifications.summary'))->assertOk()->json('items'));
-        $notice = $items->firstWhere('label', 'Lô thành phẩm chờ phiếu kiểm nghiệm');
+        $notice = $items->firstWhere('label', 'Lô nội bộ do QA cấp chờ PKN');
         $this->assertSame(1, $notice['count']);
         $this->get($notice['url'])->assertOk()->assertSee('NOTIFY-FLOW-BATCH');
         $batch->update(['qc_result' => 'passed', 'qc_test_report_file' => 'reports/passed.pdf']);
-        $this->assertNotContains('Lô thành phẩm chờ phiếu kiểm nghiệm', $this->labels($qc));
+        $this->assertNotContains('Lô nội bộ do QA cấp chờ PKN', $this->labels($qc));
+    }
+
+    public function test_qc_notifications_cover_each_non_raw_material_type_separately(): void
+    {
+        $qc = $this->user('QC');
+        $supplier = Supplier::create(['name' => 'QC materials supplier', 'code' => 'QC-MATERIALS']);
+        $purchaseOrder = PurchaseOrder::create([
+            'po_number' => 'PO-QC-MATERIALS',
+            'supplier_id' => $supplier->id,
+            'order_date' => today(),
+            'status' => 'delivered',
+            'user_id' => $qc->id,
+        ]);
+        $catalog = [
+            'ingredient' => Ingredient::create(['sku' => 'QC-ING', 'name' => 'Nguyên liệu QC', 'slug' => 'qc-ing', 'unit' => 'Kg']),
+            'accessory' => Accessory::create(['sku' => 'QC-ACC', 'name' => 'Phụ liệu QC', 'slug' => 'qc-acc', 'unit' => 'Kg']),
+            'excipient' => Excipient::create(['sku' => 'QC-EXC', 'name' => 'Tá dược QC', 'slug' => 'qc-exc', 'unit' => 'Kg']),
+            'packaging' => PackagingMaterial::create(['sku' => 'QC-PKG', 'name' => 'Bao bì QC', 'slug' => 'qc-pkg', 'unit' => 'Cái']),
+        ];
+
+        foreach ($catalog as $type => $item) {
+            $purchaseItem = $purchaseOrder->items()->create([
+                'material_type' => $type,
+                'material_id' => $item->id,
+                'quantity' => 1,
+                'unit' => $item->unit,
+                'unit_price' => 1,
+                'total_price' => 1,
+            ]);
+            MaterialLot::create([
+                'purchase_order_item_id' => $purchaseItem->id,
+                'material_type' => $type,
+                'material_id' => $item->id,
+                'quantity' => 1,
+                'unit' => $item->unit,
+                'coa_file' => 'material-coas/' . $type . '.pdf',
+                'status' => 'pending_qa',
+            ]);
+        }
+
+        $items = collect($this->actingAs($qc)->getJson(route('notifications.summary'))->assertOk()->json('items'));
+        foreach ([
+            'ingredient' => 'Nguyên liệu chờ QC xác nhận',
+            'accessory' => 'Phụ liệu chờ QC xác nhận',
+            'excipient' => 'Tá dược chờ QC xác nhận',
+            'packaging' => 'Bao bì chờ QC xác nhận',
+        ] as $type => $label) {
+            $notice = $items->firstWhere('label', $label);
+            $this->assertSame(1, $notice['count']);
+            $this->assertSame(route('material-lots.index', ['type' => $type]), $notice['url']);
+        }
     }
 
     public function test_warehouse_notifications_distinguish_packing_from_confirming_shipment(): void

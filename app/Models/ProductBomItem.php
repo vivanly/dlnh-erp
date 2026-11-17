@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\Product;
 use App\Models\RawMaterial;
 use App\Models\Accessory;
+use App\Models\Ingredient;
 use App\Models\Excipient;
 use App\Models\PackagingMaterial;
 
@@ -44,6 +45,7 @@ class ProductBomItem extends Model
         return match ($this->component_type) {
             Product::class => 'Sản phẩm',
             RawMaterial::class => 'Dược liệu thô',
+            Ingredient::class => 'Nguyên liệu',
             Accessory::class => 'Phụ liệu',
             Excipient::class => 'Tá dược',
             PackagingMaterial::class => 'Bao bì',

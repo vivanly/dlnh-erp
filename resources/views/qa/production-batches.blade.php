@@ -1,8 +1,8 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <h2 class="font-bold text-sm uppercase tracking-wide text-slate-800">Lô nội bộ chờ QC cập nhật PKN</h2>
-            <p class="mt-1 text-xs text-slate-500">{{ $batches->total() }} lô cần hoàn thiện hồ sơ.</p>
+            <h2 class="font-bold text-sm uppercase tracking-wide text-slate-800">PKN cho lô nội bộ do QA cấp</h2>
+            <p class="mt-1 text-xs text-slate-500">{{ $batches->total() }} lô nội bộ đã nhập kho đang chờ QC hoàn thiện PKN.</p>
         </div>
     </x-slot>
 
