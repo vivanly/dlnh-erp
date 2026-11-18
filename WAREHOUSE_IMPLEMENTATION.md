@@ -1,6 +1,6 @@
 # Implementation Summary - Warehouse Intake & QC Workflow (DLNH ERP)
 
-**Status:** Phase 3 (Views & UI) - Completed 95%
+**Status:** QA/QC workflow implemented; production database verification is blocked
 **Last Updated:** 2026-11-18
 
 ---
@@ -13,16 +13,18 @@ Implemented complete warehouse intake process for herbal raw materials (dược 
 
 1. **Receive Purchase Order** → Warehouse receives goods from supplier
 2. **Temporary Storage** (Kho Tạm) → Goods stored temporarily with location code
-3. **QA Review** (QA Cập Nhật) → For raw materials: QA updates COA, batch number, MFG/EXP dates
-4. **QC Inspection** (QC Kiểm Tra) → QC checks quality; passes or fails
+3. **QA Review** → Only for raw materials: QA updates COA, batch number, MFG/EXP dates
+4. **QC Inspection** → Raw materials require a test report number, date, and file plus an OK/NG decision. Other materials require only an OK/NG decision.
 5. **Stock Receipt** (Nhập Kho Chính) → If QC passed, warehouse posts to main inventory
 6. **Return to Supplier** (Trả NCC) → If QC failed, logistics arranges return
+
+The QA raw-material queue and QC queues are separate menu destinations. The warehouse receipt form does not assign preliminary QA/QC reviewers.
 
 ---
 
 ## Technical Implementation
 
-### Database Schema (Migration: 2026_11_17_141725)
+### Database Schema
 
 #### `material_lots` table (enhanced)
 - `temporary_location_code` (varchar, nullable) - Storage location in temporary zone
@@ -42,7 +44,10 @@ Implemented complete warehouse intake process for herbal raw materials (dược 
   - `inspection_stage` (varchar: qa_review, qc_inspection)
   - `detailed_findings` (text, nullable)
   - `corrective_action` (text, nullable)
+- QC report fields: `report_number`, `report_date`, and `report_file` (used for raw-material inspections)
 - Timestamps
+
+The inspection table is created by `2026_11_18_090000`; report fields and nullable preliminary reviewer fields are handled by `2026_11_18_110000`.
 
 ### Models (Updated)
 
@@ -71,14 +76,17 @@ public function needsQa(): bool         // Check if raw material needs QA
 #### MaterialLotController
 
 **New Methods:**
-1. `temporaryStorage(Request $request)` → List all lots in temporary storage
-2. `moveFromTemporaryStorage(MaterialLot $lot)` → Move from temp → pending_qa/qc_inspection
+1. `qaIndex()` / `qcIndex()` → Separate QA raw-material queue and QC queues
+2. `temporaryStorage(Request $request)` → List all lots in temporary storage
+3. `moveFromTemporaryStorage(MaterialLot $lot)` → Move raw materials to QA and other materials directly to QC
+4. `recordInspection()` → Save QC result and, for raw materials, the test report for that inspection
+5. `inspectionReport()` → Serve inspection reports through an authorized route
 
 **Updated Methods:**
 1. `updateCoa()` → Only for raw materials; saves QA reviewer + date
-2. `approve()` → QC approves lot; creates stock receipt if warehouse-triggered
-3. `reject()` → QC rejects; saves detailed findings
-4. `requestReinspection()` → Request re-test; saves corrective action
+1. `updateCoa()` → QA updates COA for raw materials only
+2. `approve()` / `reject()` → Save QC decision; raw-material submissions require the test report
+3. `requestReinspection()` → Request re-test
 
 ### Routes (web.php)
 
@@ -87,15 +95,27 @@ public function needsQa(): bool         // Check if raw material needs QA
 GET /warehouse/material-lots/temporary-storage
     → route('material-lots.temporary-storage')
 
-// Material lots main index (with tabs by type)
+// Legacy material-lots index
 GET /qa/material-lots?type=raw_material|ingredient|...
     → route('material-lots.index')
+
+// Separate QA and QC queues
+GET /qa/material-lots/raw-materials → route('qa.material-lots.index')
+GET /qc/material-lots → route('qc.material-lots.index')
 
 // Update COA (QA review for raw materials)
 PATCH /qa/material-lots/{materialLot}
     → route('material-lots.update-coa')
 
-// Approve lot (QC decision)
+// Record QC result (raw-material report is required; other materials need only result)
+POST /qc/material-lots/{materialLot}/inspection
+    → route('material-lots.inspect')
+
+// Report file access
+GET /qc/material-lot-inspections/{inspection}/report
+    → route('material-lots.inspection-report')
+
+// Legacy QC decision endpoints
 POST /qa/material-lots/{materialLot}/approve
     → route('material-lots.approve')
 
@@ -141,9 +161,9 @@ POST /warehouse/material-lots/{materialLot}/move-from-temporary
 ### Kho (Warehouse) Section
 ```
 Nhập Kho
-├── 1️⃣ Nhận Đơn Mua & Nhập Tạm
-├── 📦 Danh Sách Kho Tạm
-└── 2️⃣ QC Đạt - Nhập Kho Chính
+├── Nhận Đơn Mua & Nhập Tạm
+├── Danh Sách Kho Tạm
+└── QC Đạt - Nhập Kho Chính
 
 🔄 Trả Nhà Cung Cấp (QC Không Đạt)
 ...
@@ -152,8 +172,9 @@ Nhập Kho
 ### QC (Kiểm Chất Lượng) Section
 ```
 Kiểm Chất Lượng Hàng Nhập
-├── 🌿 Dược Liệu Thô (QA + QC)
-├── 📦 Vật Tư (QC)
+├── Cập nhật COA dược liệu thô (QA)
+├── Dược liệu thô: phiếu kiểm nghiệm và kết quả (QC)
+└── Vật tư: xác định OK / NG (QC)
 ...
 ```
 
@@ -190,8 +211,8 @@ Workflow for Other Materials:
 ## User Permissions
 
 - **Warehouse Department / Manager:** Receive goods, temp storage, move from temp storage, post stock receipt
-- **QA Department:** Update COA for raw materials, approve lots
-- **QC Department:** Inspect lots, approve/reject/request reinspection
+- **QA Department:** Update COA and lot details for raw materials
+- **QC Department:** Record inspection results; attach report for raw materials; approve/reject lots
 - **IT Department:** See-all permission for testing
 - **Executive Board:** View-all permission
 
@@ -205,12 +226,14 @@ Workflow for Other Materials:
 - EXP date (required, date)
 - COA file (required if not already uploaded, PDF only)
 
-### QC Approve Form (All Materials)
-- QC note (optional, textarea)
+### QC Inspection (Raw Materials)
+- Result (required: OK or NG)
+- Test report number, date, and file (required)
+- QC note/findings (required when result is NG)
 
-### QC Reject Form (All Materials)
-- QC note (required, reason for rejection)
-- Detailed findings (optional, textarea)
+### QC Inspection (Other Materials)
+- Result (required: OK or NG; no test report required)
+- QC note/findings (required when result is NG)
 
 ### QC Reinspection Form
 - Note (required, reason for reinspection)
@@ -220,11 +243,11 @@ Workflow for Other Materials:
 
 ## Notes & Known Issues
 
-1. ✅ Migration fixed: Changed from altering non-existent `material_lot_inspections` to creating it first
-2. ✅ Rollback support: Fixed non-rollback-able migration (2026_11_16_170000)
-3. ✅ Menu language standardized: All Chinese → Vietnamese (chuẩn hóa ngôn ngữ)
-4. ✅ Schema verified: All new columns present and correctly typed
-5. 🔄 Testing: Ready for manual testing with actual data
+1. The QA and QC queues are separated; the warehouse form no longer asks for preliminary QA/QC assignment.
+2. Raw materials require QA COA completion before QC, and a QC report on each QC decision.
+3. Other material types go directly to QC and require only an OK/NG result.
+4. Do not run migrations against the current application database until its recovery plan is agreed. The actual database schema has not been verified by this code change.
+5. The affected Blade templates and route registration have been checked locally; feature tests requiring database migrations are blocked by a pre-existing SQLite/MySQL migration incompatibility.
 
 ---
 

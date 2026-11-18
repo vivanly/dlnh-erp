@@ -33,11 +33,31 @@ class RawMaterialFlowTest extends TestCase
 
     private function qaThenQcApprove(User $user, MaterialLot $lot, string $batch): void
     {
+        if ($lot->status === 'temporary_stored') {
+            $this->actingAs($user)->post(route('material-lots.move-from-temporary', $lot))->assertSessionHas('success');
+            $lot->refresh();
+        }
         if ($lot->material_type === 'raw_material') {
             $this->uploadCoa($user, $lot, $batch);
+            $this->actingAs($user)->post(route('material-lots.inspect', $lot), $this->qcInspectionPayload())
+                ->assertSessionHas('success');
+        } else {
+            $this->actingAs($user)->post(route('material-lots.approve', $lot))->assertSessionHas('success');
         }
-        $this->actingAs($user)->post(route('material-lots.approve', $lot))->assertSessionHas('success');
         $this->actingAs($user)->post(route('material-lots.stock-receipt.post', $lot))->assertSessionHas('success');
+    }
+
+    private function qcInspectionPayload(string $result = 'passed'): array
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+
+        return [
+            'result' => $result,
+            'qc_test_report' => 'PKN-RAW-001',
+            'qc_date' => today()->toDateString(),
+            'qc_test_report_file' => \Illuminate\Http\UploadedFile::fake()->create('qc-report.pdf', 10, 'application/pdf'),
+            'qc_note' => $result === 'failed' ? 'Không đạt chỉ tiêu' : 'Đạt yêu cầu',
+        ];
     }
 
     private function uploadCoa(User $user, MaterialLot $lot, string $batch = ''): void
@@ -52,16 +72,7 @@ class RawMaterialFlowTest extends TestCase
 
     private function receiptPayload(array $items): array
     {
-        $qaDepartment = Department::firstOrCreate(['code' => 'QA'], ['name' => 'QA']);
-        $qcDepartment = Department::firstOrCreate(['code' => 'QC'], ['name' => 'QC']);
-        $qa = User::factory()->create(['department_id' => $qaDepartment->id, 'role' => 'qa']);
-        $qc = User::factory()->create(['department_id' => $qcDepartment->id, 'role' => 'qc']);
-
-        return [
-            'items' => $items,
-            'preliminary_qa_by' => $qa->id,
-            'preliminary_qc_by' => $qc->id,
-        ];
+        return ['items' => $items];
     }
 
     public function test_mixed_purchase_order_receives_materials_into_stock_and_completes(): void
@@ -78,7 +89,10 @@ class RawMaterialFlowTest extends TestCase
         $po->update(['status' => 'delivered']);
         $itemId = $po->items()->firstOrFail()->id;
 
-        $this->actingAs($user)->get(route('material-receipts.create', $po))->assertOk();
+        $this->actingAs($user)->get(route('material-receipts.create', $po))
+            ->assertOk()
+            ->assertDontSee('preliminary_qa_by', false)
+            ->assertDontSee('preliminary_qc_by', false);
         $receiptResponse = $this->actingAs($user)->post(route('material-receipts.store', $po), $this->receiptPayload([
             $itemId => ['received_quantity' => 8, 'returned_quantity' => 2],
         ]))->assertSessionHasNoErrors();
@@ -243,15 +257,22 @@ class RawMaterialFlowTest extends TestCase
         $this->qaThenQcApprove($user, $accLot, '');
         $this->assertSame(5.0, MaterialStockMovement::balance('accessory', $acc->id));
         $lot = MaterialLot::where('material_type', 'raw_material')->firstOrFail();
+        $this->assertSame('temporary_stored', $lot->status);
+        $this->actingAs($user)->post(route('material-lots.move-from-temporary', $lot))->assertSessionHas('success');
+        $lot->refresh();
         $this->assertSame('pending_qa', $lot->status);
-        $this->actingAs($user)->get(route('material-lots.index'))->assertOk()->assertSee('NL400');
+        $this->actingAs($user)->get(route('qa.material-lots.index'))->assertOk()->assertSee('NL400');
 
         $this->actingAs($user)->post(route('material-lots.approve', $lot))->assertSessionHas('error');
         $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
 
         $this->uploadCoa($user, $lot, 'NCC-LOT-9');
-        $this->actingAs($user)->post(route('material-lots.approve', $lot))->assertSessionHas('success');
+        $this->actingAs($user)->post(route('material-lots.inspect', $lot), $this->qcInspectionPayload())->assertSessionHas('success');
         $this->assertSame('qc_passed_pending_receipt', $lot->fresh()->status);
+        $inspection = $lot->fresh()->inspections()->where('inspection_stage', 'qc_inspection')->sole();
+        $this->assertSame('PKN-RAW-001', $inspection->report_number);
+        $this->assertNotNull($inspection->report_file);
+        $this->assertTrue(\Illuminate\Support\Facades\Storage::disk('local')->exists($inspection->report_file));
         $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
         $this->actingAs($user)->get(route('warehouse.material-lots.ready'))->assertOk()->assertSee('NCC-LOT-9');
         $this->actingAs($user)->post(route('material-lots.stock-receipt.post', $lot))->assertSessionHas('success');
@@ -269,9 +290,11 @@ class RawMaterialFlowTest extends TestCase
         $item = $po->items()->create(['material_type' => 'raw_material', 'material_id' => $raw->id, 'quantity' => 4, 'unit_price' => 1, 'total_price' => 4, 'unit' => 'Kg']);
         $this->actingAs($user)->post(route('material-receipts.store', $po), $this->receiptPayload([$item->id => ['received_quantity' => 4, 'returned_quantity' => 0]]))->assertSessionHas('success');
         $lot = MaterialLot::firstOrFail();
+        $this->actingAs($user)->post(route('material-lots.move-from-temporary', $lot))->assertSessionHas('success');
+        $lot->refresh();
         $this->uploadCoa($user, $lot, 'NCC-REJECT');
 
-        $this->actingAs($user)->post(route('material-lots.reject', $lot), ['qc_note' => 'Không đạt chỉ tiêu'])->assertSessionHas('success');
+        $this->actingAs($user)->post(route('material-lots.inspect', $lot), $this->qcInspectionPayload('failed'))->assertSessionHas('success');
 
         $this->assertSame('rejected', $lot->fresh()->status);
         $this->assertSame(0.0, MaterialStockMovement::balance('raw_material', $raw->id));
@@ -330,6 +353,7 @@ class RawMaterialFlowTest extends TestCase
             ->assertSessionHas('success');
 
         $lot = MaterialLot::where('material_type', 'excipient')->sole();
+        $this->actingAs($user)->post(route('material-lots.move-from-temporary', $lot))->assertSessionHas('success');
         $this->actingAs($user)
             ->post(route('material-lots.reject', $lot), ['qc_note' => 'Không đạt kiểm nghiệm'])
             ->assertSessionHas('success');
@@ -337,6 +361,65 @@ class RawMaterialFlowTest extends TestCase
         $this->assertSame('rejected', $lot->fresh()->status);
         $this->assertSame('Không đạt kiểm nghiệm', $lot->fresh()->qc_note);
         $this->assertSame(0.0, MaterialStockMovement::balance('excipient', $excipient->id));
+    }
+
+    public function test_qa_and_qc_have_distinct_raw_material_queues_and_qc_requires_a_test_report(): void
+    {
+        $user = $this->itUser();
+        $raw = RawMaterial::create(['sku' => 'RAW-QA-QC', 'name' => 'Dược liệu kiểm thử', 'slug' => 'raw-qa-qc', 'unit' => 'Kg']);
+        $supplier = Supplier::create(['name' => 'NCC QA QC', 'code' => 'NCC-QA-QC']);
+        $purchaseOrder = PurchaseOrder::create([
+            'po_number' => 'PO-QA-QC',
+            'supplier_id' => $supplier->id,
+            'order_date' => today(),
+            'status' => 'delivered',
+            'user_id' => $user->id,
+        ]);
+        $item = $purchaseOrder->items()->create([
+            'material_type' => 'raw_material',
+            'material_id' => $raw->id,
+            'quantity' => 1,
+            'unit_price' => 1,
+            'total_price' => 1,
+            'unit' => 'Kg',
+        ]);
+        $lot = MaterialLot::create([
+            'purchase_order_item_id' => $item->id,
+            'material_type' => 'raw_material',
+            'material_id' => $raw->id,
+            'quantity' => 1,
+            'unit' => 'Kg',
+            'status' => 'pending_qa',
+        ]);
+
+        $qaDepartment = Department::firstOrCreate(['code' => 'QA'], ['name' => 'QA']);
+        $qcDepartment = Department::firstOrCreate(['code' => 'QC'], ['name' => 'QC']);
+        $qaUser = User::factory()->create(['department_id' => $qaDepartment->id, 'role' => 'qa']);
+        $qcUser = User::factory()->create(['department_id' => $qcDepartment->id, 'role' => 'qc']);
+
+        $this->actingAs($qaUser)->get(route('qa.material-lots.index'))
+            ->assertOk()
+            ->assertSee('cập nhật COA')
+            ->assertDontSee('name="qc_test_report"', false);
+        $this->actingAs($qaUser)->get(route('qc.material-lots.index'))->assertForbidden();
+
+        $this->uploadCoa($qaUser, $lot, 'QA-QC-LOT');
+        $this->actingAs($qcUser)->post(route('material-lots.inspect', $lot), [
+            'result' => 'passed',
+        ])->assertSessionHasErrors(['qc_test_report', 'qc_date', 'qc_test_report_file']);
+
+        $this->actingAs($qaUser)->get(route('qa.material-lots.index'))
+            ->assertOk()
+            ->assertSee('Không có dược liệu thô chờ cập nhật COA.');
+        $this->actingAs($qcUser)->get(route('qc.material-lots.index', ['type' => 'raw_material']))
+            ->assertOk()
+            ->assertSee('Phiếu kiểm nghiệm')
+            ->assertSee('name="qc_test_report"', false)
+            ->assertDontSee('name="coa_file"', false);
+
+        $this->actingAs($qcUser)->post(route('material-lots.inspect', $lot), $this->qcInspectionPayload())
+            ->assertSessionHas('success');
+        $this->assertSame('qc_passed_pending_receipt', $lot->fresh()->status);
     }
 
     public function test_issue_consumes_lots_in_expiry_order_and_return_is_per_lot(): void

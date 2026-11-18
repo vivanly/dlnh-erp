@@ -7,11 +7,9 @@ use App\Models\MaterialReceipt;
 use App\Models\MaterialStockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
-use App\Models\User;
 use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class MaterialReceiptController extends Controller
 {
@@ -50,11 +48,7 @@ class MaterialReceiptController extends Controller
             return redirect()->route('warehouse.purchase-orders')->with('error', 'Đơn mua không có mặt hàng cần nhập kho nguyên liệu.');
         }
 
-        $users = User::with('department')->orderBy('name')->get();
-        $preliminaryQaUsers = $users->filter(fn (User $user) => $user->isQADepartment() && ! $user->isITDepartment())->values();
-        $preliminaryQcUsers = $users->filter(fn (User $user) => $user->isQCDepartment() && ! $user->isITDepartment())->values();
-
-        return view('material-receipts.create', compact('purchaseOrder', 'items', 'preliminaryQaUsers', 'preliminaryQcUsers'));
+        return view('material-receipts.create', compact('purchaseOrder', 'items'));
     }
 
     public function store(Request $request, PurchaseOrder $purchaseOrder)
@@ -67,19 +61,7 @@ class MaterialReceiptController extends Controller
             'items.*.returned_quantity' => 'required|numeric|min:0',
             'items.*.temporary_location' => 'nullable|string|max:255',
             'items.*.note' => 'nullable|string|max:1000',
-            'preliminary_qa_by' => 'required|integer|exists:users,id',
-            'preliminary_qc_by' => 'required|integer|exists:users,id',
-            'preliminary_note' => 'nullable|string|max:2000',
         ]);
-
-        $qaUser = User::with('department')->findOrFail($validated['preliminary_qa_by']);
-        $qcUser = User::with('department')->findOrFail($validated['preliminary_qc_by']);
-        if (!$qaUser->isQADepartment() || $qaUser->isITDepartment()) {
-            throw ValidationException::withMessages(['preliminary_qa_by' => 'Người kiểm tra sơ bộ phải thuộc bộ phận QA.']);
-        }
-        if (!$qcUser->isQCDepartment() || $qcUser->isITDepartment()) {
-            throw ValidationException::withMessages(['preliminary_qc_by' => 'Người kiểm tra sơ bộ phải thuộc bộ phận QC.']);
-        }
 
         try {
             $receipt = DB::transaction(function () use ($purchaseOrder, $validated) {
@@ -98,15 +80,12 @@ class MaterialReceiptController extends Controller
                     fn (array $data) => (float) $data['received_quantity'] + (float) $data['returned_quantity'] > 0
                 );
                 if (!$hasReceivedQuantity) {
-                    throw new DomainException('Nhập số lượng hàng thực nhận hoặc số lượng trả tại khâu kiểm tra sơ bộ.');
+                    throw new DomainException('Nhập số lượng thực nhận hoặc số lượng không tiếp nhận.');
                 }
 
                 $receipt = MaterialReceipt::create([
                     'purchase_order_id' => $locked->id,
                     'received_by' => auth()->id(),
-                    'preliminary_qa_by' => $validated['preliminary_qa_by'],
-                    'preliminary_qc_by' => $validated['preliminary_qc_by'],
-                    'preliminary_note' => $validated['preliminary_note'] ?? null,
                     'received_at' => now(),
                 ]);
                 $receipt->update([
@@ -132,11 +111,6 @@ class MaterialReceiptController extends Controller
                         'note' => $data['note'] ?? null,
                     ];
                     if ($received > 0) {
-                        // Determine initial status based on material type
-                        $initialStatus = \App\Models\CatalogItem::normalizeType($item->material_type) === 'raw_material' 
-                            ? 'pending_qa' 
-                            : 'pending_qc_inspection';
-                            
                         MaterialLot::create([
                             'purchase_order_item_id' => $item->id,
                             'material_receipt_id' => $receipt->id,
@@ -171,7 +145,7 @@ class MaterialReceiptController extends Controller
         }
 
         return redirect()->route('material-receipts.show', $receipt)
-            ->with('success', 'Đã lập phiếu tiếp nhận tạm. Hàng chờ QA cập nhật COA và QC xác nhận mới được nhập kho chính thức.');
+            ->with('success', 'Đã lập phiếu tiếp nhận tạm. Dược liệu thô chờ QA cập nhật COA, các vật tư chờ QC xác định chất lượng trước khi nhập kho chính thức.');
     }
 
     public function show(MaterialReceipt $materialReceipt)
@@ -189,8 +163,6 @@ class MaterialReceiptController extends Controller
         $materialReceipt->load([
             'purchaseOrder.supplier',
             'receiver',
-            'preliminaryQa',
-            'preliminaryQc',
             'lots',
             'movements',
         ]);

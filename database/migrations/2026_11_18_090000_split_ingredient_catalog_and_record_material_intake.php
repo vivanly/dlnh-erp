@@ -29,22 +29,27 @@ return new class extends Migration
             $table->string('receipt_code')->nullable()->unique();
             $table->foreignId('purchase_order_id')->constrained()->restrictOnDelete();
             $table->foreignId('received_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('preliminary_qa_by')->constrained('users')->restrictOnDelete();
-            $table->foreignId('preliminary_qc_by')->constrained('users')->restrictOnDelete();
+            $table->foreignId('preliminary_qa_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('preliminary_qc_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('preliminary_note')->nullable();
             $table->timestamp('received_at');
             $table->timestamps();
         });
 
-        Schema::create('material_lot_inspections', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('material_lot_id')->constrained('material_lots')->cascadeOnDelete();
-            $table->foreignId('checked_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('result', 24);
-            $table->text('note')->nullable();
-            $table->timestamp('checked_at');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('material_lot_inspections')) {
+            Schema::create('material_lot_inspections', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('material_lot_id')->constrained('material_lots')->cascadeOnDelete();
+                $table->foreignId('checked_by')->nullable()->constrained('users')->nullOnDelete();
+                $table->string('result', 24);
+                $table->text('note')->nullable();
+                $table->timestamp('checked_at');
+                $table->string('inspection_stage')->default('qc_inspection');
+                $table->text('detailed_findings')->nullable();
+                $table->text('corrective_action')->nullable();
+                $table->timestamps();
+            });
+        }
 
         Schema::table('material_lots', function (Blueprint $table) {
             $table->foreignId('material_receipt_id')->nullable()->after('purchase_order_item_id')

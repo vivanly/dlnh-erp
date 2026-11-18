@@ -15,33 +15,12 @@
             <form action="{{ route('material-receipts.store', $purchaseOrder) }}" method="POST" class="space-y-3">
                 @csrf
                 <div class="bg-white border border-slate-300 p-3">
-                    <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-2">Kiểm tra sơ bộ và tiếp nhận tạm</h3>
-                    <p class="mb-3 text-[11px] text-slate-600">Chọn tài khoản QA và QC đã cùng kiểm tra hàng đến. Số lượng nhận ở bước này chỉ vào khu vực tạm, chưa cộng vào tồn sử dụng.</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label class="text-xs font-semibold text-slate-700">Người QA kiểm tra sơ bộ
-                            <select name="preliminary_qa_by" required class="mt-1 w-full text-xs border-slate-300">
-                                <option value="">-- Chọn tài khoản QA --</option>
-                                @foreach($preliminaryQaUsers as $user)
-                                    <option value="{{ $user->id }}" @selected(old('preliminary_qa_by') == $user->id)>{{ $user->name }}{{ $user->employee_code ? ' · '.$user->employee_code : '' }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                        <label class="text-xs font-semibold text-slate-700">Người QC kiểm tra sơ bộ
-                            <select name="preliminary_qc_by" required class="mt-1 w-full text-xs border-slate-300">
-                                <option value="">-- Chọn tài khoản QC --</option>
-                                @foreach($preliminaryQcUsers as $user)
-                                    <option value="{{ $user->id }}" @selected(old('preliminary_qc_by') == $user->id)>{{ $user->name }}{{ $user->employee_code ? ' · '.$user->employee_code : '' }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                        <label class="text-xs font-semibold text-slate-700 sm:col-span-2">Ghi chú kiểm tra sơ bộ
-                            <textarea name="preliminary_note" rows="2" maxlength="2000" class="mt-1 w-full text-xs border-slate-300">{{ old('preliminary_note') }}</textarea>
-                        </label>
-                    </div>
+                    <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-2">Tiếp nhận vào kho tạm</h3>
+                    <p class="text-[11px] text-slate-600">Ghi nhận số lượng thực nhận và vị trí lưu kho tạm. Dược liệu thô sẽ được QA cập nhật COA trước khi QC kiểm nghiệm; nguyên liệu, phụ liệu, tá dược và bao bì chuyển thẳng đến QC xác định OK / NG. Hàng chưa được cộng vào tồn sử dụng.</p>
                 </div>
                 <div class="bg-white border border-slate-300 overflow-x-auto">
                     <div class="p-3 bg-slate-100 border-b border-slate-300">
-                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">QA cập nhật COA, sau đó QC kiểm tra; chỉ hàng đạt mới lập phiếu nhập kho</h3>
+                        <h3 class="font-bold text-xs text-slate-700 uppercase tracking-wider">Dược liệu thô: QA cập nhật COA, QC nhập phiếu kiểm nghiệm và kết luận OK / NG. Vật tư: QC xác định OK / NG.</h3>
                     </div>
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
@@ -50,8 +29,8 @@
                                 <th class="p-2.5 border-r text-center">SL theo PO</th>
                                 <th class="p-2.5 border-r text-center">Còn xử lý</th>
                                 <th class="p-2.5 border-r text-center w-28">SL tiếp nhận tạm</th>
-                                <th class="p-2.5 border-r text-center w-28">SL trả sơ bộ</th>
-                                <th class="p-2.5">Ghi chú sơ bộ</th>
+                                <th class="p-2.5 border-r text-center w-28">SL không tiếp nhận</th>
+                                <th class="p-2.5">Ghi chú</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200">

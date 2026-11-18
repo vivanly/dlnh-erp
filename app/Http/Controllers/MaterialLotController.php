@@ -10,6 +10,7 @@ use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class MaterialLotController extends Controller
 {
@@ -29,20 +30,42 @@ class MaterialLotController extends Controller
 
     public function index(Request $request)
     {
+        return $this->materialLotsIndex($request, 'qc');
+    }
+
+    public function qaIndex(Request $request)
+    {
+        abort_unless($this->canQa(), 403, 'Chỉ QA mới được cập nhật COA.');
+
+        return $this->materialLotsIndex($request, 'qa');
+    }
+
+    public function qcIndex(Request $request)
+    {
+        abort_unless($this->canQc(), 403, 'Chỉ QC mới được xác định chất lượng.');
+
+        return $this->materialLotsIndex($request, 'qc');
+    }
+
+    private function materialLotsIndex(Request $request, string $stage)
+    {
         $user = auth()->user();
-        abort_unless($user && (
+        abort_unless($user && ($stage === 'qa'
+            ? $this->canQa()
+            : (
             $user->isExecutiveBoardMember()
             || $this->canQa()
             || $this->canQc()
             || $user->isWarehouseDepartment()
             || $user->isWarehouseManager()
-        ), 403);
+            )), 403);
 
         $validated = $request->validate([
-            'type' => ['nullable', 'in:raw_material,ingredient,accessory,excipient,packaging'],
-            'status' => ['nullable', 'in:pending_qa,pending_reinspection,qc_passed_pending_receipt,active,rejected'],
+            'type' => $stage === 'qa' ? ['prohibited'] : ['nullable', 'in:raw_material,ingredient,accessory,excipient,packaging'],
+            'status' => $stage === 'qa' ? ['prohibited'] : ['nullable', 'in:pending_qc_inspection,pending_reinspection,qc_passed_pending_receipt,active,rejected'],
+            'search' => ['nullable', 'string', 'max:255'],
         ]);
-        $type = $validated['type'] ?? 'raw_material';
+        $type = $stage === 'qa' ? 'raw_material' : ($validated['type'] ?? 'raw_material');
         $materialTypes = $type === 'raw_material'
             ? ['raw_material']
             : ['ingredient', 'accessory', 'excipient', 'packaging'];
@@ -50,21 +73,22 @@ class MaterialLotController extends Controller
         $lots = MaterialLot::with([
             'purchaseOrderItem.purchaseOrder.supplier',
             'materialReceipt.receiver',
-            'materialReceipt.preliminaryQa',
-            'materialReceipt.preliminaryQc',
             'inspections.checker',
             'supplierReturns',
         ])
             ->where('material_type', $type)
-            ->when(!empty($validated['status']), fn ($query) => $query->where('status', $validated['status']))
-            ->when($request->filled('search'), function ($query) use ($request, $catalogModel) {
-                $search = $request->search;
+            ->when($stage === 'qa', fn ($query) => $query->where('status', 'pending_qa'))
+            ->when($stage === 'qc', fn ($query) => $query
+                ->whereIn('status', ['pending_qc_inspection', 'pending_reinspection', 'rejected', 'qc_passed_pending_receipt', 'active'])
+                ->when(!empty($validated['status']), fn ($statusQuery) => $statusQuery->where('status', $validated['status'])))
+            ->when(!empty($validated['search']), function ($query) use ($validated, $catalogModel) {
+                $search = $validated['search'];
                 $query->where(function ($q) use ($search, $catalogModel) {
                     $q->where('batch_number', 'like', "%{$search}%")
                         ->orWhereIn('material_id', $catalogModel::where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")->select('id'));
                 });
             })
-            ->orderByRaw("FIELD(status, 'pending_qa', 'pending_reinspection', 'qc_passed_pending_receipt', 'active', 'rejected')")
+            ->orderByRaw("FIELD(status, 'pending_qc_inspection', 'pending_reinspection', 'rejected', 'qc_passed_pending_receipt', 'active')")
             ->latest('id')
             ->paginate(30)
             ->withQueryString();
@@ -72,6 +96,7 @@ class MaterialLotController extends Controller
         return view('material-lots.index', [
             'lots' => $lots,
             'type' => $type,
+            'stage' => $stage,
             'typeLabel' => \App\Models\CatalogItem::labelForType($type),
             'materialTypes' => $materialTypes,
             'canQa' => $this->canQa(),
@@ -103,11 +128,13 @@ class MaterialLotController extends Controller
         }
 
         if ($search) {
-            $query->whereHas('catalogItem', function ($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                  ->orWhere('sku', 'like', "%$search%");
-            })->orWhereHas('purchaseOrderItem.purchaseOrder.supplier', function ($q) use ($search) {
-                $q->where('name', 'like', "%$search%");
+            $query->where(function ($searchQuery) use ($search) {
+                $searchQuery->whereHas('catalogItem', function ($q) use ($search) {
+                    $q->where('name', 'like', "%$search%")
+                      ->orWhere('sku', 'like', "%$search%");
+                })->orWhereHas('purchaseOrderItem.purchaseOrder.supplier', function ($q) use ($search) {
+                    $q->where('name', 'like', "%$search%");
+                });
             });
         }
 
@@ -153,7 +180,7 @@ class MaterialLotController extends Controller
         if ($materialLot->material_type !== 'raw_material') {
             return back()->with('error', 'Chỉ dược liệu thô mới yêu cầu QA cập nhật COA.');
         }
-        if (!in_array($materialLot->status, ['pending_qa', 'pending_reinspection'], true)) {
+        if ($materialLot->status !== 'pending_qa') {
             return back()->with('error', 'Lô đã được QC kết luận, không thể sửa.');
         }
 
@@ -207,92 +234,110 @@ class MaterialLotController extends Controller
         return back()->with('success', 'QA đã cập nhật số lô nhà cung cấp và COA. Lô chờ QC xác nhận.');
     }
 
+    public function recordInspection(Request $request, MaterialLot $materialLot)
+    {
+        abort_unless($this->canQc(), 403, 'Chỉ QC mới được xác nhận chất lượng.');
+
+        return $this->saveQcInspection($request, $materialLot);
+    }
+
     public function approve(Request $request, MaterialLot $materialLot)
     {
         abort_unless($this->canQc(), 403, 'Chỉ QC mới được xác nhận chất lượng.');
 
-        $data = $request->validate([
-            'qc_note' => 'nullable|string|max:500',
-        ]);
-
-        try {
-            DB::transaction(function () use ($materialLot, $data) {
-                $lot = MaterialLot::whereKey($materialLot->id)->lockForUpdate()->firstOrFail();
-                
-                // Chỉ được phép từ các status chuẩn
-                if (!in_array($lot->status, ['temporary_stored', 'pending_qc_inspection', 'pending_reinspection'], true)) {
-                    throw new DomainException('Lô không ở trạng thái cho phép QC xác nhận.');
-                }
-
-                // Nếu là dược liệu thô, kiểm tra QA đã cập nhật đủ chưa
-                if ($lot->material_type === 'raw_material' && $lot->needsQa()) {
-                    throw new DomainException('QA chưa cập nhật đủ COA và thông tin bắt buộc của dược liệu thô.');
-                }
-
-                $lot->update([
-                    'status' => 'qc_passed_pending_receipt',
-                    'qc_by' => auth()->id(),
-                    'qc_at' => now(),
-                ]);
-
-                MaterialLotInspection::create([
-                    'material_lot_id' => $lot->id,
-                    'checked_by' => auth()->id(),
-                    'result' => 'passed',
-                    'inspection_stage' => 'qc_inspection',
-                    'detailed_findings' => $data['qc_note'] ?? 'QC xác nhận đạt tiêu chuẩn chất lượng',
-                    'checked_at' => now(),
-                ]);
-            });
-        } catch (DomainException $exception) {
-            return back()->with('error', $exception->getMessage());
-        }
-
-        return back()->with('success', 'QC xác nhận đạt. Lô sẵn sàng được nhập kho chính thức.');
+        return $this->saveQcInspection($request, $materialLot, 'passed');
     }
 
     public function reject(Request $request, MaterialLot $materialLot)
     {
         abort_unless($this->canQc(), 403, 'Chỉ QC mới được kết luận chất lượng.');
-        $data = $request->validate([
-            'qc_note' => 'required|string|max:1000',
-            'detailed_findings' => 'nullable|string|max:2000',
-        ]);
+
+        return $this->saveQcInspection($request, $materialLot, 'failed');
+    }
+
+    private function saveQcInspection(Request $request, MaterialLot $materialLot, ?string $forcedResult = null)
+    {
+        if (!in_array($materialLot->status, ['pending_qc_inspection', 'pending_reinspection'], true)) {
+            return back()->with('error', 'Lô chưa ở trạng thái chờ QC kiểm tra.');
+        }
+        if ($materialLot->material_type === 'raw_material' && $materialLot->needsQa()) {
+            return back()->with('error', 'QA cần cập nhật đầy đủ COA và thông tin lô trước khi QC kết luận.');
+        }
+
+        $rules = [
+            'result' => [$forcedResult ? 'sometimes' : 'required', 'in:passed,failed'],
+            'qc_note' => ['nullable', 'string', 'max:1000'],
+            'detailed_findings' => ['nullable', 'string', 'max:2000'],
+        ];
+        if ($materialLot->material_type === 'raw_material') {
+            $rules += [
+                'qc_test_report' => ['required', 'string', 'max:255'],
+                'qc_date' => ['required', 'date'],
+                'qc_test_report_file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            ];
+        }
+
+        $data = $request->validate($rules);
+        $result = $forcedResult ?? $data['result'];
+        if ($result === 'failed' && empty($data['qc_note']) && empty($data['detailed_findings'])) {
+            return back()->withErrors(['qc_note' => 'Vui lòng nhập lý do QC xác định không đạt.'])->withInput();
+        }
+
+        $reportPath = null;
+        if ($materialLot->material_type === 'raw_material') {
+            $reportPath = $request->file('qc_test_report_file')->store('material-qc-reports', 'local');
+            if (! $reportPath) {
+                throw new RuntimeException('Không lưu được phiếu kiểm nghiệm QC.');
+            }
+        }
 
         try {
-            DB::transaction(function () use ($materialLot, $data) {
+            DB::transaction(function () use ($materialLot, $data, $result, $reportPath) {
                 $lot = MaterialLot::whereKey($materialLot->id)->lockForUpdate()->firstOrFail();
-                
-                if (!in_array($lot->status, ['temporary_stored', 'pending_qc_inspection', 'pending_reinspection'], true)) {
-                    throw new DomainException('Lô không ở trạng thái cho phép QC kết luận.');
+                if (!in_array($lot->status, ['pending_qc_inspection', 'pending_reinspection'], true)) {
+                    throw new DomainException('Lô không còn ở trạng thái chờ QC kiểm tra.');
                 }
-                
                 if ($lot->material_type === 'raw_material' && $lot->needsQa()) {
                     throw new DomainException('QA cần cập nhật COA trước khi QC kết luận.');
                 }
 
                 $lot->update([
-                    'status' => 'rejected',
+                    'status' => $result === 'passed' ? 'qc_passed_pending_receipt' : 'rejected',
                     'qc_by' => auth()->id(),
                     'qc_at' => now(),
-                    'qc_note' => $data['qc_note'],
+                    'qc_note' => $data['qc_note'] ?? ($data['detailed_findings'] ?? null),
                 ]);
-                
+
                 MaterialLotInspection::create([
                     'material_lot_id' => $lot->id,
                     'checked_by' => auth()->id(),
-                    'result' => 'failed',
+                    'result' => $result,
                     'inspection_stage' => 'qc_inspection',
-                    'note' => $data['qc_note'],
-                    'detailed_findings' => $data['detailed_findings'] ?? $data['qc_note'],
+                    'note' => $data['qc_note'] ?? null,
+                    'detailed_findings' => $data['detailed_findings'] ?? ($data['qc_note'] ?? null),
+                    'report_number' => $data['qc_test_report'] ?? null,
+                    'report_date' => $data['qc_date'] ?? null,
+                    'report_file' => $reportPath,
                     'checked_at' => now(),
                 ]);
             });
         } catch (DomainException $exception) {
+            if ($reportPath) {
+                Storage::disk('local')->delete($reportPath);
+            }
+
             return back()->with('error', $exception->getMessage());
+        } catch (\Throwable $exception) {
+            if ($reportPath) {
+                Storage::disk('local')->delete($reportPath);
+            }
+
+            throw $exception;
         }
 
-        return back()->with('success', 'QC kết luận không đạt. Bạn có thể yêu cầu kiểm tra lại hoặc lập phiếu trả NCC.');
+        return back()->with('success', $result === 'passed'
+            ? 'QC xác nhận đạt. Lô sẵn sàng được nhập kho chính thức.'
+            : 'QC xác định không đạt. Có thể yêu cầu kiểm tra lại hoặc lập phiếu trả nhà cung cấp.');
     }
 
     public function requestReinspection(Request $request, MaterialLot $materialLot)
@@ -345,9 +390,8 @@ class MaterialLotController extends Controller
 
         $lots = MaterialLot::with([
             'purchaseOrderItem.purchaseOrder.supplier',
-            'materialReceipt.preliminaryQa',
-            'materialReceipt.preliminaryQc',
             'qcBy',
+            'inspections',
         ])
             ->where('status', 'qc_passed_pending_receipt')
             ->orderBy('qc_at')
@@ -418,6 +462,26 @@ class MaterialLotController extends Controller
         return Storage::disk('local')->response($materialLot->coa_file);
     }
 
+    public function inspectionReport(MaterialLotInspection $inspection)
+    {
+        $user = auth()->user();
+        abort_unless($user && (
+            $user->isExecutiveBoardMember()
+            || $this->canQa()
+            || $this->canQc()
+            || $user->isWarehouseDepartment()
+            || $user->isWarehouseManager()
+        ), 403);
+        abort_unless(
+            $inspection->materialLot?->material_type === 'raw_material'
+                && $inspection->report_file
+                && Storage::disk('local')->exists($inspection->report_file),
+            404
+        );
+
+        return Storage::disk('local')->response($inspection->report_file);
+    }
+
     public function stockReceipt(MaterialLot $materialLot)
     {
         $user = auth()->user();
@@ -432,8 +496,8 @@ class MaterialLotController extends Controller
 
         $materialLot->load([
             'purchaseOrderItem.purchaseOrder.supplier',
-            'materialReceipt.preliminaryQa',
-            'materialReceipt.preliminaryQc',
+            'materialReceipt.receiver',
+            'inspections',
         ]);
 
         return view('material-lots.stock-receipt', compact('materialLot'));

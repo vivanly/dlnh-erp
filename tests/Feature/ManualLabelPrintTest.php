@@ -3,9 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\ManualLabelPrint;
+use App\Models\ManualLabelProduct;
+use App\Models\ManualLabelProductionOrder;
 use App\Models\User;
+use App\Services\ManualLabelOrders;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class ManualLabelPrintTest extends TestCase
@@ -37,9 +42,9 @@ class ManualLabelPrintTest extends TestCase
     {
         $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
         $blocked = User::factory()->create(['role' => 'production', 'can_print_labels' => false]);
-        \App\Models\ManualLabelProduct::create([
+        ManualLabelProduct::create([
             'name' => 'TRẦN BÌ SAO VÀNG',
-            'name_key' => \App\Models\ManualLabelProduct::key('TRẦN BÌ SAO VÀNG'),
+            'name_key' => ManualLabelProduct::key('TRẦN BÌ SAO VÀNG'),
             'category' => 'Vị thuốc',
             'scientific_name' => 'Pericarpium Citri reticulatae perenne Praeparata',
             'standard' => 'TCCS',
@@ -47,13 +52,13 @@ class ManualLabelPrintTest extends TestCase
             'part_used' => 'Vỏ quả',
             'registration' => 'VCT-00716-26',
         ]);
-        \App\Models\ManualLabelProductionOrder::create([
+        ManualLabelProductionOrder::create([
             'label_code' => 'NH000001', 'production_order' => '26080001', 'order_date' => '2026-08-11',
             'name' => 'TRẦN BÌ SAO VÀNG', 'batch' => '110826TRBIN-SV', 'mfg_date' => '2026-08-11',
             'exp_date' => '2028-08-10', 'pack_spec' => '2 KG', 'quantity' => '160 KG',
             'label_count' => 80, 'label_type' => 'vt', 'traditional_medicine_name' => true,
         ]);
-        \App\Models\ManualLabelProductionOrder::create([
+        ManualLabelProductionOrder::create([
             'label_code' => 'NH000002', 'production_order' => '26080002', 'name' => 'HÀNG LẠ',
             'batch' => '050126ABC', 'pack_spec' => '1 KG', 'quantity' => '10 KG', 'label_count' => 10,
         ]);
@@ -66,7 +71,7 @@ class ManualLabelPrintTest extends TestCase
             ->assertOk()->assertSee('chưa có mã hàng');
         $this->actingAs($blocked)->get(route('manual-labels.orders'))->assertForbidden();
 
-        $order = \App\Models\ManualLabelProductionOrder::where('label_code', 'NH000001')->firstOrFail();
+        $order = ManualLabelProductionOrder::where('label_code', 'NH000001')->firstOrFail();
         $this->actingAs($user)->get(route('manual-labels.create', ['order' => $order->id]))->assertOk()
             ->assertSee('value="110826TRBIN-SV"', false)->assertSee('value="VCT-00716-26"', false)
             ->assertSee('value="2 KG"', false)->assertSee('value="80"', false)->assertSee('value="TCCS"', false)
@@ -92,6 +97,7 @@ class ManualLabelPrintTest extends TestCase
             ->assertSeeInOrder(['Tên hàng *', 'Số lô *', 'NSX', 'HSD', 'QCĐG * (KG)', 'Số lượng * (KG)', 'Mẫu nhãn *'])
             ->assertDontSee('Import Excel');
     }
+
     public function test_manage_orders_and_products_crud(): void
     {
         $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
@@ -103,7 +109,7 @@ class ManualLabelPrintTest extends TestCase
         $this->actingAs($user)->get(route('manual-labels.products.create'))->assertOk();
         $this->actingAs($user)->post(route('manual-labels.products.store'), ['name' => 'Bạch  Thược', 'origin' => 'Việt Nam'])->assertRedirect(route('manual-labels.products'));
         $this->actingAs($user)->post(route('manual-labels.products.store'), ['name' => 'bạch thược'])->assertSessionHasErrors();
-        $product = \App\Models\ManualLabelProduct::firstOrFail();
+        $product = ManualLabelProduct::firstOrFail();
         $this->actingAs($user)->get(route('manual-labels.products.edit', $product))->assertOk()->assertSee('Việt Nam');
         $this->actingAs($user)->put(route('manual-labels.products.update', $product), ['name' => 'Bạch Thược', 'registration' => 'VD-1'])->assertRedirect();
         $this->assertDatabaseHas('manual_label_products', ['id' => $product->id, 'registration' => 'VD-1']);
@@ -113,7 +119,7 @@ class ManualLabelPrintTest extends TestCase
         $this->actingAs($user)->post(route('manual-labels.orders.store'), [
             'production_order' => 'SX01', 'lines' => [['name' => 'Bạch Thược', 'batch' => '010126X', 'pack_spec' => '1 kg', 'quantity' => '8 kg', 'mfg_date' => '2026-01-01', 'label_type' => 'vt']],
         ])->assertRedirect(route('manual-labels.orders'));
-        $order = \App\Models\ManualLabelProductionOrder::firstOrFail();
+        $order = ManualLabelProductionOrder::firstOrFail();
         $this->actingAs($user)->get(route('manual-labels.orders.edit', $order))->assertOk()->assertSee('NH000001');
         $this->actingAs($user)->put(route('manual-labels.orders.update', $order), ['production_order' => 'SX01', 'name' => 'Bạch Thược', 'batch' => '010126X', 'pack_spec' => '1 kg', 'quantity' => '12 kg', 'label_type' => 'vt'])->assertRedirect(route('manual-labels.orders'));
         $this->assertDatabaseHas('manual_label_production_orders', ['id' => $order->id, 'label_count' => 12]);
@@ -121,6 +127,66 @@ class ManualLabelPrintTest extends TestCase
         $this->actingAs($user)->delete(route('manual-labels.products.destroy', $product))->assertRedirect();
         $this->assertDatabaseCount('manual_label_production_orders', 0);
         $this->assertDatabaseCount('manual_label_products', 0);
+    }
+
+    public function test_manual_label_products_can_be_imported_from_excel_csv(): void
+    {
+        $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
+        $file = UploadedFile::fake()->createWithContent(
+            'manual-label-products.csv',
+            "Tên hàng,Chủng loại,Tên khoa học,Tiêu chuẩn,Nguồn gốc,Bộ phận dùng,Số đăng ký\n"
+            ."Bạch Thược,Vị thuốc,Paeonia lactiflora,Dược điển Việt Nam,Việt Nam,Rễ,VD-001\n"
+            .",,,,,,\n"
+        );
+
+        $this->actingAs($user)->get(route('manual-labels.products'))
+            ->assertOk()->assertSee('Import Excel');
+        $this->actingAs($user)->get(route('manual-labels.products.import.form'))
+            ->assertOk()->assertSee('ten_hang');
+        $this->actingAs($user)->post(route('manual-labels.products.import'), ['file' => $file])
+            ->assertRedirect(route('manual-labels.products'))
+            ->assertSessionHas('success', 'Import thành công 1 mã hàng!');
+
+        $this->assertDatabaseHas('manual_label_products', [
+            'name' => 'Bạch Thược',
+            'name_key' => ManualLabelProduct::key('Bạch Thược'),
+            'scientific_name' => 'Paeonia lactiflora',
+            'registration' => 'VD-001',
+        ]);
+    }
+
+    public function test_manual_label_product_import_skips_duplicates_and_reports_errors(): void
+    {
+        $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
+        ManualLabelProduct::create([
+            'name' => 'Bạch Thược',
+            'name_key' => ManualLabelProduct::key('Bạch Thược'),
+        ]);
+        $file = UploadedFile::fake()->createWithContent(
+            'manual-label-products.csv',
+            "ten_hang,nguon_goc,so_dang_ky\n"
+            ."bach  thuoc,Nguồn mới,VD-NEW\n"
+            .",,VD-MISSING\n"
+            ."Hoàng Cầm,Việt Nam,VD-002\n"
+        );
+
+        $this->actingAs($user)->post(route('manual-labels.products.import'), ['file' => $file])
+            ->assertRedirect(route('manual-labels.products.import.form'))
+            ->assertSessionHas('warning', 'Đã import 1 mã hàng; bỏ qua 2 dòng không hợp lệ.')
+            ->assertSessionHas('import_errors');
+
+        $this->assertDatabaseCount('manual_label_products', 2);
+        $this->assertDatabaseHas('manual_label_products', ['name' => 'Bạch Thược', 'origin' => null]);
+        $this->assertDatabaseHas('manual_label_products', ['name' => 'Hoàng Cầm', 'origin' => 'Việt Nam']);
+    }
+
+    public function test_manual_label_product_import_requires_print_permission(): void
+    {
+        $user = User::factory()->create(['role' => 'production', 'can_print_labels' => false]);
+        $file = UploadedFile::fake()->createWithContent('products.csv', "ten_hang\nAtiso\n");
+
+        $this->actingAs($user)->get(route('manual-labels.products.import.form'))->assertForbidden();
+        $this->actingAs($user)->post(route('manual-labels.products.import'), ['file' => $file])->assertForbidden();
     }
 
     public function test_authorized_user_prints_and_delivers_labels(): void
@@ -160,7 +226,7 @@ class ManualLabelPrintTest extends TestCase
     public function test_batch_print_groups_lines_tracks_remaining_and_handles_partial_sheets(): void
     {
         $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
-        \App\Models\ManualLabelProduct::create(['name' => 'Bạch Thược', 'name_key' => \App\Models\ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc']);
+        ManualLabelProduct::create(['name' => 'Bạch Thược', 'name_key' => ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc']);
         $line = ['name' => 'Bạch Thược', 'batch' => 'LOT1', 'mfg_date' => '2026-01-01', 'exp_date' => '2028-01-01'];
         $this->actingAs($user)->post(route('manual-labels.orders.store'), [
             'production_order' => 'SX01',
@@ -170,7 +236,7 @@ class ManualLabelPrintTest extends TestCase
             ],
         ])->assertRedirect(route('manual-labels.orders'));
 
-        $orders = \App\Models\ManualLabelProductionOrder::orderBy('id')->get();
+        $orders = ManualLabelProductionOrder::orderBy('id')->get();
         $this->assertSame(['NH000001', 'NH000002'], $orders->pluck('label_code')->all());
         $this->assertTrue($orders[0]->traditional_medicine_name);
         $this->assertFalse($orders[1]->traditional_medicine_name);
@@ -225,8 +291,8 @@ class ManualLabelPrintTest extends TestCase
     public function test_manual_orders_accept_numeric_kg_values_and_print_uppercase_units(): void
     {
         $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
-        \App\Models\ManualLabelProduct::create([
-            'name' => 'Bạch Thược', 'name_key' => \App\Models\ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc',
+        ManualLabelProduct::create([
+            'name' => 'Bạch Thược', 'name_key' => ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc',
         ]);
         $base = ['name' => 'Bạch Thược', 'batch' => 'LOT1', 'mfg_date' => '2026-01-01', 'exp_date' => '2028-01-01', 'label_type' => 'vt'];
         $this->actingAs($user)->post(route('manual-labels.orders.store'), [
@@ -238,7 +304,7 @@ class ManualLabelPrintTest extends TestCase
             ],
         ])->assertRedirect(route('manual-labels.orders'));
 
-        $orders = \App\Models\ManualLabelProductionOrder::orderBy('id')->get();
+        $orders = ManualLabelProductionOrder::orderBy('id')->get();
         $this->assertSame(['1 KG', '2 KG', '0.5 KG'], $orders->pluck('pack_spec')->all());
         $this->assertSame(['2 KG', '4 KG', '1 KG'], $orders->pluck('quantity')->all());
         $this->assertSame([2, 2, 2], $orders->pluck('label_count')->all());
@@ -251,14 +317,14 @@ class ManualLabelPrintTest extends TestCase
             'include_partial' => '1',
         ]);
         $response->assertOk()->assertSee('1 KG')->assertSee('2 KG')->assertSee('0.5 KG')->assertDontSee('0.5 kg');
-        $this->assertSame(2, (int) \App\Models\ManualLabelPrint::where('label_code', 'NH000003')->sum('copies_count'));
+        $this->assertSame(2, (int) ManualLabelPrint::where('label_code', 'NH000003')->sum('copies_count'));
     }
 
     public function test_order_lines_save_individual_qr_content_for_print_and_reprint(): void
     {
         $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
-        \App\Models\ManualLabelProduct::create([
-            'name' => 'Bạch Thược', 'name_key' => \App\Models\ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc',
+        ManualLabelProduct::create([
+            'name' => 'Bạch Thược', 'name_key' => ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc',
         ]);
         $line = [
             'name' => 'Bạch Thược', 'batch' => 'LOT1', 'mfg_date' => '2026-01-01', 'exp_date' => '2028-01-01',
@@ -269,7 +335,7 @@ class ManualLabelPrintTest extends TestCase
             'lines' => [$line + ['qr_content' => 'https://example.com/first'], $line + ['qr_content' => ''], $line + ['qr_content' => 'second']],
         ])->assertRedirect(route('manual-labels.orders'));
 
-        $orders = \App\Models\ManualLabelProductionOrder::orderBy('id')->get();
+        $orders = ManualLabelProductionOrder::orderBy('id')->get();
         $this->assertSame(['https://example.com/first', null, 'second'], $orders->pluck('qr_content')->all());
         $this->actingAs($user)->get(route('manual-labels.orders.edit', $orders[0]))
             ->assertOk()->assertSee('value="https://example.com/first"', false);
@@ -307,8 +373,8 @@ class ManualLabelPrintTest extends TestCase
     public function test_order_lines_store_edit_and_print_storage_instructions(): void
     {
         $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
-        \App\Models\ManualLabelProduct::create([
-            'name' => 'Bạch Thược', 'name_key' => \App\Models\ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc',
+        ManualLabelProduct::create([
+            'name' => 'Bạch Thược', 'name_key' => ManualLabelProduct::key('Bạch Thược'), 'category' => 'Vị thuốc',
         ]);
         $line = [
             'name' => 'Bạch Thược', 'batch' => 'LOT1', 'mfg_date' => '2026-01-01', 'exp_date' => '2028-01-01',
@@ -320,8 +386,8 @@ class ManualLabelPrintTest extends TestCase
             'production_order' => 'SX-STORAGE', 'lines' => [$line, $line + ['storage' => 'Bảo quản lạnh']],
         ])->assertRedirect(route('manual-labels.orders'));
 
-        $orders = \App\Models\ManualLabelProductionOrder::orderBy('id')->get();
-        $default = \App\Models\ManualLabelProductionOrder::DEFAULT_STORAGE;
+        $orders = ManualLabelProductionOrder::orderBy('id')->get();
+        $default = ManualLabelProductionOrder::DEFAULT_STORAGE;
         $this->assertSame([$default, 'Bảo quản lạnh'], $orders->pluck('storage')->all());
         $this->actingAs($user)->get(route('manual-labels.orders.edit', $orders[1]))->assertOk()->assertSee('Bảo quản lạnh');
         $this->actingAs($user)->get(route('manual-labels.create', ['order' => $orders[0]->id]))->assertOk()->assertSee($default);
@@ -359,8 +425,8 @@ class ManualLabelPrintTest extends TestCase
     public function test_batch_print_rejects_bad_or_changed_lines_without_recording_any_prints(): void
     {
         $user = User::factory()->create(['role' => 'production', 'can_print_labels' => true]);
-        $product = \App\Models\ManualLabelProduct::create(['name' => 'A', 'name_key' => 'a', 'category' => 'Vị thuốc']);
-        $order = \App\Models\ManualLabelProductionOrder::create([
+        $product = ManualLabelProduct::create(['name' => 'A', 'name_key' => 'a', 'category' => 'Vị thuốc']);
+        $order = ManualLabelProductionOrder::create([
             'label_code' => 'NH000001', 'production_order' => 'SX01', 'name' => 'A', 'batch' => 'LOT1',
             'mfg_date' => '2026-01-01', 'exp_date' => '2028-01-01', 'pack_spec' => '3 kg', 'quantity' => '10 kg',
         ]);
@@ -379,23 +445,23 @@ class ManualLabelPrintTest extends TestCase
 
     public function test_existing_codes_and_history_are_normalized_without_reusing_numbers(): void
     {
-        $order = \App\Models\ManualLabelProductionOrder::create([
+        $order = ManualLabelProductionOrder::create([
             'label_code' => 'NH185', 'production_order' => 'SX01', 'name' => 'A',
         ]);
         ManualLabelPrint::create($this->payload(['label_code' => 'NH185']));
-        \Illuminate\Support\Facades\Schema::drop('manual_label_sequences');
+        Schema::drop('manual_label_sequences');
         $migration = require database_path('migrations/2026_11_16_170000_normalize_manual_label_codes.php');
         $migration->up();
         $this->assertSame('NH000185', $order->fresh()->label_code);
         $this->assertDatabaseHas('manual_label_prints', ['label_code' => 'NH000185']);
-        $this->assertSame('NH000186', \Illuminate\Support\Facades\DB::transaction(fn () => \App\Services\ManualLabelOrders::nextCode()));
+        $this->assertSame('NH000186', DB::transaction(fn () => ManualLabelOrders::nextCode()));
     }
 
     public function test_conversion_stops_before_changing_colliding_old_codes(): void
     {
-        \App\Models\ManualLabelProductionOrder::create(['label_code' => 'NH1', 'name' => 'A']);
-        \App\Models\ManualLabelProductionOrder::create(['label_code' => 'NH001', 'name' => 'B']);
-        \Illuminate\Support\Facades\Schema::drop('manual_label_sequences');
+        ManualLabelProductionOrder::create(['label_code' => 'NH1', 'name' => 'A']);
+        ManualLabelProductionOrder::create(['label_code' => 'NH001', 'name' => 'B']);
+        Schema::drop('manual_label_sequences');
         $migration = require database_path('migrations/2026_11_16_170000_normalize_manual_label_codes.php');
         try {
             $migration->up();

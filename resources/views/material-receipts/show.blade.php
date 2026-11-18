@@ -15,14 +15,6 @@
             <div>{{ $materialReceipt->received_at?->format('d/m/Y H:i') }}</div>
             <div class="text-slate-500">Kho tiếp nhận</div>
             <div>{{ $materialReceipt->receiver->name ?? '---' }}</div>
-            <div class="text-slate-500">QA kiểm tra sơ bộ</div>
-            <div>{{ $materialReceipt->preliminaryQa->name ?? '---' }}</div>
-            <div class="text-slate-500">QC kiểm tra sơ bộ</div>
-            <div>{{ $materialReceipt->preliminaryQc->name ?? '---' }}</div>
-            @if($materialReceipt->preliminary_note)
-                <div class="text-slate-500">Ghi chú sơ bộ</div>
-                <div>{{ $materialReceipt->preliminary_note }}</div>
-            @endif
         </section>
 
         <section class="overflow-x-auto border border-slate-300 bg-white">
@@ -31,7 +23,7 @@
                     <tr>
                         <th class="p-2">Loại / hàng hóa</th>
                         <th class="p-2 text-right">Tiếp nhận tạm</th>
-                        <th class="p-2 text-right">Trả ở bước sơ bộ</th>
+                        <th class="p-2 text-right">Không tiếp nhận</th>
                         <th class="p-2">Ghi chú</th>
                     </tr>
                 </thead>

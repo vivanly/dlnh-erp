@@ -23,7 +23,18 @@
                         <tr>
                             <td class="p-2">{{ $lot->purchaseOrderItem->purchaseOrder->po_number ?? '---' }}<span class="block text-[10px] text-slate-500">{{ $lot->purchaseOrderItem->purchaseOrder->supplier->name ?? '---' }}</span></td>
                             <td class="p-2">{{ \App\Models\CatalogItem::labelForType($lot->material_type) }} · {{ $lot->catalog_item->name ?? '---' }} <span class="block font-mono text-[10px] text-slate-500">{{ $lot->catalog_item->sku ?? '' }}</span></td>
-                            <td class="p-2">{{ $lot->material_type === 'raw_material' ? $lot->batch_number : 'FIFO theo lần nhập' }}<span class="block text-[10px] text-slate-500">COA: {{ $lot->coa_file ? 'Đã lưu' : 'Thiếu' }}</span></td>
+                            <td class="p-2">
+                                @if($lot->material_type === 'raw_material')
+                                    {{ $lot->batch_number }}
+                                    <span class="block text-[10px] text-slate-500">COA: {{ $lot->coa_file ? 'Đã lưu' : 'Thiếu' }}</span>
+                                    @php($inspection = $lot->inspections->where('inspection_stage', 'qc_inspection')->last())
+                                    @if($inspection)
+                                        <span class="block text-[10px] text-slate-500">PKN: {{ $inspection->report_number ?: 'Chưa có' }} · {{ $inspection->result === 'passed' ? 'OK' : 'NG' }}</span>
+                                    @endif
+                                @else
+                                    FIFO theo từng lần nhập
+                                @endif
+                            </td>
                             <td class="p-2 text-right font-mono font-bold">{{ number_format((float) $lot->quantity, 4) }} {{ $lot->unit }}</td>
                             <td class="p-2">{{ $lot->qcBy->name ?? '---' }}<span class="block text-[10px] text-slate-500">{{ $lot->qc_at?->format('d/m/Y H:i') }}</span></td>
                             <td class="p-2">

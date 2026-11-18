@@ -5,7 +5,10 @@
                 <h2 class="font-bold text-sm uppercase tracking-wide text-slate-800">In Nhãn Tay / Mã hàng</h2>
                 <p class="mt-1 text-xs text-slate-500">Thông tin sản phẩm (tên khoa học, nguồn gốc, số đăng ký…) dùng để tự điền khi in nhãn từ lệnh sản xuất.</p>
             </div>
-            <a href="{{ route('manual-labels.products.create') }}" class="rounded-md bg-blue-700 px-3.5 py-2 text-[11px] font-bold uppercase text-white hover:bg-blue-600">+ Thêm mã hàng</a>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('manual-labels.products.import.form') }}" class="rounded-md bg-emerald-700 px-3.5 py-2 text-[11px] font-bold uppercase text-white hover:bg-emerald-600">Import Excel</a>
+                <a href="{{ route('manual-labels.products.create') }}" class="rounded-md bg-blue-700 px-3.5 py-2 text-[11px] font-bold uppercase text-white hover:bg-blue-600">+ Thêm mã hàng</a>
+            </div>
         </div>
     </x-slot>
 

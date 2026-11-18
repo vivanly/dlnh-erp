@@ -32,8 +32,22 @@
                     <dt class="text-slate-500">Cách quản lý tồn</dt>
                     <dd>FIFO theo số lượng từng lần nhập</dd>
                 @endif
-                <dt class="text-slate-500">COA</dt>
-                <dd><a href="{{ route('material-lots.coa', $materialLot) }}" class="text-blue-700 underline">Xem COA</a></dd>
+                @if($materialLot->material_type === 'raw_material')
+                    <dt class="text-slate-500">COA</dt>
+                    <dd><a href="{{ route('material-lots.coa', $materialLot) }}" class="text-blue-700 underline">Xem COA</a></dd>
+                    @php($inspection = $materialLot->inspections->where('inspection_stage', 'qc_inspection')->last())
+                    <dt class="text-slate-500">Phiếu kiểm nghiệm QC</dt>
+                    <dd>
+                        @if($inspection)
+                            {{ $inspection->report_number }} · {{ $inspection->report_date?->format('d/m/Y') }} · {{ $inspection->result === 'passed' ? 'OK' : 'NG' }}
+                            @if($inspection->report_file)
+                                <a href="{{ route('material-lots.inspection-report', $inspection) }}" class="ml-1 text-blue-700 underline">Xem phiếu</a>
+                            @endif
+                        @else
+                            ---
+                        @endif
+                    </dd>
+                @endif
                 <dt class="text-slate-500">QC xác nhận</dt>
                 <dd>{{ $materialLot->qcBy->name ?? '---' }} · {{ $materialLot->qc_at?->format('d/m/Y H:i') }}</dd>
                 <dt class="text-slate-500">Kho lập phiếu</dt>
@@ -43,9 +57,7 @@
         @if($materialLot->materialReceipt)
             <section class="border border-slate-300 bg-white p-4 text-sm">
                 <h2 class="mb-2 font-bold uppercase">Tiếp nhận tạm {{ $materialLot->materialReceipt->receipt_code }}</h2>
-                <p>QA sơ bộ: {{ $materialLot->materialReceipt->preliminaryQa->name ?? '---' }}</p>
-                <p>QC sơ bộ: {{ $materialLot->materialReceipt->preliminaryQc->name ?? '---' }}</p>
-                @if($materialLot->materialReceipt->preliminary_note)<p class="mt-2 text-slate-600">{{ $materialLot->materialReceipt->preliminary_note }}</p>@endif
+                <p>Kho tiếp nhận: {{ $materialLot->materialReceipt->receiver->name ?? '---' }}</p>
             </section>
         @endif
     </div>

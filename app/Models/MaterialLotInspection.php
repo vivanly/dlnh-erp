@@ -10,6 +10,7 @@ class MaterialLotInspection extends Model
 
     protected $casts = [
         'checked_at' => 'datetime',
+        'report_date' => 'date',
     ];
 
     public function materialLot()

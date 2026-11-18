@@ -22,11 +22,11 @@ class QualityCatalogManagementTest extends TestCase
         $this->actingAs($qc)->get(route('product-quality-standards.index'))->assertOk()->assertSee(route('product-quality-standards.create'), false);
         $this->get(route('product-quality-standards.create'))->assertOk()->assertSee('name="standard_type"', false);
         $this->actingAs($qa)->get(route('product-quality-standards.create'))->assertForbidden();
-        $this->actingAs($qa)->post(route('product-quality-standards.store'), $this->standardData($product))->assertForbidden();
+        $this->actingAs($qa)->post(route('product-quality-standards.store'), $this->standardRequestData($product))->assertForbidden();
 
-        $this->actingAs($qc)->post(route('product-quality-standards.store'), $this->standardData($product))->assertRedirect(route('product-quality-standards.index'));
+        $this->actingAs($qc)->post(route('product-quality-standards.store'), $this->standardRequestData($product))->assertRedirect(route('product-quality-standards.index'));
         $standard = ProductQualityStandard::sole();
-        $this->actingAs($qc)->put(route('product-quality-standards.update', $standard), $this->standardData($product, ['indicator' => 'Moisture']))->assertRedirect(route('product-quality-standards.index'));
+        $this->actingAs($qc)->put(route('product-quality-standards.update', $standard), $this->standardRequestData($product, ['indicator' => 'Moisture']))->assertRedirect(route('product-quality-standards.index'));
         $this->assertDatabaseHas('product_quality_standards', ['id' => $standard->id, 'indicator' => 'Moisture']);
         $this->get(route('product-quality-standards.edit', $standard))->assertOk()->assertSee('value="Moisture"', false);
         $this->actingAs($qc)->delete(route('product-quality-standards.destroy', $standard))->assertRedirect(route('product-quality-standards.index'));
@@ -61,10 +61,49 @@ class QualityCatalogManagementTest extends TestCase
         $product = $this->product();
         $this->actingAs($it);
 
-        $this->post(route('product-quality-standards.store'), $this->standardData($product))->assertRedirect(route('product-quality-standards.index'));
+        $this->post(route('product-quality-standards.store'), $this->standardRequestData($product))->assertRedirect(route('product-quality-standards.index'));
         $this->post(route('product-storage-methods.store'), ['product_id' => $product->id, 'storage_method' => 'Store sealed'])->assertRedirect(route('product-storage-methods.index'));
         $this->assertDatabaseCount('product_quality_standards', 1);
         $this->assertDatabaseCount('product_storage_methods', 1);
+    }
+
+    public function test_quality_standards_can_be_filtered_by_product_classification(): void
+    {
+        $qc = User::factory()->create(['role' => 'qc']);
+        $herbalProduct = Product::create([
+            'name' => 'Herbal classification test',
+            'slug' => 'herbal-classification-test',
+            'sku' => 'HERBAL-CLASSIFICATION-TEST',
+            'classification' => 'DL',
+        ]);
+        $medicineProduct = Product::create([
+            'name' => 'Medicine classification test',
+            'slug' => 'medicine-classification-test',
+            'sku' => 'MEDICINE-CLASSIFICATION-TEST',
+            'classification' => 'TCT',
+        ]);
+        ProductQualityStandard::create($this->standardData($herbalProduct, ['indicator' => 'HERBAL-ONLY']));
+        ProductQualityStandard::create($this->standardData($medicineProduct, ['indicator' => 'MEDICINE-ONLY']));
+
+        $this->actingAs($qc)
+            ->get(route('product-quality-standards.create'))
+            ->assertOk()
+            ->assertSee('name="classification"', false)
+            ->assertSee('data-classification="TCT"', false)
+            ->assertSee('data-classification="DL"', false)
+            ->assertSee('Medicine classification test')
+            ->assertSee('TCT · Thuốc Cổ Truyền');
+
+        $this->actingAs($qc)
+            ->get(route('product-quality-standards.index', ['classification' => 'TCT']))
+            ->assertOk()
+            ->assertSee('TCT · Thuốc Cổ Truyền')
+            ->assertSee('MEDICINE-ONLY')
+            ->assertDontSee('HERBAL-ONLY');
+
+        $this->actingAs($qc)
+            ->post(route('product-quality-standards.store'), $this->standardRequestData($herbalProduct, ['classification' => 'TCT']))
+            ->assertSessionHasErrors('product_id');
     }
 
     private function product(): Product
@@ -81,6 +120,13 @@ class QualityCatalogManagementTest extends TestCase
             'requirement' => 'Product typical appearance',
             'method' => 'Visual inspection',
             'note' => null,
+        ], $overrides);
+    }
+
+    private function standardRequestData(Product $product, array $overrides = []): array
+    {
+        return array_merge($this->standardData($product), [
+            'classification' => $product->classification ?: '__unclassified',
         ], $overrides);
     }
 }

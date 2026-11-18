@@ -5,7 +5,8 @@
 - `migrate:fresh` chỉ dành cho môi trường phát triển hoặc staging có dữ liệu bỏ được. Lệnh này xóa toàn bộ bảng; không chạy trên production, kể cả kèm `--seed`.
 - Production chỉ chạy migration cộng dồn bằng `docker compose exec laravel.test php artisan migrate --force`.
 - Người được phép phát hành là quản trị hệ thống được công ty chỉ định, có quyền vào máy chủ và cơ sở dữ liệu. Người này cần xác nhận đúng máy/môi trường, bản sao lưu gần nhất và kế hoạch khôi phục trước khi áp dụng migration.
-- Seeder mặc định chỉ tạo danh mục phòng ban. Seeder không tạo tài khoản hoặc dữ liệu nhân sự.
+- `database/schema/mysql-schema.sql` là baseline cho database MySQL trống; các migration lịch sử vẫn được giữ để nâng cấp database đang tồn tại.
+- `DatabaseSeeder` tạo phòng ban và tài khoản nhân viên ban đầu bằng `UserSeeder`, trong đó có mật khẩu dùng chung khai báo trong mã nguồn. Chỉ chạy seeder này sau khi được duyệt trên môi trường phát triển; không chạy trên production và phải đổi mật khẩu trước khi mở truy cập.
 - Tài khoản nhân viên được IT cấp qua phần Quản trị người dùng; mật khẩu ban đầu phải từ 12 ký tự, có chữ hoa, chữ thường, số và ký hiệu. Không lưu mật khẩu dùng chung trong Git, Docker image hay file seed.
 
 ## Quy trình phát hành

@@ -262,7 +262,7 @@ class NotificationBellTest extends TestCase
             'initial_quantity' => 1,
             'current_quantity' => 1,
             'unit' => 'kg',
-            'status' => 'pending_qa',
+            'status' => 'pending_qc_inspection',
             'exp_date' => today()->addYear(),
         ]);
         $secondAllocation = SalesOrderLotAllocation::create([
@@ -446,20 +446,20 @@ class NotificationBellTest extends TestCase
                 'quantity' => 1,
                 'unit' => $item->unit,
                 'coa_file' => 'material-coas/' . $type . '.pdf',
-                'status' => 'pending_qa',
+                'status' => 'pending_qc_inspection',
             ]);
         }
 
         $items = collect($this->actingAs($qc)->getJson(route('notifications.summary'))->assertOk()->json('items'));
         foreach ([
-            'ingredient' => 'Nguyên liệu chờ QC xác nhận',
-            'accessory' => 'Phụ liệu chờ QC xác nhận',
-            'excipient' => 'Tá dược chờ QC xác nhận',
-            'packaging' => 'Bao bì chờ QC xác nhận',
+            'ingredient' => 'Nguyên liệu chờ QC xác định chất lượng',
+            'accessory' => 'Phụ liệu chờ QC xác định chất lượng',
+            'excipient' => 'Tá dược chờ QC xác định chất lượng',
+            'packaging' => 'Bao bì chờ QC xác định chất lượng',
         ] as $type => $label) {
             $notice = $items->firstWhere('label', $label);
             $this->assertSame(1, $notice['count']);
-            $this->assertSame(route('material-lots.index', ['type' => $type]), $notice['url']);
+            $this->assertSame(route('qc.material-lots.index', ['type' => $type]), $notice['url']);
         }
     }
 

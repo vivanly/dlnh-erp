@@ -61,7 +61,7 @@ class NotificationService
                 ->where('material_type', 'raw_material')
                 ->where(fn ($query) => $query->whereNull('coa_file')->orWhereNull('batch_number')->orWhereNull('mfg_date')->orWhereNull('exp_date'))
                 ->count();
-            $add('Dược liệu thô chờ QA cập nhật COA', $rawMaterialNeedsQa, 'material-lots.index', ['type' => 'raw_material', 'status' => 'pending_qa']);
+            $add('Dược liệu thô chờ QA cập nhật COA', $rawMaterialNeedsQa, 'qa.material-lots.index');
         }
 
         if (! $isExecutiveBoardMember && $user->isPlanningDepartment()) {
@@ -77,11 +77,11 @@ class NotificationService
                 'excipient' => 'Tá dược',
                 'packaging' => 'Bao bì',
             ] as $type => $label) {
-                $waitingForQc = \App\Models\MaterialLot::whereIn('status', ['pending_qa', 'pending_reinspection'])
+                $waitingForQc = \App\Models\MaterialLot::whereIn('status', ['pending_qc_inspection', 'pending_reinspection'])
                     ->where('material_type', $type)
                     ->when($type === 'raw_material', fn ($query) => $query->whereNotNull('coa_file')->whereNotNull('batch_number')->whereNotNull('mfg_date')->whereNotNull('exp_date'))
                     ->count();
-                $add("{$label} chờ QC xác nhận", $waitingForQc, 'material-lots.index', ['type' => $type]);
+                $add("{$label} chờ QC xác định chất lượng", $waitingForQc, 'qc.material-lots.index', ['type' => $type]);
             }
         }
 

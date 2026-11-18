@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Imports\ManualLabelProductsImport;
 use App\Models\ManualLabelProduct;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ManualLabelProductController extends Controller
 {
@@ -12,7 +14,7 @@ class ManualLabelProductController extends Controller
     {
         $this->authorizePrinting();
         $q = trim((string) $request->query('q'));
-        $like = '%' . addcslashes($q, '%_\\') . '%';
+        $like = '%'.addcslashes($q, '%_\\').'%';
 
         $products = ManualLabelProduct::query()
             ->when($q !== '', fn ($w) => $w->where(fn ($x) => $x->where('name', 'like', $like)->orWhere('scientific_name', 'like', $like)->orWhere('registration', 'like', $like)))
@@ -25,7 +27,7 @@ class ManualLabelProductController extends Controller
     {
         $this->authorizePrinting();
 
-        return view('manual-labels.product-form', ['product' => new ManualLabelProduct()]);
+        return view('manual-labels.product-form', ['product' => new ManualLabelProduct]);
     }
 
     public function store(Request $request)
@@ -56,7 +58,49 @@ class ManualLabelProductController extends Controller
         $this->authorizePrinting();
         $product->delete();
 
-        return back()->with('success', 'Đã xóa mã hàng ' . $product->name . '.');
+        return back()->with('success', 'Đã xóa mã hàng '.$product->name.'.');
+    }
+
+    public function importForm()
+    {
+        $this->authorizePrinting();
+
+        return view('manual-labels.product-import');
+    }
+
+    public function import(Request $request)
+    {
+        $this->authorizePrinting();
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:2048',
+        ], [
+            'file.required' => 'Vui lòng chọn file Excel.',
+            'file.mimes' => 'File phải có định dạng: xlsx, xls, csv.',
+            'file.max' => 'Dung lượng file không được vượt quá 2MB.',
+        ]);
+
+        $import = new ManualLabelProductsImport;
+        Excel::import($import, $request->file('file'));
+
+        $failures = $import->failures();
+        if ($failures->isNotEmpty()) {
+            $errorsByRow = $failures->groupBy(fn ($failure) => $failure->row());
+            $errors = $errorsByRow->take(10)->map(fn ($rowFailures, $row) => [
+                'row' => $row,
+                'messages' => $rowFailures->flatMap(fn ($failure) => $failure->errors())->unique()->values()->all(),
+            ])->values()->all();
+
+            return redirect()->route('manual-labels.products.import.form')
+                ->with('warning', sprintf(
+                    'Đã import %d mã hàng; bỏ qua %d dòng không hợp lệ.',
+                    $import->importedCount(),
+                    $errorsByRow->count()
+                ))
+                ->with('import_errors', $errors);
+        }
+
+        return redirect()->route('manual-labels.products')
+            ->with('success', sprintf('Import thành công %d mã hàng!', $import->importedCount()));
     }
 
     private function authorizePrinting(): void
