@@ -24,7 +24,7 @@
             @endif
             <div class="grid gap-2 sm:grid-cols-2">
                 <div><label class="{{ $lb }}">Lệnh sản xuất *</label><input name="production_order" value="{{ old('production_order', $order->production_order) }}" required class="{{ $in }}"></div>
-                <div><label class="{{ $lb }}">Ngày</label><input type="date" name="order_date" value="{{ old('order_date', $order->order_date?->format('Y-m-d')) }}" class="{{ $in }}"></div>
+                <div><label class="{{ $lb }}">Ngày (dd/mm/yyyy)</label><input name="order_date" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10" value="{{ \App\Services\ManualLabelOrders::dateForDisplay(old('order_date', $order->order_date?->format('Y-m-d'))) }}" class="{{ $in }}"></div>
                 @unless($isNew)<div><label class="{{ $lb }}">Mã nhãn</label><p class="mt-2 text-xs font-semibold">{{ $order->label_code }}</p></div>@endunless
             </div>
             <datalist id="product-names">@foreach($names as $n)<option value="{{ $n }}">@endforeach</datalist>
@@ -34,8 +34,8 @@
                         <div class="flex justify-between sm:col-span-2 lg:col-span-5"><strong class="text-xs" x-text="'Dòng ' + (index + 1)"></strong><button type="button" x-show="lines.length > 1" @click="lines.splice(index, 1)" class="text-xs text-rose-600">Xóa dòng</button></div>
                         <div class="lg:col-span-2"><label class="{{ $lb }}">Tên hàng *</label><input :name="`lines[${index}][name]`" x-model="line.name" list="product-names" required class="{{ $in }}"></div>
                         <div><label class="{{ $lb }}">Số lô *</label><input :name="`lines[${index}][batch]`" x-model="line.batch" required class="{{ $in }}"></div>
-                        <div><label class="{{ $lb }}">NSX</label><input type="date" :name="`lines[${index}][mfg_date]`" x-model="line.mfg_date" class="{{ $in }}"></div>
-                        <div><label class="{{ $lb }}">HSD</label><input type="date" :name="`lines[${index}][exp_date]`" x-model="line.exp_date" class="{{ $in }}"></div>
+                        <div><label class="{{ $lb }}">NSX (dd/mm/yyyy)</label><input :name="`lines[${index}][mfg_date]`" x-model="line.mfg_date" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10" class="{{ $in }}"></div>
+                        <div><label class="{{ $lb }}">HSD (dd/mm/yyyy)</label><input :name="`lines[${index}][exp_date]`" x-model="line.exp_date" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10" class="{{ $in }}"></div>
                         <div><label class="{{ $lb }}">QCĐG * (KG)</label><input :name="`lines[${index}][pack_spec]`" x-model="line.pack_spec" inputmode="decimal" placeholder="1 hoặc 0.5" required class="{{ $in }}"></div>
                         <div><label class="{{ $lb }}">Số lượng * (KG)</label><input :name="`lines[${index}][quantity]`" x-model="line.quantity" inputmode="decimal" placeholder="50 hoặc 0.5" required class="{{ $in }}"></div>
                         <div class="sm:col-span-2 lg:col-span-2"><label class="{{ $lb }}">Mẫu nhãn *</label><select :name="`lines[${index}][label_type]`" x-model="line.label_type" required class="{{ $in }}"><option value="">-- Chọn mẫu --</option>@foreach(\App\Http\Controllers\ManualLabelController::LABEL_TYPES as $value => $text)<option value="{{ $value }}">{{ $text }}</option>@endforeach</select></div>
@@ -50,8 +50,8 @@
                 <div class="grid gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-5">
                     <div class="sm:col-span-2"><label class="{{ $lb }}">Tên hàng *</label><input name="name" list="product-names" value="{{ old('name', $order->name) }}" required class="{{ $in }}"></div>
                     <div><label class="{{ $lb }}">Số lô *</label><input name="batch" value="{{ old('batch', $order->batch) }}" required class="{{ $in }}"></div>
-                    <div><label class="{{ $lb }}">NSX</label><input type="date" name="mfg_date" value="{{ old('mfg_date', $order->mfg_date?->format('Y-m-d')) }}" class="{{ $in }}"></div>
-                    <div><label class="{{ $lb }}">HSD</label><input type="date" name="exp_date" value="{{ old('exp_date', $order->exp_date?->format('Y-m-d')) }}" class="{{ $in }}"></div>
+                    <div><label class="{{ $lb }}">NSX (dd/mm/yyyy)</label><input name="mfg_date" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10" value="{{ \App\Services\ManualLabelOrders::dateForDisplay(old('mfg_date', $order->mfg_date?->format('Y-m-d'))) }}" class="{{ $in }}"></div>
+                    <div><label class="{{ $lb }}">HSD (dd/mm/yyyy)</label><input name="exp_date" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10" value="{{ \App\Services\ManualLabelOrders::dateForDisplay(old('exp_date', $order->exp_date?->format('Y-m-d'))) }}" class="{{ $in }}"></div>
                     <div><label class="{{ $lb }}">QCĐG * (KG)</label><input name="pack_spec" value="{{ old('pack_spec', $order->pack_spec) }}" inputmode="decimal" placeholder="Ví dụ: 1 hoặc 0.5" required class="{{ $in }}"></div>
                     <div><label class="{{ $lb }}">Số lượng * (KG)</label><input name="quantity" value="{{ old('quantity', $order->quantity) }}" inputmode="decimal" placeholder="Ví dụ: 50 hoặc 0.5" required class="{{ $in }}"></div>
                     <div class="sm:col-span-2 lg:col-span-2"><label class="{{ $lb }}">Mẫu nhãn *</label><select name="label_type" x-model="type" required class="{{ $in }}"><option value="">-- Chọn mẫu --</option>@foreach(\App\Http\Controllers\ManualLabelController::LABEL_TYPES as $value => $text)<option value="{{ $value }}">{{ $text }}</option>@endforeach</select></div>

@@ -312,6 +312,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/manual-label-orders', [\App\Http\Controllers\ManualLabelOrderController::class, 'index'])->name('manual-labels.orders');
     Route::get('/manual-label-orders/print', [\App\Http\Controllers\ManualLabelBatchController::class, 'create'])->name('manual-labels.batch.create');
     Route::post('/manual-label-orders/print', [\App\Http\Controllers\ManualLabelBatchController::class, 'store'])->name('manual-labels.batch.store');
+    Route::get('/manual-label-orders/import', [\App\Http\Controllers\ManualLabelOrderController::class, 'importForm'])->name('manual-labels.orders.import.form');
+    Route::post('/manual-label-orders/import', [\App\Http\Controllers\ManualLabelOrderController::class, 'import'])->name('manual-labels.orders.import');
+    Route::get('/manual-label-orders/export', [\App\Http\Controllers\ManualLabelOrderController::class, 'export'])->name('manual-labels.orders.export');
 Route::get('/manual-label-orders/create', [\App\Http\Controllers\ManualLabelOrderController::class, 'create'])->name('manual-labels.orders.create');
 Route::post('/manual-label-orders', [\App\Http\Controllers\ManualLabelOrderController::class, 'store'])->name('manual-labels.orders.store');
 Route::get('/manual-label-orders/{order}/edit', [\App\Http\Controllers\ManualLabelOrderController::class, 'edit'])->name('manual-labels.orders.edit');

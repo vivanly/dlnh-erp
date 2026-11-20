@@ -66,7 +66,7 @@ class ManualLabelPrintTest extends TestCase
         $this->actingAs($user)->get('/manual-label-sources')->assertNotFound();
         $this->actingAs($user)->post('/manual-label-sources', [])->assertNotFound();
         $this->actingAs($user)->get(route('manual-labels.orders', ['q' => 'nh000001']))
-            ->assertOk()->assertSee('TRẦN BÌ SAO VÀNG')->assertSee('Chưa in')->assertDontSee('Import Excel');
+            ->assertOk()->assertSee('TRẦN BÌ SAO VÀNG')->assertSee('Chưa in')->assertSee('Import Excel');
         $this->actingAs($user)->get(route('manual-labels.orders', ['q' => 'NH000002']))
             ->assertOk()->assertSee('chưa có mã hàng');
         $this->actingAs($blocked)->get(route('manual-labels.orders'))->assertForbidden();

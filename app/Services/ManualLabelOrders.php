@@ -5,12 +5,46 @@ namespace App\Services;
 use App\Models\ManualLabelPrint;
 use App\Models\ManualLabelProduct;
 use App\Models\ManualLabelProductionOrder;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ManualLabelOrders
 {
+    public static function dateToIso(mixed $value): mixed
+    {
+        if ($value === null || (is_string($value) && trim($value) === '')) {
+            return null;
+        }
+        if (! is_string($value)) {
+            return $value;
+        }
+
+        $value = trim($value);
+        foreach (['d/m/Y', 'Y-m-d'] as $format) {
+            try {
+                $date = Carbon::createFromFormat('!'.$format, $value);
+                if ($date && $date->format($format) === $value) {
+                    return $date->format('Y-m-d');
+                }
+            } catch (\InvalidArgumentException $exception) {
+                // Try the other supported format.
+            }
+        }
+
+        return $value;
+    }
+
+    public static function dateForDisplay(?string $value): ?string
+    {
+        $iso = self::dateToIso($value);
+
+        return $iso && preg_match('/^\d{4}-\d{2}-\d{2}$/', $iso)
+            ? substr($iso, 8, 2).'/'.substr($iso, 5, 2).'/'.substr($iso, 0, 4)
+            : $iso;
+    }
+
     public static function ensureReady(): void
     {
         if (! Schema::hasTable('manual_label_sequences')

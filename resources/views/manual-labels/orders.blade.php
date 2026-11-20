@@ -5,7 +5,7 @@
                 <h2 class="font-bold text-sm uppercase tracking-wide text-slate-800">In Nhãn Tay / Lệnh sản xuất</h2>
                 <p class="mt-1 text-xs text-slate-500">Tìm theo mã nhãn, lệnh SX, tên hàng hoặc số lô. In theo lệnh để chọn số lượng cho từng mã nhãn.</p>
             </div>
-            <div class="flex items-center gap-3"><a href="{{ route('manual-labels.batch.create') }}" class="text-[11px] font-semibold text-blue-700 hover:underline">In theo lệnh SX</a><a href="{{ route('manual-labels.create') }}" class="text-[11px] font-semibold text-blue-700 hover:underline">In nhãn nhập tay</a><a href="{{ route('manual-labels.orders.create') }}" class="rounded-md bg-blue-700 px-3.5 py-2 text-[11px] font-bold uppercase text-white hover:bg-blue-600">+ Thêm lệnh</a></div>
+            <div class="flex flex-wrap items-center gap-3"><a href="{{ route('manual-labels.batch.create') }}" class="text-[11px] font-semibold text-blue-700 hover:underline">In theo lệnh SX</a><a href="{{ route('manual-labels.create') }}" class="text-[11px] font-semibold text-blue-700 hover:underline">In nhãn nhập tay</a><a href="{{ route('manual-labels.orders.import.form') }}" class="rounded-md bg-emerald-700 px-3.5 py-2 text-[11px] font-bold uppercase text-white hover:bg-emerald-600">Import Excel</a><a href="{{ route('manual-labels.orders.create') }}" class="rounded-md bg-blue-700 px-3.5 py-2 text-[11px] font-bold uppercase text-white hover:bg-blue-600">+ Thêm lệnh</a></div>
         </div>
     </x-slot>
 
@@ -17,6 +17,13 @@
                 <input name="q" value="{{ $q }}" placeholder="Mã nhãn (NH001), lệnh SX, tên hàng, số lô" autofocus class="h-8 w-80 border border-slate-300 px-2 text-xs focus:border-blue-500 focus:ring-0">
                 <button class="h-8 bg-blue-700 px-4 text-[11px] font-bold uppercase text-white hover:bg-blue-600">Tìm</button>
                 @if($q !== '')<a href="{{ route('manual-labels.orders') }}" class="text-[11px] font-semibold text-slate-500 hover:underline">Bỏ lọc</a>@endif
+            </form>
+            <form method="GET" action="{{ route('manual-labels.orders.export') }}" x-data="{ period: 'day' }" class="flex flex-wrap items-end gap-2 border border-slate-300 bg-white p-3 text-xs">
+                <div><label for="export-period" class="block font-semibold">Xuất Excel theo</label><select id="export-period" name="period" x-model="period" class="mt-1 h-8 border-slate-300 py-0 text-xs"><option value="day">Ngày</option><option value="week">Tuần</option><option value="month">Tháng</option><option value="range">Khoảng thời gian</option></select></div>
+                <div><label for="export-start" class="block font-semibold" x-text="period === 'range' ? 'Từ ngày' : 'Chọn ngày'"></label><input id="export-start" name="start" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10" value="{{ \App\Services\ManualLabelOrders::dateForDisplay(old('start', today()->toDateString())) }}" required class="mt-1 h-8 border-slate-300 py-0 text-xs"></div>
+                <div x-show="period === 'range'"><label for="export-end" class="block font-semibold">Đến ngày</label><input id="export-end" name="end" inputmode="numeric" placeholder="dd/mm/yyyy" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" maxlength="10" :disabled="period !== 'range'" :required="period === 'range'" value="{{ \App\Services\ManualLabelOrders::dateForDisplay(old('end')) }}" class="mt-1 h-8 border-slate-300 py-0 text-xs"></div>
+                <button class="h-8 bg-emerald-700 px-4 text-[11px] font-bold uppercase text-white hover:bg-emerald-600">Export Excel</button>
+                <span class="text-slate-500">Lọc theo ngày lệnh; tuần từ thứ Hai đến Chủ nhật.</span>
             </form>
 
             @if(! $hasData)

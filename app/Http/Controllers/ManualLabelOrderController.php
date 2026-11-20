@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ManualLabelOrdersExport;
+use App\Imports\ManualLabelOrdersImport;
 use App\Models\ManualLabelPrint;
 use App\Models\ManualLabelProduct;
 use App\Models\ManualLabelProductionOrder;
 use App\Services\ManualLabelOrders;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\HeadingRowImport;
 
 class ManualLabelOrderController extends Controller
 {
@@ -58,24 +64,100 @@ class ManualLabelOrderController extends Controller
         ]);
     }
 
+    public function importForm()
+    {
+        abort_unless(auth()->user()?->canPrintLabels(), 403);
+
+        return view('manual-labels.order-import');
+    }
+
+    public function import(Request $request)
+    {
+        abort_unless(auth()->user()?->canPrintLabels(), 403);
+        $request->validate(['file' => ['required', 'mimes:xlsx,xls,csv', 'max:2048']]);
+
+        $headings = (new HeadingRowImport)->toArray($request->file('file'))[0][0] ?? [];
+        $required = ['production_order', 'name', 'batch', 'pack_spec', 'quantity', 'label_type'];
+        $missing = array_diff($required, $headings);
+        if ($missing) {
+            throw ValidationException::withMessages(['file' => 'Thiếu cột: '.implode(', ', $missing).'.']);
+        }
+
+        $import = new ManualLabelOrdersImport;
+        Excel::import(new class($import) implements WithMultipleSheets {
+            public function __construct(private ManualLabelOrdersImport $import) {}
+
+            public function sheets(): array
+            {
+                return [0 => $this->import];
+            }
+        }, $request->file('file'));
+        $summary = sprintf('Đã import %d dòng; bỏ qua %d dòng trùng và %d dòng không hợp lệ.', $import->imported, $import->duplicates, count($import->errors));
+        if ($import->errors) {
+            return redirect()->route('manual-labels.orders.import.form')->with('warning', $summary)
+                ->with('import_errors', array_slice($import->errors, 0, 10));
+        }
+
+        return redirect()->route('manual-labels.orders')->with('success', $summary);
+    }
+
+    public function export(Request $request)
+    {
+        abort_unless(auth()->user()?->canPrintLabels(), 403);
+        $input = $request->all();
+        foreach (['start', 'end'] as $field) {
+            $input[$field] = ManualLabelOrders::dateToIso($input[$field] ?? null);
+        }
+        $data = validator($input, [
+            'period' => ['required', 'in:day,week,month,range'],
+            'start' => ['required', 'date_format:Y-m-d'],
+            'end' => ['required_if:period,range', 'nullable', 'date_format:Y-m-d', 'after_or_equal:start'],
+        ], ['date_format' => ':attribute phải là ngày hợp lệ theo định dạng dd/mm/yyyy.'])->validate();
+        $start = Carbon::createFromFormat('!Y-m-d', $data['start']);
+        $end = $start->copy();
+        if ($data['period'] === 'week') {
+            $start->startOfWeek();
+            $end->endOfWeek();
+        } elseif ($data['period'] === 'month') {
+            $start->startOfMonth();
+            $end->endOfMonth();
+        } elseif ($data['period'] === 'range') {
+            $end = Carbon::createFromFormat('!Y-m-d', $data['end']);
+        }
+
+        return Excel::download(new ManualLabelOrdersExport($start->toDateString(), $end->toDateString()), 'lenh-san-xuat.xlsx');
+    }
+
     public function store(Request $request)
     {
         abort_unless(auth()->user()?->canPrintLabels(), 403);
-        $data = $request->validate([
+        $input = $request->all();
+        $input['order_date'] = ManualLabelOrders::dateToIso($input['order_date'] ?? null);
+        if (isset($input['lines']) && is_array($input['lines'])) {
+            foreach ($input['lines'] as &$line) {
+                if (is_array($line)) {
+                    foreach (['mfg_date', 'exp_date'] as $field) {
+                        $line[$field] = ManualLabelOrders::dateToIso($line[$field] ?? null);
+                    }
+                }
+            }
+            unset($line);
+        }
+        $data = validator($input, [
             'production_order' => ['required', 'string', 'max:64'],
-            'order_date' => ['nullable', 'date'],
+            'order_date' => ['nullable', 'date_format:Y-m-d'],
             'lines' => ['required', 'array', 'min:1', 'max:200'],
             'lines.*.name' => ['required', 'string', 'max:255'],
             'lines.*.batch' => ['required', 'string', 'max:100'],
-            'lines.*.mfg_date' => ['nullable', 'date'],
-            'lines.*.exp_date' => ['nullable', 'date', 'after_or_equal:lines.*.mfg_date'],
+            'lines.*.mfg_date' => ['nullable', 'date_format:Y-m-d'],
+            'lines.*.exp_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:lines.*.mfg_date'],
             'lines.*.pack_spec' => ['required', 'string', 'max:64'],
             'lines.*.quantity' => ['required', 'string', 'max:64'],
             'lines.*.label_type' => ['required', 'in:' . implode(',', array_keys(ManualLabelController::LABEL_TYPES))],
             'lines.*.traditional_medicine_name' => ['nullable', 'boolean'],
             'lines.*.qr_content' => ['nullable', 'string', 'max:1000'],
             'lines.*.storage' => ['nullable', 'string', 'max:255'],
-        ]);
+        ], ['date_format' => ':attribute phải là ngày hợp lệ theo định dạng dd/mm/yyyy.'])->validate();
         foreach ($data['lines'] as $index => $line) {
             $normalized = ManualLabelOrders::normalizeWeightInputs($line);
             if ($normalized['quantity'] === null || $normalized['pack_spec'] === null) {
@@ -164,19 +246,24 @@ class ManualLabelOrderController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
-            'order_date' => ['nullable', 'date'],
+        $input = $request->all();
+        foreach (['order_date', 'mfg_date', 'exp_date'] as $field) {
+            $input[$field] = ManualLabelOrders::dateToIso($input[$field] ?? null);
+        }
+
+        return validator($input, [
+            'order_date' => ['nullable', 'date_format:Y-m-d'],
             'production_order' => ['required', 'string', 'max:64'],
             'name' => ['required', 'string', 'max:255'],
             'batch' => ['required', 'string', 'max:100'],
-            'mfg_date' => ['nullable', 'date'],
-            'exp_date' => ['nullable', 'date', 'after_or_equal:mfg_date'],
+            'mfg_date' => ['nullable', 'date_format:Y-m-d'],
+            'exp_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:mfg_date'],
             'pack_spec' => ['required', 'string', 'max:64'],
             'quantity' => ['required', 'string', 'max:64'],
             'label_type' => ['required', 'in:' . implode(',', array_keys(ManualLabelController::LABEL_TYPES))],
             'traditional_medicine_name' => ['nullable', 'boolean'],
             'qr_content' => ['nullable', 'string', 'max:1000'],
             'storage' => ['nullable', 'string', 'max:255'],
-        ]);
+        ], ['date_format' => ':attribute phải là ngày hợp lệ theo định dạng dd/mm/yyyy.'])->validate();
     }
 }
