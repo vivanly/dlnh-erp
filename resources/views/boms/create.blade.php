@@ -17,13 +17,30 @@
             <form method="POST" action="{{ route('boms.store') }}" class="space-y-3" id="bom-form">
                 @csrf
                 <section class="bg-white border border-slate-300 p-4">
+                    @php
+                        $selectedProduct = $products->first(fn ($product) => (string) $product->id === (string) old('product_id'));
+                        $selectedClassification = $selectedProduct
+                            ? ($selectedProduct->classification ?: '__unclassified')
+                            : '';
+                    @endphp
                     <h3 class="mb-3 border-b border-slate-200 pb-2 text-xs font-bold uppercase text-slate-700">Thành phẩm và sản lượng đầu ra</h3>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <label class="block font-semibold text-slate-700">Loại thành phẩm
+                            <select id="bom-product-classification" required class="mt-1 w-full text-xs border-slate-300 rounded-none">
+                                <option value="">Chọn loại thành phẩm</option>
+                                @foreach($classifications as $code => $label)
+                                    <option value="{{ $code }}" @selected($selectedClassification === $code)>{{ $code }} · {{ $label }}</option>
+                                @endforeach
+                                @if($products->contains(fn ($product) => blank($product->classification)))
+                                    <option value="__unclassified" @selected($selectedClassification === '__unclassified')>Chưa phân loại</option>
+                                @endif
+                            </select>
+                        </label>
                         <label class="block font-semibold text-slate-700">Thành phẩm
-                            <select name="product_id" id="bom-product" required class="mt-1 w-full text-xs border-slate-300 rounded-none">
+                            <select name="product_id" id="bom-product" required disabled class="mt-1 w-full text-xs border-slate-300 rounded-none disabled:bg-slate-100">
                                 <option value="">Chọn sản phẩm</option>
                                 @foreach($products as $product)
-                                    <option value="{{ $product->id }}" data-unit="{{ $product->unit }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>{{ $product->classification ? $product->classification . ' · ' . $product->classification_label : 'Chưa phân loại' }} · {{ $product->name }} · {{ $product->sku }}</option>
+                                    <option value="{{ $product->id }}" data-classification="{{ $product->classification ?: '__unclassified' }}" data-unit="{{ $product->unit }}" {{ old('product_id') == $product->id ? 'selected' : '' }}>{{ $product->classification ? $product->classification_label . ' · ' : '' }}{{ $product->name }}{{ $product->sku ? ' · ' . $product->sku : '' }}</option>
                                 @endforeach
                             </select>
                         </label>
@@ -81,9 +98,32 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const tbody = document.getElementById('bom-items');
+            const outputClassification = document.getElementById('bom-product-classification');
             const outputProduct = document.getElementById('bom-product');
             const outputUnit = document.querySelector('[name="output_unit"]');
             const outputFactor = document.querySelector('[name="output_to_base_factor"]');
+
+            function filterOutputProducts(reset = true) {
+                const classification = outputClassification.value;
+                let availableCount = 0;
+
+                outputProduct.querySelectorAll('option[data-classification]').forEach(function (option) {
+                    const visible = classification !== '' && option.dataset.classification === classification;
+                    option.hidden = !visible;
+                    option.disabled = !visible;
+                    if (visible) availableCount++;
+                });
+
+                if (reset || outputProduct.selectedOptions[0]?.disabled) {
+                    outputProduct.value = '';
+                    outputUnit.value = '';
+                    outputFactor.value = '';
+                }
+                outputProduct.disabled = !classification || availableCount === 0;
+                outputProduct.options[0].textContent = !classification
+                    ? 'Chọn loại thành phẩm trước'
+                    : (availableCount ? 'Chọn thành phẩm' : 'Chưa có thành phẩm thuộc loại này');
+            }
 
             function filterComponents(row, reset = true) {
                 const category = row.querySelector('select[name$="[category]"]');
@@ -133,6 +173,9 @@
                 }
             }
 
+            outputClassification.addEventListener('change', function () {
+                filterOutputProducts(true);
+            });
             outputProduct.addEventListener('change', function () {
                 outputUnit.value = outputProduct.selectedOptions[0].dataset.unit || '';
                 syncOutputUnitFactor();
@@ -182,6 +225,7 @@
                     });
                 }
             });
+            filterOutputProducts(false);
         });
     </script>
     @endpush

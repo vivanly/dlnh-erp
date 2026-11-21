@@ -88,6 +88,7 @@ class BomController extends Controller
         $this->ensureBomAccess();
 
         $products = Product::orderBy('name')->get(['id', 'name', 'sku', 'unit', 'classification']);
+        $classifications = Product::CLASSIFICATIONS;
         $componentGroups = collect($this->componentTypes())
             ->except('product')
             ->map(function (array $type, string $key) {
@@ -105,7 +106,7 @@ class BomController extends Controller
             ];
         });
 
-        return view('boms.create', compact('products', 'componentGroups'));
+        return view('boms.create', compact('products', 'classifications', 'componentGroups'));
     }
 
     public function plan(Request $request, BomMaterialCalculator $calculator)

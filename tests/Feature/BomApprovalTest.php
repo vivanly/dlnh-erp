@@ -202,6 +202,10 @@ class BomApprovalTest extends TestCase
             ->assertSee('<option value="excipient">Tá dược</option>', false)
             ->assertSee('<option value="packaging">Bao bì</option>', false)
             ->assertSee('Chọn phân loại')
+            ->assertSee('Loại thành phẩm')
+            ->assertSee('Chọn loại thành phẩm')
+            ->assertSee('data-classification="VT"', false)
+            ->assertSee('id="bom-product-classification"', false)
             ->assertSee('Tên thành phần')
             ->assertSee('Hệ số quy đổi')
             ->assertSee('ĐVT gốc trên mỗi ĐVT nhập');
